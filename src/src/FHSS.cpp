@@ -105,7 +105,7 @@ void FHSSrandomiseFHSSsequence()
     DEBUG_PRINTLN("Setting 868MHz Mode");
 #elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
     DEBUG_PRINTLN("Setting 433MHz Mode");
-#elif defined(Regulatory_Domain_ISM_2400)
+#elif defined(Regulatory_Domain_ISM_2400) ||  defined(Regulatory_Domain_ISM_2400_800kHz)
     DEBUG_PRINTLN("Setting ISM 2400 Mode");
 #else
 #error No regulatory domain defined, please define one in common.h

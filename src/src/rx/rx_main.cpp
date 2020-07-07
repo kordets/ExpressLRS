@@ -615,7 +615,7 @@ void setup()
     // Prepare radio
 #if defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
     Radio.RFmodule = RFMOD_SX1278;
-#elif !defined(Regulatory_Domain_ISM_2400)
+#elif !RADIO_SX128x
     Radio.RFmodule = RFMOD_SX1276;
 #endif
     Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1, GPIO_PIN_DIO2,

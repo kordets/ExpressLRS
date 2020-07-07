@@ -365,7 +365,7 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
         out[4] = 1;
 #elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
         out[4] = 2;
-#elif defined(Regulatory_Domain_ISM_2400)
+#elif defined(Regulatory_Domain_ISM_2400) ||  defined(Regulatory_Domain_ISM_2400_800kHz)
         out[4] = 3;
 #else
         out[4] = 0xff;
@@ -563,7 +563,7 @@ void setup()
 
 #if defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
     Radio.RFmodule = RFMOD_SX1278;
-#elif !defined(Regulatory_Domain_ISM_2400)
+#elif !RADIO_SX128x
     Radio.RFmodule = RFMOD_SX1276;
 #endif
     Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1, GPIO_PIN_DIO2,

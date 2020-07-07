@@ -1,9 +1,9 @@
 #pragma once
 
 #if RADIO_SX128x
-#ifndef Regulatory_Domain_ISM_2400
-#error "Not suitable build target! Enable ISM 2400 regulatory domain or use other targets"
-#endif
+//#if !defined(Regulatory_Domain_ISM_2400) && !defined(Regulatory_Domain_ISM_2400_800kHz)
+//#error "Not suitable build target! Enable ISM 2400 regulatory domain or use other targets"
+//#endif
 #include "SX1280.h"
 #else
 #include "LoRa_SX127x.h"

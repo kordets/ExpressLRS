@@ -11,15 +11,23 @@
 local version = 'v0.1'
 local gotFirstResp = false
 
--- TODO: change rate keys per RF freq!
+local SX127x_RATES = {
+    list = {'200 Hz', '100 Hz', '50 Hz'},
+    values = {0x00, 0x01, 0x02},
+}
+local SX128x_RATES = {
+    list = {'250 Hz', '125 Hz', '50 Hz'},
+    values = {0x00, 0x01, 0x02},
+}
+
 local AirRate = {
     index = 1,
     editable = true,
     name = 'Pkt. Rate',
     selected = 99,
-    list = {'200 Hz', '100 Hz', '50 Hz'},
-    values = {0x00, 0x01, 0x02},
-    max_allowed = 3,
+    list = SX127x_RATES.list,
+    values = SX127x_RATES.values,
+    max_allowed = #SX127x_RATES.values,
 }
 
 local TLMinterval = {
@@ -254,6 +262,20 @@ local function processResp()
                 end
                 if data[7] ~= 0xff and data[7] < #RFfreq.list then
                     RFfreq.selected = data[7] + 1
+                    if data[7] == 3 then
+                        -- ISM 2400 band (SX128x)
+                        AirRate.list = SX128x_RATES.list
+                        AirRate.values = SX128x_RATES.values
+                        AirRate.max_allowed = #SX128x_RATES.values
+                    else
+                        -- 433/868/915 (SX127x)
+                        AirRate.list = SX127x_RATES.list
+                        AirRate.values = SX127x_RATES.values
+                        AirRate.max_allowed = #SX127x_RATES.values
+                    end
+                else
+                    AirRate.max_allowed = 0
+                    AirRate.selected = 99
                 end
 
                 gotFirstResp = true -- detect when first contact is made with TX module

@@ -257,7 +257,7 @@ void platform_setup(void)
 #if defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
     digitalWrite(GPIO_SELECT_RFIO_HIGH, 0);
     digitalWrite(GPIO_SELECT_RFIO_LOW, 1);
-#elif defined(Regulatory_Domain_ISM_2400)
+#elif defined(RADIO_SX128x)
 #error "Not implemented!"
 
 #else

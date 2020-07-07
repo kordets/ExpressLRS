@@ -331,9 +331,13 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
         ]
 
     elif DOMAIN == "Regulatory_Domain_ISM_2400":
-        # These are for 800kHz band
+        # These are for 1625kHz band
+        FHSSfreqs = [x for x in range(2400400000, 2480000000, 1630000)]
+
+    elif DOMAIN == "Regulatory_Domain_ISM_2400_800kHz":
+        # These are for 812.5kHz band
         #FHSSfreqs = [x for x in range(2400400000, 2480000000, 1000000)]
-        FHSSfreqs = [x for x in range(2400400000, 2480000000, 1625000)]
+        FHSSfreqs = [x for x in range(2400400000, 2480000000, 900000)]
 
     else:
         raise Exception("[error] No regulatory domain defined, please define one in common.h")

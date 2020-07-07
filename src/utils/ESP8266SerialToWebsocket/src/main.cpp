@@ -145,6 +145,24 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
               else
                 value = "Regulatory domain UNKNOWN";
               elem.innerHTML = value;
+
+              // update rate options
+              var rates = document.getElementById("rates_input");
+              while (rates.length > 0) {
+                rates.remove(rates.length-1);
+              }
+              var options = [];
+              if (value == "3") {
+                options = ['250Hz', '125Hz', '50Hz'];
+              } else {
+                options = ['200Hz', '100Hz', '50Hz'];
+              }
+              for (i = 0; i < options.length; i++) {
+                var option = document.createElement("option");
+                option.text = options[i];
+                option.value = i;
+                rates.add(option);
+              }
             } else {
               value = value.split(",");
               if (1 < value.length) {
