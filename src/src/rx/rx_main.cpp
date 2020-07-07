@@ -3,7 +3,11 @@
 #include "utils.h"
 #include "common.h"
 #include "LowPassFilter.h"
+#if RADIO_SX128x
+#include "SX1280.h"
+#else
 #include "LoRa_SX127x.h"
+#endif
 #include "CRSF_RX.h"
 #include "FHSS.h"
 #include "rx_LinkQuality.h"
@@ -23,7 +27,11 @@ void ICACHE_RAM_ATTR LostConnection();
 
 ///////////////////
 
+#if RADIO_SX128x
+SX1280Driver Radio(RadioSpi);
+#else
 SX127xDriver Radio(RadioSpi);
+#endif
 CRSF_RX crsf(CrsfSerial); //pass a serial port object to the class for it to use
 RcChannels rc_ch;
 
@@ -607,12 +615,13 @@ void setup()
     // Prepare radio
 #if defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
     Radio.RFmodule = RFMOD_SX1278;
-#else
+#elif !defined(Regulatory_Domain_ISM_2400)
     Radio.RFmodule = RFMOD_SX1276;
 #endif
-    Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1);
+    Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1, GPIO_PIN_DIO2,
+                  GPIO_PIN_BUSY, GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
     Radio.SetSyncWord(getSyncWord());
-    Radio.Begin(GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
+    Radio.Begin();
     Radio.SetOutputPower(0b1111); // default is max power (17dBm for RX)
     Radio.RXdoneCallback1 = ProcessRFPacketCallback;
     Radio.TXdoneCallback1 = tx_done_cb;

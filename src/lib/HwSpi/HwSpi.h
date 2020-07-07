@@ -8,14 +8,14 @@ class HwSpi : public SPIClass
 public:
     HwSpi();
 
-    void prepare(void)
+    void prepare(uint32_t speed)
     {
         pinMode(MOSI, OUTPUT);
         pinMode(MISO, INPUT);
         pinMode(SCK, OUTPUT);
         pinMode(SS, OUTPUT);
         digitalWrite(SS, HIGH);
-        platform_init();
+        platform_init(speed);
     }
 
     void set_ss(uint8_t state)
@@ -29,7 +29,7 @@ public:
 private:
     int SS, MOSI, MISO, SCK;
 
-    void platform_init(void);
+    void platform_init(uint32_t speed);
 };
 
 extern HwSpi RadioSpi;

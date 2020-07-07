@@ -1,7 +1,7 @@
 #pragma once
 
 #include "platform.h"
-#include "RadioHalSpi.h"
+#include "RadioInterface.h"
 #include <stdint.h>
 
 typedef enum
@@ -43,35 +43,15 @@ typedef enum
     RFMOD_SX1276
 } RFmodule_;
 
-#define RX_BUFFER_LEN (8)
-
 #define SX127X_SYNC_WORD          0xC8  //  200 - default ExpressLRS sync word - 200Hz
 #define SX127X_SYNC_WORD_LORAWAN  0x34  //  52  - sync word reserved for LoRaWAN networks
 
-class SX127xDriver: public RadioHalSpi
+#define SX127X_SPI_SPEED 10000000
+
+class SX127xDriver: public RadioInterface
 {
 public:
     SX127xDriver(HwSpi &spi);
-
-    ///////Callback Function Pointers/////
-    static void rx_nullCallback(uint8_t *){};
-    static void tx_nullCallback(){};
-    static void (*RXdoneCallback1)(uint8_t *buff); //function pointer for callback
-    //static void (*RXdoneCallback2)(uint8_t *buff); //function pointer for callback
-    static void (*TXdoneCallback1)(); //function pointer for callback
-    static void (*TXdoneCallback2)(); //function pointer for callback
-    static void (*TXdoneCallback3)(); //function pointer for callback
-    static void (*TXdoneCallback4)(); //function pointer for callback
-
-    ////////Hardware/////////////
-    volatile int8_t _RXenablePin;
-    volatile int8_t _TXenablePin;
-
-    volatile int8_t SX127x_dio0;
-    volatile int8_t SX127x_dio1;
-    volatile int8_t SX127x_RST;
-
-    /////////////////////////////
 
     ///////////Radio Variables////////
     volatile bool headerExplMode;
@@ -95,13 +75,12 @@ public:
     /////////////////////////////////
 
     ////////////////Configuration Functions/////////////
-    void SetPins(int rst, int dio0, int dio1);
-    uint8_t Begin(int txpin = -1, int rxpin = -1);
+    uint8_t Begin(void);
     uint8_t Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
                    uint32_t freq = 0, uint8_t syncWord = 0, uint8_t crc = 0);
 
     uint32_t getCurrBandwidth() const;
-    uint8_t SetSyncWord(uint8_t syncWord);
+    void SetSyncWord(uint8_t syncWord);
     void SetOutputPower(uint8_t Power);
     void SetPreambleLength(uint16_t PreambleLen);
     void ICACHE_RAM_ATTR SetFrequency(uint32_t freq, uint8_t mode);
@@ -118,9 +97,6 @@ public:
     uint8_t RunCAD(uint32_t timeout = 500);
     uint8_t ICACHE_RAM_ATTR RX(uint32_t freq, uint8_t *data, uint8_t length, uint32_t timeout = UINT32_MAX);
 
-    uint8_t ICACHE_RAM_ATTR GetLastPacketRSSIUnsigned();
-    int16_t ICACHE_RAM_ATTR GetLastPacketRSSI();
-    int8_t ICACHE_RAM_ATTR GetLastPacketSNR();
     void ICACHE_RAM_ATTR GetLastRssiSnr();
     int16_t ICACHE_RAM_ATTR GetCurrRSSI() const;
 
@@ -155,4 +131,7 @@ private:
     void ICACHE_RAM_ATTR reg_dio1_isr_mask_write(uint8_t mask);
 };
 
+#if !RADIO_SX128x
 extern SX127xDriver Radio;
+typedef SX127xDriver SXRadioDriver;
+#endif

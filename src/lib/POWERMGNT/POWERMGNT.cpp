@@ -5,7 +5,7 @@
 extern R9DAC r9dac;
 #endif
 
-POWERMGNT::POWERMGNT(SX127xDriver &radio)
+POWERMGNT::POWERMGNT(SXRadioDriver &radio)
     : p_radio(radio), p_current_power(PWR_UNKNOWN)
 {
 }

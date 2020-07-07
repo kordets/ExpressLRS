@@ -1,6 +1,13 @@
 #pragma once
 
+#if RADIO_SX128x
+#ifndef Regulatory_Domain_ISM_2400
+#error "Not suitable build target! Enable ISM 2400 regulatory domain or use other targets"
+#endif
+#include "SX1280.h"
+#else
 #include "LoRa_SX127x.h"
+#endif
 #include <stdint.h>
 
 #define BUTTON_RESET_INTERVAL_RX  4000u // Hold button for 4 sec to reboot RX
@@ -51,30 +58,34 @@ typedef enum
 
 enum
 {
+#if RADIO_SX128x
+    RATE_250HZ,
+#else
     RATE_200HZ,
+#endif
     RATE_100HZ,
     RATE_50HZ,
+#if !RADIO_SX128x
     //RATE_25HZ,
     //RATE_4HZ,
+#endif
     RATE_MAX
 };
 
 #define RATE_GET_OSD_NUM(_x) ((RATE_MAX + 1) - (_x))
-#define RATE_DEFAULT         RATE_200HZ
+#define RATE_DEFAULT         0 // RATE_200HZ or 250Hz
 
 typedef struct expresslrs_mod_settings_s
 {
     Bandwidth bw;
     SpreadingFactor sf;
     CodingRate cr;
-    int32_t sensitivity;     // expected RF sensitivity based on
     uint32_t interval;       // interval in us seconds that corresponds to that frequnecy
     uint8_t rate;            // rate in hz
     uint8_t TLMinterval;     // every X packets is a response TLM packet, should be a power of 2
     uint8_t FHSShopInterval; // every X packets we hope to a new frequnecy.
     uint8_t PreambleLen;
     uint8_t enum_rate;
-    uint32_t air_time;
     uint16_t connectionLostTimeout;
     uint16_t syncSearchTimeout;
     uint32_t syncInterval;

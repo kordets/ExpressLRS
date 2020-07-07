@@ -9,7 +9,7 @@ HwSpi::HwSpi() : SPIClass()
     SCK = GPIO_PIN_SCK;
 }
 
-void HwSpi::platform_init(void)
+void HwSpi::platform_init(uint32_t speed)
 {
     //setMOSI(MOSI);
     //setMISO(MISO);

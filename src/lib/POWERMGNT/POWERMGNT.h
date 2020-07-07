@@ -1,6 +1,10 @@
 #pragma once
 
+#if RADIO_SX128x
+#include "SX1280.h"
+#else
 #include "LoRa_SX127x.h"
+#endif
 
 #ifdef TARGET_R9M_TX
 #define MaxPower PWR_1000mW // was PWR_2000mW
@@ -37,14 +41,14 @@ typedef enum
 class POWERMGNT
 {
 private:
-    SX127xDriver &p_radio;
+    SXRadioDriver &p_radio;
     PowerLevels_e p_current_power = PWR_10mW;
     uint_fast8_t p_dyn_power = 0;
 
     void p_set_power(PowerLevels_e power);
 
 public:
-    POWERMGNT(SX127xDriver &radio);
+    POWERMGNT(SXRadioDriver &radio);
     void Begin();
 
     // inc and decPower are used to control dynamic tx power

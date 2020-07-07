@@ -11,6 +11,7 @@
 local version = 'v0.1'
 local gotFirstResp = false
 
+-- TODO: change rate keys per RF freq!
 local AirRate = {
     index = 1,
     editable = true,
@@ -46,9 +47,9 @@ local RFfreq = {
     editable = false,
     name = 'RF Freq',
     selected = 99,
-    list = {'915 MHz', '868 MHz', '433 MHz'},
-    values = {0x00, 0x01, 0x02},
-    max_allowed = 3,
+    list = {'915 MHz', '868 MHz', '433 MHz', '2.4 GHz'},
+    values = {0x00, 0x01, 0x02, 0x03},
+    max_allowed = 4,
 }
 
 local function binding(item, event)

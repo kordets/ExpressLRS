@@ -1,26 +1,8 @@
 #include "RadioHalSpi.h"
 
-void RadioHalSpi::Begin(void)
+void RadioHalSpi::Begin(uint32_t speed)
 {
-    spi_bus.prepare();
-}
-
-uint8_t ICACHE_RAM_ATTR RadioHalSpi::getRegValue(uint8_t reg, uint8_t msb, uint8_t lsb) const
-{
-    uint8_t value = readRegister(reg);
-    if ((msb - lsb) < 7)
-    {
-        value = value & ((0b11111111 << lsb) & (0b11111111 >> (7 - msb)));
-    }
-    return (value);
-}
-
-void ICACHE_RAM_ATTR RadioHalSpi::readRegisterBurst(uint8_t reg, uint8_t numBytes, uint8_t *inBytes) const
-{
-    spi_bus.set_ss(LOW);
-    spi_bus.write((reg | p_read));
-    spi_bus.transfer(inBytes, numBytes);
-    spi_bus.set_ss(HIGH);
+    spi_bus.prepare(speed);
 }
 
 uint8_t ICACHE_RAM_ATTR RadioHalSpi::readRegister(uint8_t reg) const
@@ -34,15 +16,20 @@ uint8_t ICACHE_RAM_ATTR RadioHalSpi::readRegister(uint8_t reg) const
     return (InByte);
 }
 
-void ICACHE_RAM_ATTR RadioHalSpi::setRegValue(uint8_t reg, uint8_t value, uint8_t msb, uint8_t lsb) const
+void ICACHE_RAM_ATTR RadioHalSpi::writeRegister(uint8_t reg, uint8_t data) const
 {
-    if ((msb - lsb) < 7)
-    {
-        uint8_t currentValue = readRegister(reg);
-        uint8_t mask = ~((0b11111111 << (msb + 1)) | (0b11111111 >> (8 - lsb)));
-        value = (currentValue & ~mask) | (value & mask);
-    }
-    writeRegister(reg, value);
+    spi_bus.set_ss(LOW);
+    spi_bus.write(reg | p_write);
+    spi_bus.write(data);
+    spi_bus.set_ss(HIGH);
+}
+
+void ICACHE_RAM_ATTR RadioHalSpi::readRegisterBurst(uint8_t reg, uint8_t numBytes, uint8_t *inBytes) const
+{
+    spi_bus.set_ss(LOW);
+    spi_bus.write((reg | p_read));
+    spi_bus.transfer(inBytes, numBytes);
+    spi_bus.set_ss(HIGH);
 }
 
 void ICACHE_RAM_ATTR RadioHalSpi::writeRegisterBurst(uint8_t reg, uint8_t *data, uint8_t numBytes) const
@@ -53,10 +40,50 @@ void ICACHE_RAM_ATTR RadioHalSpi::writeRegisterBurst(uint8_t reg, uint8_t *data,
     spi_bus.set_ss(HIGH);
 }
 
-void ICACHE_RAM_ATTR RadioHalSpi::writeRegister(uint8_t reg, uint8_t data) const
+void ICACHE_RAM_ATTR
+RadioHalSpi::readRegisterAddr(uint8_t reg, uint16_t addr,
+                              uint8_t *data, uint8_t numBytes) const
 {
     spi_bus.set_ss(LOW);
     spi_bus.write(reg | p_write);
-    spi_bus.write(data);
+    spi_bus.write((uint8_t)(addr >> 8));
+    spi_bus.write((uint8_t)addr);
+    spi_bus.write(0); // 1 NOP before data
+    spi_bus.transfer(data, numBytes);
+    spi_bus.set_ss(HIGH);
+}
+
+void ICACHE_RAM_ATTR
+RadioHalSpi::writeRegisterAddr(uint8_t reg, uint16_t addr,
+                               uint8_t *data, uint8_t numBytes) const
+{
+    spi_bus.set_ss(LOW);
+    spi_bus.write(reg | p_write);
+    spi_bus.write((uint8_t)(addr >> 8));
+    spi_bus.write((uint8_t)addr);
+    spi_bus.write(data, numBytes);
+    spi_bus.set_ss(HIGH);
+}
+
+void ICACHE_RAM_ATTR
+RadioHalSpi::readRegisterOffset(uint8_t reg, int offset,
+                                uint8_t *data, uint8_t numBytes) const
+{
+    spi_bus.set_ss(LOW);
+    spi_bus.write(reg | p_write);
+    spi_bus.write(offset);
+    spi_bus.write(0); // 1 NOP before data
+    spi_bus.transfer(data, numBytes);
+    spi_bus.set_ss(HIGH);
+}
+
+void ICACHE_RAM_ATTR
+RadioHalSpi::writeRegisterOffset(uint8_t reg, uint8_t offset,
+                                 uint8_t *data, uint8_t numBytes) const
+{
+    spi_bus.set_ss(LOW);
+    spi_bus.write(reg | p_write);
+    spi_bus.write(offset);
+    spi_bus.write(data, numBytes);
     spi_bus.set_ss(HIGH);
 }

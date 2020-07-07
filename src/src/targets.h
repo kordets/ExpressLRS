@@ -9,8 +9,6 @@
 #define TIMER_OFFSET       400
 #define TIMER_OFFSET_LIMIT 100
 
-#define SX127X_SPI_SPEED 10000000
-
 /******************************************************************************************/
 /*                                     ESP TX CONFIGS                                     */
 /******************************************************************************************/
@@ -28,12 +26,10 @@
 #define GPIO_PIN_RCSIGNAL_RX 13
 #define GPIO_PIN_RCSIGNAL_TX 13
 //#define GPIO_PIN_LED         22 // 22 is not ok
-#endif
 
-#ifdef TARGET_TTGO_LORA_V1_AS_RX
-#endif
+#elif defined(TARGET_TTGO_LORA_V1_AS_RX)
 
-#ifdef TARGET_TTGO_LORA_V2_AS_TX
+#elif defined(TARGET_TTGO_LORA_V2_AS_TX)
 #define GPIO_PIN_NSS         18
 #define GPIO_PIN_DIO0        26
 #define GPIO_PIN_DIO1        -1
@@ -45,12 +41,10 @@
 #define GPIO_PIN_OLED_SCK    22
 #define GPIO_PIN_RCSIGNAL_RX 13
 #define GPIO_PIN_RCSIGNAL_TX 13
-#endif
 
-#ifdef TARGET_TTGO_LORA_V2_AS_RX
-#endif
+#elif defined(TARGET_TTGO_LORA_V2_AS_RX)
 
-#ifdef TARGET_EXPRESSLRS_PCB_TX_V3
+#elif defined(TARGET_EXPRESSLRS_PCB_TX_V3)
 #define GPIO_PIN_NSS         5
 #define GPIO_PIN_DIO0        26
 #define GPIO_PIN_DIO1        25
@@ -60,9 +54,8 @@
 #define GPIO_PIN_RST         14
 #define GPIO_PIN_RCSIGNAL_RX 2
 #define GPIO_PIN_RCSIGNAL_TX 2 // so we don't have to solder the extra resistor, we switch rx/tx using gpio mux
-#endif
 
-#ifdef TARGET_ESP32_WROOM_RFM95
+#elif defined(TARGET_ESP32_WROOM_RFM95)
 #define GPIO_PIN_NSS       5  // V_SPI_CS0
 #define GPIO_PIN_DIO0      35 //26
 #define GPIO_PIN_DIO1      34 //25
@@ -74,13 +67,53 @@
 // we switch rx/tx using gpio mux
 #define GPIO_PIN_RCSIGNAL_RX 2
 #define GPIO_PIN_RCSIGNAL_TX 2
-#endif
+
+
+/******************************************************************************************/
+/*                                     SX1280 CONFIGS                                     */
+/******************************************************************************************/
+
+#elif defined(TARGET_SX1280_TX_ESP32_WROOM)
+// SPI pins
+#define GPIO_PIN_NSS       5  // V_SPI_CS0
+#define GPIO_PIN_MOSI      23 // V_SPI
+#define GPIO_PIN_MISO      19 // V_SPI
+#define GPIO_PIN_SCK       18 // V_SPI
+// Radio GPIOs
+#define GPIO_PIN_DIO0      4
+#define GPIO_PIN_DIO1      16
+#define GPIO_PIN_RST       15
+#define GPIO_PIN_BUSY      2
+#define GPIO_PIN_TX_ENABLE 26
+#define GPIO_PIN_RX_ENABLE 17
+// SPORT
+#define GPIO_PIN_RCSIGNAL_RX 13
+#define GPIO_PIN_RCSIGNAL_TX 13
+
+#elif defined(TARGET_SX1280_RX_STM32F1)
+#define GPIO_PIN_NSS         PA4
+#define GPIO_PIN_MOSI        PA7
+#define GPIO_PIN_MISO        PA6
+#define GPIO_PIN_SCK         PA5
+
+#define GPIO_PIN_DIO0        PB3
+#define GPIO_PIN_DIO1        PB12
+#define GPIO_PIN_DIO2        PB13
+#define GPIO_PIN_RST         PB9
+#define GPIO_PIN_BUSY        PB5
+
+#define GPIO_PIN_RCSIGNAL_RX PA10 // USART1
+#define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
+
+#define GPIO_PIN_LED_RED     PB15
+#define GPIO_PIN_LED         GPIO_PIN_LED_RED
+
 
 /******************************************************************************************/
 /*                                     ESP RX CONFIGS                                     */
 /******************************************************************************************/
 
-#ifdef TARGET_EXPRESSLRS_PCB_RX_V3
+#elif defined(TARGET_EXPRESSLRS_PCB_RX_V3)
 #define GPIO_PIN_NSS         15
 #define GPIO_PIN_DIO0        4
 #define GPIO_PIN_DIO1        5
@@ -144,10 +177,13 @@
 /** RF Switch config (https://www.njr.com/electronic_device/PDF/NJG1801K75_E.pdf)
  *
  * PA8 (VCTL2) and PA11 (VCTL1) is used to selct RF_IN or RF_OUT
- *   RF_IN  : VCTL1 LOW  , VCTL2 HIGH
- *   RF_OUT : VCTL1 HIGH , VCTL2 LOW
+ *   RF_IN  (PC-P1): VCTL1 LOW  , VCTL2 HIGH
+ *   RF_OUT (PC-P2): VCTL1 HIGH , VCTL2 LOW
  *
  * Note: This is inverted, LOW = ENABLED!
+ *
+ * RAK VCTL1 = PA11
+ * RAK VCTL2 = PA8
 */
 #define GPIO_PIN_TX_ENABLE   PA11
 #define GPIO_PIN_RX_ENABLE   PA8
@@ -300,6 +336,9 @@ extern R9DAC r9dac;
 #endif
 #ifndef GPIO_PIN_DIO3
 #define GPIO_PIN_DIO3 UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_BUSY
+#define GPIO_PIN_BUSY UNDEF_PIN
 #endif
 
 #ifndef GPIO_PIN_DEBUG_RX

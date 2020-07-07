@@ -31,6 +31,7 @@ private:
 
     const r9dac_lut_s LUT[R9_PWR_MAX] = {
         // mw, dB, gain, APC2volts*1000, figures assume 2dBm input
+#if 1
         {10, 11, 9, 800},
         {25, 14, 12, 920},
         {50, 17, 15, 1030},
@@ -39,6 +40,17 @@ private:
         {500, 27, 25, 1520},
         {1000, 30, 28, 1790},
         {2000, 33, 31, 2160},
+#else
+        // Alessandro modified values
+        {10, 11, 9, 725},
+        {25, 14, 12, 900},
+        {50, 17, 15, 1000},
+        {100, 20, 18, 1125},
+        {250, 24, 22, 1350},
+        {500, 27, 25, 1600},
+        {1000, 30, 28, 1950},
+        {2000, 33, 31, 2600}, // Danger untested at high power
+#endif
     };
 
     enum

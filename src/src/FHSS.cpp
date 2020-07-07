@@ -1,6 +1,10 @@
 #include "FHSS.h"
 #include "debug_elrs.h"
+#if RADIO_SX128x
+#include "SX1280.h"
+#else
 #include "LoRa_SX127x.h"
+#endif
 #include "common.h"
 #include "utils.h"
 #include "crc.h"
@@ -101,6 +105,8 @@ void FHSSrandomiseFHSSsequence()
     DEBUG_PRINTLN("Setting 868MHz Mode");
 #elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
     DEBUG_PRINTLN("Setting 433MHz Mode");
+#elif defined(Regulatory_Domain_ISM_2400)
+    DEBUG_PRINTLN("Setting ISM 2400 Mode");
 #else
 #error No regulatory domain defined, please define one in common.h
 #endif

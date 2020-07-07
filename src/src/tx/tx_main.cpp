@@ -1,7 +1,11 @@
 #include <Arduino.h>
 #include "utils.h"
 #include "common.h"
+#if RADIO_SX128x
+#include "SX1280.h"
+#else
 #include "LoRa_SX127x.h"
+#endif
 #include "CRSF_TX.h"
 #include "FHSS.h"
 #include "targets.h"
@@ -30,7 +34,11 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 ///////////////////
 
 /// define some libs to use ///
+#if RADIO_SX128x
+SX1280Driver Radio(RadioSpi);
+#else
 SX127xDriver Radio(RadioSpi);
+#endif
 CRSF_TX crsf(CrsfSerial);
 RcChannels DRAM_ATTR rc_ch;
 POWERMGNT PowerMgmt(Radio);
@@ -101,8 +109,8 @@ int8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
             DEBUG_PRINTLN(ratio);
             ratio -= 1;
         } else {
-            Radio.RXdoneCallback1 = SX127xDriver::rx_nullCallback;
-            Radio.TXdoneCallback1 = SX127xDriver::tx_nullCallback;
+            Radio.RXdoneCallback1 = SXRadioDriver::rx_nullCallback;
+            Radio.TXdoneCallback1 = SXRadioDriver::tx_nullCallback;
             // Set connected if telemetry is not used
             connectionState = STATE_connected;
             DEBUG_PRINTLN("TLM disabled");
@@ -357,6 +365,8 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
         out[4] = 1;
 #elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
         out[4] = 2;
+#elif defined(Regulatory_Domain_ISM_2400)
+        out[4] = 3;
 #else
         out[4] = 0xff;
 #endif
@@ -553,12 +563,13 @@ void setup()
 
 #if defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
     Radio.RFmodule = RFMOD_SX1278;
-#else
+#elif !defined(Regulatory_Domain_ISM_2400)
     Radio.RFmodule = RFMOD_SX1276;
 #endif
-    Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1);
+    Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1, GPIO_PIN_DIO2,
+                  GPIO_PIN_BUSY, GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
     Radio.SetSyncWord(getSyncWord());
-    Radio.Begin(GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
+    Radio.Begin();
 
     PowerMgmt.Begin();
     PowerMgmt.setPower(power);

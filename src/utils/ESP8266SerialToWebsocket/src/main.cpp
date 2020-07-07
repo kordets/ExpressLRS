@@ -140,6 +140,8 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
                 value = "Regulatory domain 868MHz";
               else if (value == "2")
                 value = "Regulatory domain 433MHz";
+              else if (value == "3")
+                value = "Regulatory domain ISM 2400";
               else
                 value = "Regulatory domain UNKNOWN";
               elem.innerHTML = value;

@@ -9,12 +9,12 @@ HwSpi::HwSpi() : SPIClass()
     SCK = GPIO_PIN_SCK;
 }
 
-void HwSpi::platform_init(void)
+void HwSpi::platform_init(uint32_t speed)
 {
     SPIClass::begin();
     setBitOrder(MSBFIRST);
     setDataMode(SPI_MODE0);
-    setFrequency(SX127X_SPI_SPEED);
+    setFrequency(speed);
 }
 
 void HwSpi::write(uint8_t data)
