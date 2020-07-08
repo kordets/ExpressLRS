@@ -174,96 +174,6 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
             434420000
         ]
 
-    elif DOMAIN == "Regulatory_Domain_AU_915":
-        FHSSfreqs = [
-            915500000,
-            916100000,
-            916700000,
-            917300000,
-
-            917900000,
-            918500000,
-            919100000,
-            919700000,
-
-            920300000,
-            920900000,
-            921500000,
-            922100000,
-
-            922700000,
-            923300000,
-            923900000,
-            924500000,
-
-            925100000,
-            925700000,
-            926300000,
-            926900000
-        ]
-
-    elif DOMAIN == "Regulatory_Domain_EU_868":
-        '''
-        s/* Frequency bands taken from https://wetten.overheid.nl/BWBR0036378/2016-12-28#Bijlagen
-        * Note: these frequencies fall in the license free H-band, but in combination with 500kHz
-        * LoRa modem bandwidth used by ExpressLRS (EU allows up to 125kHz modulation BW only) they
-        * will never pass RED certification and they are ILLEGAL to use.
-        *
-        * Therefore we simply maximize the usage of available spectrum so laboratory testing of the software won't disturb existing
-        * 868MHz ISM band traffic too much.
-        */
-        '''
-        FHSSfreqs = [
-            863275000, # band H1, 863 - 865MHz, 0.1% duty cycle or CSMA techniques, 25mW EIRP
-            863800000,
-            864325000,
-            864850000,
-            865375000, # Band H2, 865 - 868.6MHz, 1.0% dutycycle or CSMA, 25mW EIRP
-            865900000,
-            866425000,
-            866950000,
-            867475000,
-            868000000,
-            868525000, # Band H3, 868.7-869.2MHz, 0.1% dutycycle or CSMA, 25mW EIRP
-            869050000,
-            869575000,
-        ]
-
-    elif DOMAIN == "Regulatory_Domain_EU_868_R9":
-        # https://github.com/pascallanger/DIY-Multiprotocol-TX-Module/blob/4ae30dc3b049f18147d6e278817f7a5f425c2fb0/Multiprotocol/FrSkyR9_sx1276.ino#L43
-        FHSSfreqs = [
-            # FrSkyR9_freq_map_868
-            859504640,
-            860004352,
-            860504064,
-            861003776,
-            861503488,
-            862003200,
-            862502912,
-            863002624,
-            863502336,
-            864002048,
-            864501760,
-            865001472,
-            865501184,
-            866000896,
-            866500608,
-            867000320,
-            867500032,
-            867999744,
-            868499456,
-            868999168,
-            869498880,
-            869998592,
-            870498304,
-            870998016,
-            871497728,
-            871997440,
-            872497152,
-            # last two determined by FrSkyR9_step
-            #0, 0
-        ]
-
     elif DOMAIN == "Regulatory_Domain_EU_433":
         '''
          Frequency band G, taken from https://wetten.overheid.nl/BWBR0036378/2016-12-28#Bijlagen
@@ -276,68 +186,43 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
             434450000
         ]
 
+    elif DOMAIN == "Regulatory_Domain_AU_915":
+        FHSSfreqs = [f for f in range(915500000, 927000000, 600000)]
+
     elif DOMAIN == "Regulatory_Domain_FCC_915":
         # Very definitely not fully checked. An initial pass at increasing the hops
-        FHSSfreqs = [
-            903500000,
-            904100000,
-            904700000,
-            905300000,
+        FHSSfreqs = [f for f in range(903500000, 927000000, 600000)]
 
-            905900000,
-            906500000,
-            907100000,
-            907700000,
+    elif DOMAIN == "Regulatory_Domain_EU_868":
+        '''
+        s/* Frequency bands taken from https://wetten.overheid.nl/BWBR0036378/2016-12-28#Bijlagen
+        * Note: these frequencies fall in the license free H-band, but in combination with 500kHz
+        * LoRa modem bandwidth used by ExpressLRS (EU allows up to 125kHz modulation BW only) they
+        * will never pass RED certification and they are ILLEGAL to use.
+        *
+        * Therefore we simply maximize the usage of available spectrum so laboratory testing of the software won't disturb existing
+        * 868MHz ISM band traffic too much.
+        */
+        '''
+        # 863275000 = band H1, 863 - 865MHz, 0.1% duty cycle or CSMA techniques, 25mW EIRP
+        # 865375000 = Band H2, 865 - 868.6MHz, 1.0% dutycycle or CSMA, 25mW EIRP
+        # 868525000 = Band H3, 868.7-869.2MHz, 0.1% dutycycle or CSMA, 25mW EIRP
+        FHSSfreqs = [f for f in range(863275000, 872500000, 525000)]
 
-            908300000,
-            908900000,
-            909500000,
-            910100000,
-
-            910700000,
-            911300000,
-            911900000,
-            912500000,
-
-            913100000,
-            913700000,
-            914300000,
-            914900000,
-
-            915500000, # as per AU..
-            916100000,
-            916700000,
-            917300000,
-
-            917900000,
-            918500000,
-            919100000,
-            919700000,
-
-            920300000,
-            920900000,
-            921500000,
-            922100000,
-
-            922700000,
-            923300000,
-            923900000,
-            924500000,
-
-            925100000,
-            925700000,
-            926300000,
-            926900000
-        ]
+    elif DOMAIN == "Regulatory_Domain_EU_868_R9":
+        # https://github.com/pascallanger/DIY-Multiprotocol-TX-Module/blob/4ae30dc3b049f18147d6e278817f7a5f425c2fb0/Multiprotocol/FrSkyR9_sx1276.ino#L43
+        #FHSSfreqs = [f for f in range(859504640, 872500000, 499712)]
+        FHSSfreqs = [f for f in range(859504640, 872500000, 500000)]
 
     elif DOMAIN == "Regulatory_Domain_ISM_2400":
         # These are for 1625kHz band
-        FHSSfreqs = [x for x in range(2400400000, 2480000000, 1630000)]
+        FHSSfreqs = [f for f in range(2400400000, 2480000000, 1650000)]
 
     elif DOMAIN == "Regulatory_Domain_ISM_2400_800kHz":
         # These are for 812.5kHz band
-        #FHSSfreqs = [x for x in range(2400400000, 2480000000, 1000000)]
-        FHSSfreqs = [x for x in range(2400400000, 2480000000, 900000)]
+        #FHSSfreqs = [f for f in range(2400400000, 2480000000, 1000000)]
+        #FHSSfreqs = [f for f in range(2400400000, 2480000000, 900000)]
+        FHSSfreqs = [f for f in range(2400400000, 2480000000, 850000)]
 
     else:
         raise Exception("[error] No regulatory domain defined, please define one in common.h")
