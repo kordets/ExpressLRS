@@ -60,9 +60,9 @@ void ICACHE_RAM_ATTR RcChannels::channels_extract(volatile uint8_t const *const 
     RcDataPacket_s *rcdata = (RcDataPacket_s *)&input[0];
     // The analog channels
     PackedRCdataOut.ch0 = rcdata->rc1;
-    PackedRCdataOut.ch0 = rcdata->rc2;
-    PackedRCdataOut.ch0 = rcdata->rc3;
-    PackedRCdataOut.ch0 = ((uint16_t)rcdata->rc4 << 1);
+    PackedRCdataOut.ch1 = rcdata->rc2;
+    PackedRCdataOut.ch2 = rcdata->rc3;
+    PackedRCdataOut.ch3 = ((uint16_t)rcdata->rc4 << 1);
     // The round-robin switch
     switchIndex = rcdata->aux_n_idx;
     switchValue = SWITCH2b_to_CRSF(rcdata->aux_n);
