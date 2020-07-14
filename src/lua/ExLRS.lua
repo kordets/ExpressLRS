@@ -135,7 +135,8 @@ local supportedRadios =
         --highRes         = false,
         textSize        = SMLSIZE,
         xOffset         = 60,
-        yOffset         = 10,
+        yOffset         = 8,
+        yOffset_val     = 3,
         topOffset       = 1,
         leftOffset      = 1,
     },
@@ -144,7 +145,8 @@ local supportedRadios =
         --highRes         = false,
         textSize        = SMLSIZE,
         xOffset         = 60,
-        yOffset         = 10,
+        yOffset         = 8,
+        yOffset_val     = 3,
         topOffset       = 1,
         leftOffset      = 1,
     },
@@ -154,6 +156,7 @@ local supportedRadios =
         textSize        = 0,
         xOffset         = 100,
         yOffset         = 20,
+        yOffset_val     = 5,
         topOffset       = 1,
         leftOffset      = 1,
     },
@@ -163,6 +166,7 @@ local supportedRadios =
         textSize        = 0,
         xOffset         = 120,
         yOffset         = 25,
+        yOffset_val     = 5,
         topOffset       = 5,
         leftOffset      = 5,
     },
@@ -179,7 +183,7 @@ local function refreshLCD()
 
     lcd.clear()
     lcd.drawText(lOffset, yOffset, 'ExpressLRS CFG ' .. version, INVERS)
-    yOffset = 5
+    yOffset = radio_data.yOffset_val
 
     for idx,item in pairs(menu.list) do
         local offsets = {left=0, right=0, top=0, bottom=0}
@@ -327,16 +331,16 @@ local function run_func(event)
         -- exit script
         return 2
     elseif event == EVT_VIRTUAL_PREV or
+           event == EVT_VIRTUAL_PREV_REPT or
            event == EVT_ROT_LEFT or
-           event == EVT_MINUS_BREAK or
-           event == EVT_DOWN_BREAK or
+           --event == EVT_MINUS_BREAK or
            event == EVT_SLIDE_LEFT then
         decrease(menu)
 
     elseif event == EVT_VIRTUAL_NEXT or
+           event == EVT_VIRTUAL_NEXT_REPT or
            event == EVT_ROT_RIGHT or
-           event == EVT_PLUS_BREAK or
-           event == EVT_UP_BREAK or
+           --event == EVT_PLUS_BREAK or
            event == EVT_SLIDE_RIGHT then
         increase(menu)
 
