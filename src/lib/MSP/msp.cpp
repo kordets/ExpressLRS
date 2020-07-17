@@ -225,7 +225,7 @@ void MSP::markPacketFree()
     m_inputState = MSP_IDLE;
 }
 
-bool MSP::sendPacket(HardwareSerial *port, mspPacketType_e type,
+bool MSP::sendPacket(CtrlSerial *port, mspPacketType_e type,
                      uint16_t function, uint8_t flags,
                      uint8_t payloadSize, uint8_t const * payload)
 {
@@ -327,7 +327,7 @@ bool MSP::sendPacket(HardwareSerial *port, mspPacketType_e type,
     return true;
 }
 
-bool MSP::sendPacket(mspPacket_t *packet, HardwareSerial *port)
+bool MSP::sendPacket(mspPacket_t *packet, CtrlSerial *port)
 {
     return sendPacket(port, packet->type, packet->function, packet->flags, packet->payloadSize, (uint8_t*)packet->payload);
 }

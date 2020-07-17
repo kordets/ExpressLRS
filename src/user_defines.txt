@@ -30,9 +30,28 @@
 -DSTORE_TO_FLASH=1
 
 ################################
-### EPS RX auto WiFi startup
+### ESP RX auto WiFi startup
 # Wifi starts if no connection is found between 10 and 11 seconds after boot
 -DAuto_WiFi_On_Boot
+
+################################
+### WiFi settings
+
+# WiFi AP settings
+-DWIFI_AP_SSID="\"ExpressLRS AP\""
+-DWIFI_AP_PSK="\"expresslrs\""
+
+# ESP TX WiFi logger
+-DWIFI_LOGGER=1
+
+# Connect timeout in seconds
+-DWIFI_TIMEOUT=60
+
+# Enable this to use ESPWifiManager
+-DWIFI_MANAGER=1
+# or set manually
+#-DWIFI_SSID="\"WiFi SSID\""
+#-DWIFI_PSK="\"Private Secret Key\""
 
 ################################
 ### Default power

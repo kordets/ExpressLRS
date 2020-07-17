@@ -1,7 +1,5 @@
 #include "debug_elrs.h"
 
-#define USE_WIFI_MANAGER 1
-
 //#define STATIC_IP_AP     "192.168.4.1"
 //#define STATIC_IP_CLIENT "192.168.1.50"
 
@@ -11,12 +9,24 @@
 #include <ESP8266mDNS.h>
 #include <ESP8266HTTPUpdateServer.h>
 
-#if USE_WIFI_MANAGER
+#if WIFI_MANAGER
 #include <WiFiManager.h>
-#endif /* USE_WIFI_MANAGER */
+#endif /* WIFI_MANAGER */
 
-#define STASSID "ExpressLRS RX AP"
+#ifdef WIFI_AP_SSID
+#define STASSID WIFI_AP_SSID
+#else
+#define STASSID "ExpressLRS AP"
+#endif
+#ifdef WIFI_AP_PSK
+#define STAPSK WIFI_AP_PSK
+#else
 #define STAPSK "expresslrs"
+#endif
+
+#ifndef WIFI_TIMEOUT
+#define WIFI_TIMEOUT 60 // default to 1min
+#endif
 
 MDNSResponder mdns;
 
@@ -33,7 +43,7 @@ void BeginWebUpdate(void)
 
     IPAddress addr;
 
-#if USE_WIFI_MANAGER
+#if WIFI_MANAGER
     WiFiManager wifiManager;
     //WiFiManagerParameter header("<p>Express LRS ESP82xx RX</p>");
     //wifiManager.addParameter(&header);
@@ -53,18 +63,34 @@ void BeginWebUpdate(void)
                                      IPAddress(255,255,255,0));
 #endif /* STATIC_IP_CLIENT */
 
-    wifiManager.setConfigPortalTimeout(60);
-    //wifiManager.autoConnect(STASSID, STAPSK);
-    if (wifiManager.autoConnect(STASSID)) // start unsecure portal AP
+    wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
+    if (wifiManager.autoConnect(STASSID" ESP RX")) // start unsecure portal AP
     {
         addr = WiFi.localIP();
     }
     else
-#endif /* USE_WIFI_MANAGER */
+#elif defined(WIFI_SSID) && defined(WIFI_PSK)
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PSK);
+  }
+  uint32_t i = 0;
+#define TIMEOUT (WIFI_TIMEOUT * 10)
+  while (WiFi.status() != WL_CONNECTED)
+      {
+    delay(100);
+    if (++i > TIMEOUT) {
+      break;
+    }
+  }
+  if (i < TIMEOUT) {
+    addr = WiFi.localIP();
+  } else
+#endif /* WIFI_MANAGER */
     {
         // No wifi found, start AP
         WiFi.mode(WIFI_AP);
-        WiFi.softAP(STASSID, STAPSK);
+        WiFi.softAP(STASSID" ESP RX", STAPSK);
         addr = WiFi.softAPIP();
     }
 

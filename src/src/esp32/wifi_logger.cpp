@@ -1,23 +1,38 @@
+#ifdef WIFI_LOGGER
+#define USE_MANAGER   0 // size =  78632B
+#define USE_MDNS      1 // size =  32284B
+#define USE_WEBSOCKET 1 // size =  13476B
+#define USE_SERVER    1 // size = 117956B !!!
+#define USE_WIFI      1 // size = 400733B !!!
+#endif
+
+#include "wifi_logger.h"
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <WebSocketsServer.h>
-#include <Hash.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
+#if USE_WIFI
+#include <WiFi.h>
+#endif
+#if USE_MDNS
+#include <ESPmDNS.h>
+#endif
+#if USE_MANAGER
 #include <WiFiManager.h>
-#include <ESP8266HTTPUpdateServer.h>
-#include <FS.h>
+#endif
+#if USE_WEBSOCKET
+#include <WebSocketsServer.h>
+#endif
+#if USE_SERVER
+#include <WebServer.h>
+#include <HTTPUpdate.h>
+#endif
 
-#include "stm32Updater.h"
 #include "msp.h"
+#include "platform.h"
+#include "targets.h"
+#include "POWERMGNT.h"
 
-#define STRINGIFY(s) #s
-#define STRINGIFY_TMP(A) STRINGIFY(A)
-#define CONCAT(A, B) A##B
+#if 1
 
-//reference for spiffs upload https://taillieu.info/index.php/internet-of-things/esp8266/335-esp8266-uploading-files-to-the-server
-
-//#define INVERTED_SERIAL // Comment this out for non-inverted serial
+#define QUEUE_SIZE 256
 
 #ifdef WIFI_AP_SSID
 #define STASSID WIFI_AP_SSID
@@ -34,34 +49,36 @@
 #define WIFI_TIMEOUT 60 // default to 1min
 #endif
 
+#if USE_MDNS
 MDNSResponder mdns;
-
-ESP8266WebServer server(80);
-
+#endif
+#if USE_SERVER
+WebServer server(80);
+#endif
+#if USE_WEBSOCKET
 WebSocketsServer webSocket = WebSocketsServer(81);
-ESP8266HTTPUpdateServer httpUpdater;
+#define WEBSOCKET_BROADCASET(text) webSocket.broadcastTXT(text)
+#define WEBSOCKET_SEND(sock, text) webSocket.sendTXT(sock, text)
+#else
+#define WEBSOCKET_BROADCASET(...)
+#define WEBSOCKET_SEND(...)
+#endif
 
-File fsUploadFile; // a File object to temporarily store the received file
-FSInfo fs_info;
-String uploadedfilename; // filename of uploaded file
-
-uint32_t TotalUploadedBytes;
-
-uint8_t socketNumber;
-
+QueueHandle_t input_queue = NULL;
+QueueHandle_t output_queue = NULL;
 String inputString = "";
 String my_ipaddress_info_str = "NA";
 
 static const char PROGMEM GO_BACK[] = R"rawliteral(
 <!DOCTYPE html>
 <html>
-<head>
-</head>
-<body>
-<script>
-javascript:history.back();
-</script>
-</body>
+    <head>
+    </head>
+    <body>
+        <script>
+            javascript:history.back();
+        </script>
+    </body>
 </html>
 )rawliteral";
 
@@ -209,10 +226,6 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
           }
         }
 
-        function command_stm32(type) {
-          websock.send("stm32_cmd=" + type);
-        }
-
     </script>
 </head>
 
@@ -304,25 +317,13 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
     </table>
 
     <hr/>
-	  <h2>Danger Zone</h2>
+      <h2>Danger Zone</h2>
     <div>
       <form method='POST' action='/update' enctype='multipart/form-data'>
           Self Firmware:
           <input type='file' accept='.bin' name='firmware'>
           <input type='submit' value='Upload and Flash Self'>
       </form>
-    </div>
-    <br>
-    <div>
-      <form method='POST' action='/upload' enctype='multipart/form-data'>
-          R9M Firmware:
-          <input type='file' accept='.bin' name='filesystem'>
-          <input type='submit' value='Upload and Flash R9M'>
-      </form>
-    </div>
-    <br>
-    <div>
-    <button onclick="command_stm32('reset')">R9M Reset</button>
     </div>
 
   </center>
@@ -345,10 +346,15 @@ curl --include \
 </html>
 )rawliteral";
 
+#if 0
 static uint8_t settings_rate = 1;
 static uint8_t settings_power = 4, settings_power_max = 8;
 static uint8_t settings_tlm = 7;
 static uint8_t settings_region = 0;
+#else
+extern struct platform_config pl_config;
+extern POWERMGNT PowerMgmt;
+#endif
 String settings_out;
 
 MSP msp_handler;
@@ -356,28 +362,32 @@ mspPacket_t msp_out;
 
 void SettingsWrite(uint8_t * buff, uint8_t len)
 {
-  // Fill MSP packet
-  msp_out.type = MSP_PACKET_V1_ELRS;
-  msp_out.flags = MSP_ELRS_INT;
-  msp_out.payloadSize = len;
-  msp_out.function = ELRS_INT_MSP_PARAMS;
-  memcpy((void*)msp_out.payload, buff, len);
-  // Send packet
-  msp_handler.sendPacket(&msp_out, &ctrl_serial);
+    // Fill MSP packet
+    msp_out.type = MSP_PACKET_V1_ELRS;
+    msp_out.flags = MSP_ELRS_INT;
+    msp_out.payloadSize = len;
+    msp_out.function = ELRS_INT_MSP_PARAMS;
+    memcpy((void*)msp_out.payload, buff, len);
+    // Send packet
+    msp_handler.sendPacket(&msp_out, &ctrl_serial);
 }
 
 void SettingsGet(void)
 {
-  uint8_t buff[] = {0, 0};
-  SettingsWrite(buff, sizeof(buff));
+    uint8_t buff[] = {0, 0};
+    SettingsWrite(buff, sizeof(buff));
 }
 
-void handleSettingRate(const char * input, int num = -1)
+void handleSettingRate(const char * input, int num)
 {
   settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_rates_input=";
+#if 0
     settings_out += settings_rate;
+#else
+    settings_out += pl_config.mode;
+#endif
   } else if (*input == '=') {
     input++;
     settings_out = "Setting rate: ";
@@ -388,19 +398,25 @@ void handleSettingRate(const char * input, int num = -1)
     SettingsWrite(buff, sizeof(buff));
   }
   if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
+    WEBSOCKET_SEND(num, settings_out);
   else
-    webSocket.broadcastTXT(settings_out);
+    WEBSOCKET_BROADCASET(settings_out);
 }
 
-void handleSettingPower(const char * input, int num = -1)
+void handleSettingPower(const char * input, int num)
 {
   settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_power_input=";
+#if 0
     settings_out += settings_power;
     settings_out += ",";
     settings_out += settings_power_max;
+#else
+    settings_out += pl_config.power;
+    settings_out += ",";
+    settings_out += PowerMgmt.maxPowerGet();
+#endif
   } else if (*input == '=') {
     input++;
     settings_out = "Setting power: ";
@@ -411,17 +427,21 @@ void handleSettingPower(const char * input, int num = -1)
     SettingsWrite(buff, sizeof(buff));
   }
   if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
+    WEBSOCKET_SEND(num, settings_out);
   else
-    webSocket.broadcastTXT(settings_out);
+    WEBSOCKET_BROADCASET(settings_out);
 }
 
-void handleSettingTlm(const char * input, int num = -1)
+void handleSettingTlm(const char * input, int num)
 {
   settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_tlm_input=";
+#if 0
     settings_out += settings_tlm;
+#else
+    settings_out += pl_config.tlm;
+#endif
   } else if (*input == '=') {
     input++;
     settings_out = "Setting telemetry: ";
@@ -432,22 +452,44 @@ void handleSettingTlm(const char * input, int num = -1)
     SettingsWrite(buff, sizeof(buff));
   }
   if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
+    WEBSOCKET_SEND(num, settings_out);
   else
-    webSocket.broadcastTXT(settings_out);
+    WEBSOCKET_BROADCASET(settings_out);
 }
 
-void handleSettingDomain(const char * input, int num = -1)
+void handleSettingDomain(const char * input, int num)
 {
   settings_out = "[ERROR] Domain set is not supported!";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_region_domain=";
+#if 0
     settings_out += settings_region;
+#else
+#if defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915)
+        settings_out += 0;
+#elif defined(Regulatory_Domain_EU_868) || defined(Regulatory_Domain_EU_868_R9)
+        settings_out += 1;
+#elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
+        settings_out += 2;
+#elif defined(Regulatory_Domain_ISM_2400) || defined(Regulatory_Domain_ISM_2400_800kHz)
+        settings_out += 3;
+#else
+        settings_out += 0xff;
+#endif
+#endif
   }
   if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
+    WEBSOCKET_SEND(num, settings_out);
   else
-    webSocket.broadcastTXT(settings_out);
+    WEBSOCKET_BROADCASET(settings_out);
+}
+
+void SettingsSendWS(void)
+{
+  handleSettingDomain(NULL, -1);
+  handleSettingRate(NULL, -1);
+  handleSettingPower(NULL, -1);
+  handleSettingTlm(NULL, -1);
 }
 
 void MspVtxWrite(void)
@@ -471,6 +513,7 @@ void MspVtxWrite(void)
   msp_handler.sendPacket(&msp_out, &ctrl_serial);
 }
 
+#if USE_WEBSOCKET
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
   char * temp;
@@ -485,58 +528,50 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   {
     //IPAddress ip = webSocket.remoteIP(num);
     //Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-    socketNumber = num;
 
-    webSocket.sendTXT(num, my_ipaddress_info_str);
+    WEBSOCKET_SEND(num, my_ipaddress_info_str);
 
     // Send settings
-    SettingsGet();
+    SettingsSendWS();
   }
   break;
   case WStype_TEXT:
     //Serial.printf("[%u] get Text: %s\r\n", num, payload);
     // send data to all connected clients
-    //webSocket.broadcastTXT(payload, length);
+    //WEBSOCKET_BROADCASET(payload, length);
 
-    temp = strstr((char*)payload, "stm32_cmd=");
+    temp = strstr((char*)payload, "S_rate");
     if (temp) {
-      // Command STM32
-      if (strstr((char*)&temp[10], "reset")) {
-        // Reset STM32
-        reset_stm32_to_app_mode();
-      }
-    } else {
-      // ExLRS setting commands
-      temp = strstr((char*)payload, "S_rate");
-      if (temp) {
-        handleSettingRate(&temp[6], num);
-        break;
-      }
-      temp = strstr((char*)payload, "S_power");
-      if (temp) {
-        handleSettingPower(&temp[7], num);
-        break;
-      }
-      temp = strstr((char*)payload, "S_telemetry");
-      if (temp) {
-        handleSettingTlm(&temp[11], num);
-      }
+      handleSettingRate(&temp[6], num);
+      break;
     }
+    temp = strstr((char*)payload, "S_power");
+    if (temp) {
+      handleSettingPower(&temp[7], num);
+      break;
+    }
+    temp = strstr((char*)payload, "S_telemetry");
+    if (temp) {
+      handleSettingTlm(&temp[11], num);
+    }
+
     break;
   case WStype_BIN:
     //Serial.printf("[%u] get binary length: %u\r\n", num, length);
-    hexdump(payload, length);
+    //hexdump(payload, length);
 
     // echo data back to browser
     webSocket.sendBIN(num, payload, length);
     break;
   default:
     //Serial.printf("Invalid WStype [%d]\r\n", type);
-    //webSocket.broadcastTXT("Invalid WStype: " + type);
+    //WEBSOCKET_BROADCASET("Invalid WStype: " + type);
     break;
   }
 }
+#endif
 
+#if USE_SERVER
 void sendReturn()
 {
   server.send_P(200, "text/html", GO_BACK);
@@ -545,92 +580,6 @@ void sendReturn()
 void handleRoot()
 {
   server.send_P(200, "text/html", INDEX_HTML);
-}
-
-
-bool flashR9M()
-{
-  webSocket.broadcastTXT("R9M Firmware Flash Requested!");
-  stm32flasher_hardware_init();
-  webSocket.broadcastTXT("Going to flash the following file: " + uploadedfilename);
-  bool result = esp8266_spifs_write_file(uploadedfilename.c_str());
-  if (result == 0)
-    reset_stm32_to_app_mode(); // boot into app
-  Serial.begin(460800);
-  return result;
-}
-
-void handleFileUpload()
-{ // upload a new file to the SPIFFS
-  HTTPUpload &upload = server.upload();
-  if (upload.status == UPLOAD_FILE_START)
-  {
-
-    if (SPIFFS.info(fs_info))
-    {
-      String output;
-      output += "Filesystem: used: ";
-      output += String(fs_info.usedBytes);
-      output += " / free: ";
-      output += String(fs_info.totalBytes);
-      webSocket.broadcastTXT(output);
-    }
-    else
-    {
-      webSocket.broadcastTXT("SPIFFs Failed to init!");
-      return;
-    }
-    uploadedfilename = upload.filename;
-
-    webSocket.broadcastTXT("Uploading file: " + uploadedfilename);
-
-    if (!uploadedfilename.startsWith("/"))
-    {
-      uploadedfilename = "/" + uploadedfilename;
-    }
-    fsUploadFile = SPIFFS.open(uploadedfilename, "w"); // Open the file for writing in SPIFFS (create if it doesn't exist)
-  }
-  else if (upload.status == UPLOAD_FILE_WRITE)
-  {
-    if (fsUploadFile)
-    {
-      fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
-      TotalUploadedBytes += int(upload.currentSize);
-      String output = "";
-      output += "Uploaded: ";
-      output += String(TotalUploadedBytes);
-      output += " bytes";
-      webSocket.broadcastTXT(output);
-    }
-  }
-  else if (upload.status == UPLOAD_FILE_END)
-  {
-    if (fsUploadFile)
-    {                       // If the file was successfully created
-      fsUploadFile.close(); // Close the file again
-      String totsize = String(upload.totalSize);
-      webSocket.broadcastTXT("Total uploaded size: " + totsize);
-      TotalUploadedBytes = 0;
-      server.send(100);
-      if (flashR9M())
-      {
-        server.sendHeader("Location", "/return"); // Redirect the client to the success page
-        server.send(303);
-        webSocket.broadcastTXT("Update Sucess!!!");
-      }
-      else
-      {
-        server.sendHeader("Location", "/return"); // Redirect the client to the success page
-        server.send(303);
-        webSocket.broadcastTXT("Update Failed!!!");
-      }
-    }
-    else
-    {
-      server.send(500, "text/plain", "500: couldn't create file");
-      SPIFFS.format();
-    }
-  }
 }
 
 void handleNotFound()
@@ -649,159 +598,314 @@ void handleNotFound()
   }
   server.send(404, "text/plain", message);
 }
+#endif // USE_SERVER
 
-void setup()
+void wifi_setup(void)
 {
   IPAddress my_ip;
 
-#ifdef INVERTED_SERIAL
-  Serial.begin(460800, SERIAL_8N1, SERIAL_FULL, 1, true); // inverted serial
-#else
-  Serial.begin(460800); // non-inverted serial
-#endif
+  //wifi_station_set_hostname("elrs_tx");
 
-  SPIFFS.begin();
-
-  wifi_station_set_hostname("elrs_tx");
-
-#if WIFI_MANAGER
+#if USE_MANAGER
   WiFiManager wifiManager;
   wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
-  if (wifiManager.autoConnect(STASSID " R9M")) {
+  if (wifiManager.autoConnect(STASSID" ESP32 TX")) {
     // AP found, connected
     my_ip = WiFi.localIP();
   }
   else
 #elif defined(WIFI_SSID) && defined(WIFI_PSK)
+  Serial.begin(115200);
+  Serial.print("Connecting to wifi ");
   if (WiFi.status() != WL_CONNECTED) {
+    WiFi.persistent(false);
+    WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PSK);
-  }
-  uint32_t i = 0;
+
+    uint32_t i = 0;
 #define TIMEOUT (WIFI_TIMEOUT * 10)
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(100);
-    if (++i > TIMEOUT) {
-      break;
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      vTaskDelay(100);
+      if (++i > TIMEOUT) {
+        Serial.println(" TIMEOUT!");
+        break;
+      }
+      if (i % 10 == 0)
+        Serial.print(".");
     }
+
+  } else {
+    Serial.print("WiFi already connected! ");
   }
-  if (i < TIMEOUT) {
+  if (WiFi.status() == WL_CONNECTED) {
     my_ip = WiFi.localIP();
+    Serial.println(" DONE!");
   } else
-#endif /* WIFI_MANAGER */
+#endif // USE_MANAGER
   {
+#if USE_WIFI
     // No WiFi found, start access point
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(STASSID " R9M", STAPSK);
+    WiFi.softAP(STASSID" ESP32 TX", STAPSK);
     my_ip = WiFi.softAPIP();
+#endif
   }
 
-  if (mdns.begin("elrs_tx", my_ip))
+#if USE_MDNS
+  if (mdns.begin("elrs_tx"))
   {
     mdns.addService("http", "tcp", 80);
     mdns.addService("ws", "tcp", 81);
   }
+#endif
+
   my_ipaddress_info_str = "My IP address = ";
   my_ipaddress_info_str += my_ip.toString();
 
-  //Serial.print("Connect to http://elrs_tx.local or http://");
-  //Serial.println(my_ip);
+  Serial.print("Connect to http://elrs_tx.local or http://");
+  Serial.println(my_ip);
 
+#if USE_SERVER
   server.on("/", handleRoot);
   server.on("/return", sendReturn);
 
-  server.on(
-      "/upload", HTTP_POST,       // if the client posts to the upload page
-      []() { server.send(200); }, // Send status 200 (OK) to tell the client we are ready to receive
-      handleFileUpload            // Receive and save the file
-  );
+  /* handling uploading firmware file (OTA update) */
+  server.on("/update", HTTP_POST, []() {
+    server.sendHeader("Connection", "close");
+    //server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    if (Update.hasError()) {
+      //server.sendHeader("Connection", "close");
+      server.send(200, "text/plain", "OTA flash failed!");
+    } else {
+      server.send(200, "text/html", "<HEAD><meta http-equiv=\"refresh\" content=\"0;url=/\"></HEAD>");
+    }
+    ESP.restart();
+  }, []() {
+    HTTPUpload& upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+      Serial.printf("Update: %s\n", upload.filename.c_str());
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+      /* flashing firmware to ESP*/
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        Update.printError(Serial);
+      }
+      Serial.printf("OTA prog: %u\n", Update.progress());
+    } else if (upload.status == UPLOAD_FILE_END) {
+      Serial.printf("OTA remaining: %u , finnished %u\n", Update.remaining(), Update.isFinished());
+      if (Update.end(true)) { //true to set the size to the current progress
+        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+      } else {
+        Update.printError(Serial);
+      }
+    }
+  });
 
   server.onNotFound(handleRoot);
-  httpUpdater.setup(&server);
   server.begin();
+#endif // USE_SERVER
 
+#if USE_WEBSOCKET
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
+#endif
 }
 
-int serialEvent()
+int serialEvent(QueueHandle_t queue)
 {
   char inChar;
-  while (Serial.available())
+  // process inputs
+  uint32_t numBytes = uxQueueMessagesWaiting(queue);
+  while (numBytes--)
   {
-    inChar = (char)Serial.read();
+    if (xQueueReceive(queue, &inChar, (TickType_t)10)) {
+      if (msp_handler.processReceivedByte(inChar)) {
+        WEBSOCKET_BROADCASET("MSP received");
+        // msp fully received
+        mspPacket_t &msp_in = msp_handler.getPacket();
+        if (msp_in.type == MSP_PACKET_V1_ELRS) {
+          switch (msp_in.function) {
+            case ELRS_INT_MSP_PARAMS: {
+              WEBSOCKET_BROADCASET("ELRS params resp");
+#if 0
+              uint8_t * payload = (uint8_t*)msp_in.payload;
+              settings_rate = payload[0];
+              settings_tlm = payload[1];
+              settings_power = payload[2];
+              settings_power_max = payload[3];
+              settings_region = payload[4];
+#else
+#endif
+              SettingsSendWS();
+              break;
+            }
+          };
+        }
+        msp_handler.markPacketFree();
 
-    if (msp_handler.processReceivedByte(inChar)) {
-      webSocket.broadcastTXT("MSP received");
-      // msp fully received
-      mspPacket_t &msp_in = msp_handler.getPacket();
-      if (msp_in.type == MSP_PACKET_V1_ELRS) {
-        uint8_t * payload = (uint8_t*)msp_in.payload;
-        switch (msp_in.function) {
-          case ELRS_INT_MSP_PARAMS: {
-            webSocket.broadcastTXT("ELRS params resp");
-            settings_rate = payload[0];
-            settings_tlm = payload[1];
-            settings_power = payload[2];
-            settings_power_max = payload[3];
-            settings_region = payload[4];
-
-            handleSettingDomain(NULL);
-            handleSettingRate(NULL);
-            handleSettingPower(NULL);
-            handleSettingTlm(NULL);
-            break;
-          }
-        };
+      } else if (!msp_handler.mspOngoing()) {
+        if (inChar == '\r') {
+          continue;
+        } else if (inChar == '\n') {
+          return 0;
+        }
+        inputString += inChar;
       }
-      msp_handler.markPacketFree();
-    } else if (!msp_handler.mspOngoing())
-    {
-      if (inChar == '\r') {
-        continue;
-      } else if (inChar == '\n') {
-        return 0;
-      }
-      inputString += inChar;
+    } else {
+      break; // no more input data
     }
   }
   return -1;
 }
 
-void loop()
+void wifi_loop(QueueHandle_t queue)
 {
-  if (0 <= serialEvent())
+  if (0 <= serialEvent(queue))
   {
-    webSocket.broadcastTXT(inputString);
+    WEBSOCKET_BROADCASET(inputString);
     inputString = "";
   }
-
+#if USE_SERVER
   server.handleClient();
+#endif // USE_SERVER
+#if USE_WEBSOCKET
   webSocket.loop();
-  mdns.update();
+#endif
+}
+
+void httpsTask(void *pvParameters)
+{
+  QueueHandle_t queue = (QueueHandle_t)pvParameters;
+
+  wifi_setup();
+  for(;;) {
+    wifi_loop(queue);
+  }
+
+  /* delete the input queue */
+  input_queue = NULL;
+  vQueueDelete(queue);
+
+  /* and output queue */
+  queue = output_queue;
+  output_queue = NULL;
+  vQueueDelete(queue);
+
+  /* remove task */
+  vTaskDelete( NULL );
+}
+
+TaskHandle_t wifiTask = NULL;
+void wifi_start(void)
+{
+  if (wifiTask != NULL)
+    return;
+
+  input_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
+  output_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
+
+  uint8_t taskPriority = 10;
+  xTaskCreatePinnedToCore(
+    httpsTask,              //Function to implement the task
+    "wifiTask",             //Name of the task
+    4096,                   //Stack size in words
+    input_queue,            //Task input parameter
+    taskPriority,           //Priority of the task
+    &wifiTask, 0);
 }
 
 /*************************************************************************/
 
 void CtrlSerial::write(uint8_t data)
 {
-  Serial.write(data);
+  ctrl_serial.write(&data, 1);
 }
 
 void CtrlSerial::write(uint8_t * data, size_t len)
 {
-  Serial.write(data, len);
+  if (output_queue == NULL)
+    return;
+  while (len--)
+    xQueueSend(output_queue, (void *)data++, (TickType_t)0);
 }
 
 size_t CtrlSerial::available(void)
 {
-  return Serial.available();
+  if (output_queue == NULL)
+    return 0;
+  return uxQueueMessagesWaiting(output_queue);
 }
 
 uint8_t CtrlSerial::read(void)
 {
-  return Serial.read();
+  uint8_t out;
+  if (output_queue && xQueueReceive(output_queue, &out, (TickType_t)1)) {
+    return out;
+  }
+  return 0;
 }
 
 CtrlSerial ctrl_serial;
+
+/*************************************************************************/
+
+int DebugSerial::available(void)
+{
+  if (input_queue == NULL)
+    return 0;
+  return uxQueueMessagesWaiting(input_queue);
+}
+
+int DebugSerial::availableForWrite(void)
+{
+  if (input_queue == NULL)
+    return 0;
+  return uxQueueSpacesAvailable(input_queue);
+}
+
+int DebugSerial::peek(void)
+{
+  return 0;
+}
+
+int DebugSerial::read(void)
+{
+  uint8_t out;
+  if (input_queue && xQueueReceive(input_queue, &out, (TickType_t)1)) {
+    return out;
+  }
+  return 0;
+}
+
+void DebugSerial::flush(void)
+{
+  /* do nothing */
+}
+
+size_t DebugSerial::write(uint8_t data)
+{
+  return write(&data, 1);
+}
+
+size_t DebugSerial::write(const uint8_t *buffer, size_t size)
+{
+  size_t num = 0;
+  if (input_queue == NULL)
+    return 0;
+  while (size--) {
+    xQueueSend(input_queue, (void *)buffer++, (TickType_t)0);
+    num++;
+  }
+  return num;
+}
+
+#ifdef WIFI_LOGGER
+DebugSerial debug_serial;
+#endif
+
+#endif

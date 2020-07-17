@@ -27,6 +27,10 @@
 #define GPIO_PIN_RCSIGNAL_TX 13
 //#define GPIO_PIN_LED         22 // 22 is not ok
 
+#ifdef WIFI_LOGGER
+#define CTRL_SERIAL
+#endif
+
 #elif defined(TARGET_TTGO_LORA_V1_AS_RX)
 
 #elif defined(TARGET_TTGO_LORA_V2_AS_TX)

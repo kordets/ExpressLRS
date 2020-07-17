@@ -315,3 +315,39 @@ void platform_restart(void)
 void platform_wd_feed(void)
 {
 }
+
+/*************************************************************************/
+
+void CtrlSerial::write(uint8_t data)
+{
+#if defined(CTRL_SERIAL)
+    CTRL_SERIAL.write(data);
+#endif
+}
+
+void CtrlSerial::write(uint8_t * data, size_t len)
+{
+#if defined(CTRL_SERIAL)
+    CTRL_SERIAL.write(data, len);
+#endif
+}
+
+size_t CtrlSerial::available(void)
+{
+#if defined(CTRL_SERIAL)
+    return CTRL_SERIAL.available();
+#else
+    return 0;
+#endif
+}
+
+uint8_t CtrlSerial::read(void)
+{
+#if defined(CTRL_SERIAL)
+    return CTRL_SERIAL.read();
+#else
+    return 0;
+#endif
+}
+
+CtrlSerial ctrl_serial;

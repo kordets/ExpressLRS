@@ -4,6 +4,7 @@
 #include <Arduino.h>
 //#include "LED.h"
 #include <EEPROM.h>
+#include "wifi_logger.h"
 
 #ifdef TARGET_EXPRESSLRS_PCB_TX_V3
 #include "soc/soc.h"
@@ -85,6 +86,10 @@ void platform_setup(void)
 #if (GPIO_PIN_LED != UNDEF_PIN)
     pinMode(GPIO_PIN_LED, OUTPUT);
     platform_set_led(0);
+#endif
+
+#ifdef WIFI_LOGGER
+    wifi_start();
 #endif
 
 #ifdef DEBUG_SERIAL

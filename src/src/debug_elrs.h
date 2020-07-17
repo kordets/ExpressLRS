@@ -9,7 +9,7 @@
 #ifndef DEBUG_SERIAL
 
 #if defined(PLATFORM_ESP32)
-//#define DEBUG_SERIAL Serial
+#define DEBUG_SERIAL debug_serial
 #elif defined(TARGET_R9M_TX)
 #define DEBUG_SERIAL Serial1
 #elif defined(PLATFORM_ESP8266)

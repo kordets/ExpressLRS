@@ -404,7 +404,7 @@ static void ParamWriteHandler(uint8_t const *msg, uint16_t len)
 
 #ifdef CTRL_SERIAL
     msp_packet_parser.sendPacket(
-        &CTRL_SERIAL, MSP_PACKET_V1_ELRS, ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, sizeof(resp), resp);
+        &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, sizeof(resp), resp);
 #endif /* CTRL_SERIAL */
 }
 
@@ -580,7 +580,7 @@ void setup()
     uint8_t resp[5];
     if (0 == SettingsCommandHandle(0, 0, resp, resp))
         msp_packet_parser.sendPacket(
-            &CTRL_SERIAL, MSP_PACKET_V1_ELRS,
+            &ctrl_serial, MSP_PACKET_V1_ELRS,
             ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, sizeof(resp), resp);
 #endif /* CTRL_SERIAL */
 
@@ -644,15 +644,15 @@ void loop()
             msp_packet_rx.reset();
         }
 #ifdef CTRL_SERIAL
-        else if (CTRL_SERIAL.available()) {
+        else if (ctrl_serial.available()) {
             platform_wd_feed();
-            uint8_t in = CTRL_SERIAL.read();
+            uint8_t in = ctrl_serial.read();
             if (msp_packet_parser.processReceivedByte(in)) {
                 //  MSP received, check content
                 mspPacket_t &packet = msp_packet_parser.getPacket();
 
-                CTRL_SERIAL.print("MSP rcvd, type:");
-                CTRL_SERIAL.println(packet.type);
+                DEBUG_PRINT("MSP rcvd, type:");
+                DEBUG_PRINTLN(packet.type);
 
                 /* Check if packet is ELRS internal */
                 if ((packet.type == MSP_PACKET_V1_ELRS) && (packet.flags & MSP_ELRS_INT)) {
@@ -662,7 +662,7 @@ void loop()
                             if (0 == SettingsCommandHandle(msg[0], (packet.payloadSize - 1), &msg[1], msg)) {
                                 //packet.type = MSP_PACKET_V1_ELRS;
                                 packet.payloadSize = 5;
-                                msp_packet_parser.sendPacket(&packet, &CTRL_SERIAL);
+                                msp_packet_parser.sendPacket(&packet, &ctrl_serial);
                             }
                             break;
                         }

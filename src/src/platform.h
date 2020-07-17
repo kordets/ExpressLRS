@@ -3,6 +3,7 @@
 
 #include "platform_internal.h"
 #include <stdint.h>
+#include <stddef.h>
 
 /** EEPROM storage key
 * v0 - initial
@@ -28,5 +29,20 @@ void platform_connection_state(int state);
 void platform_set_led(bool state);
 void platform_restart(void);
 void platform_wd_feed(void);
+
+
+class CtrlSerial
+{
+public:
+    size_t available(void);
+    uint8_t read(void);
+
+    void write(uint8_t data);
+    void write(uint8_t * buffer, size_t size);
+
+private:
+};
+
+extern CtrlSerial ctrl_serial;
 
 #endif // _PLATFORM_H_

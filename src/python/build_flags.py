@@ -36,8 +36,10 @@ def parse_flags(path):
         print(err)
         raise Exception(err)
 
-
-parse_flags("user_defines.txt")
+try:
+    parse_flags("user_defines_private.txt")
+except Exception:
+    parse_flags("user_defines.txt")
 
 fhss_random.check_env_and_parse(env['BUILD_FLAGS'])
 

@@ -9,3 +9,4 @@ __pycache__
 user_defines.txt
 src/fhss_freqs.h
 firmware.map
+user_defines_private.txt

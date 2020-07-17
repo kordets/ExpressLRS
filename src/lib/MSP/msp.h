@@ -186,8 +186,8 @@ public:
     }
     mspPacket_t &getPacket();
     void markPacketFree();
-    bool sendPacket(mspPacket_t *packet, HardwareSerial *port);
-    bool sendPacket(HardwareSerial *port, mspPacketType_e type,
+    bool sendPacket(mspPacket_t *packet, CtrlSerial *port);
+    bool sendPacket(CtrlSerial *port, mspPacketType_e type,
                     uint16_t function, uint8_t flags,
                     uint8_t len, uint8_t const * payload);
 
