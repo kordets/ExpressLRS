@@ -90,7 +90,71 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
         power > MaxPower)
         return;
 
-#ifdef TARGET_R9M_TX
+#if RADIO_SX128x
+#if defined(TARGET_MODULE_LORA1280F27)
+    switch (Power)
+    {
+    case PWR_10mW:
+        Radio.SetOutputPower(-10);
+        break;
+    case PWR_25mW:
+        Radio.SetOutputPower(-7);
+        break;
+    case PWR_50mW:
+        Radio.SetOutputPower(-4);
+        break;
+    case PWR_100mW:
+        Radio.SetOutputPower(-1);
+        break;
+    case PWR_250mW:
+        Radio.SetOutputPower(2);
+        break;
+    case PWR_500mW:
+        Radio.SetOutputPower(5);
+        break;
+    case PWR_1000mW:
+        Radio.SetOutputPower(13);
+        break;
+    default:
+        Power = PWR_100mW;
+        Radio.SetOutputPower(-1);
+        break;
+    }
+
+#elif defined(TARGET_MODULE_E28)
+    // TODO: Measure outputs!!
+    switch (Power)
+    {
+    case PWR_10mW:
+        Radio.SetOutputPower(-17);
+        break;
+    case PWR_25mW:
+        Radio.SetOutputPower(-13);
+        break;
+    case PWR_50mW:
+        Radio.SetOutputPower(-10);
+        break;
+    case PWR_250mW:
+        Radio.SetOutputPower(-3);
+        break;
+    case PWR_500mW:
+        Radio.SetOutputPower(0);
+        break;
+    case PWR_100mW:
+    default:
+        Power = PWR_100mW;
+        Radio.SetOutputPower(-7);
+        break;
+    }
+
+#elif defined(TARGET_MODULE_LoRa1280)
+    Radio.SetOutputPower(13); // 12.5dBm, ~18mW
+
+#else
+#error "!! Unknown module, cannot control power !!"
+#endif
+
+#elif defined(TARGET_R9M_TX)
     r9dac.setPower(power);
 
 #elif defined(TARGET_1000mW_MODULE)
@@ -110,7 +174,7 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
             break;
         default:
             p_radio.SetOutputPower(0b0010);
-            p_current_power = PWR_50mW;
+            power = PWR_50mW;
             break;
     }
 
@@ -125,10 +189,9 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
             p_radio.SetOutputPower(0b1100);
             break;
         case PWR_50mW:
-            p_radio.SetOutputPower(0b1111);
-            break;
         default:
-            power = p_current_power;
+            p_radio.SetOutputPower(0b1111);
+            power = PWR_50mW;
             break;
     }
 #endif

@@ -6,6 +6,21 @@
 #include "LoRa_SX127x.h"
 #endif
 
+#if RADIO_SX128x
+#if defined(TARGET_MODULE_LORA1280F27)
+#define MaxPower PWR_1000mW
+#elif defined(TARGET_MODULE_E28)
+#define MaxPower PWR_500mW
+#else
+#define MaxPower PWR_100mW
+#endif
+
+#ifndef TX_POWER_DEFAULT
+/* Just in case, this should be defined in user_defines.txt file */
+#define TX_POWER_DEFAULT PWR_100mW
+#endif
+
+#else // SX127x
 #ifdef TARGET_R9M_TX
 #define MaxPower PWR_1000mW // was PWR_2000mW
 #elif defined(TARGET_1000mW_MODULE)
@@ -19,6 +34,8 @@
 /* Just in case, this should be defined in user_defines.txt file */
 #define TX_POWER_DEFAULT PWR_50mW
 #endif
+
+#endif // SX127x
 
 typedef enum
 {

@@ -4,8 +4,11 @@
 #include "SX1280_Regs.h"
 #include "RadioInterface.h"
 
-
+#ifdef TARGET_E28_MODULE
+#define SX128X_SPI_SPEED (10000000) // speed up to 10 MHz
+#else
 #define SX128X_SPI_SPEED (18000000) // speed up to 20 MHz
+#endif
 
 // SX127x compatible typedef
 typedef SX1280_RadioLoRaBandwidths_t Bandwidth;
@@ -58,6 +61,9 @@ public:
     void ICACHE_RAM_ATTR RXnbISR();
 
 private:
+    volatile SX1280_RadioOperatingModes_t currOpmode = SX1280_MODE_UNKNOWN_MAX;
+    volatile int8_t current_power = -100;
+
     void ICACHE_RAM_ATTR SetFIFOaddr(uint8_t txBaseAddr, uint8_t rxBaseAddr);
     uint16_t ICACHE_RAM_ATTR GetIRQFlags();
     void ICACHE_RAM_ATTR ClearIrqStatus(uint16_t irqMask);

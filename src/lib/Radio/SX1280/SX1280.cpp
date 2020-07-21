@@ -84,10 +84,17 @@ void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power)
     if (power < 0) power = 0;
     else if (power > 13) power = 13;
     power += 18;
+
+    // Skip if already set
+    if (power == current_power)
+        return;
+
     uint8_t buf[] = {(uint8_t)(power), SX1280_RADIO_RAMP_04_US};
     WriteCommand(SX1280_RADIO_SET_TXPARAMS, buf, sizeof(buf));
-    DEBUG_PRINT("SetPower: ");
+    DEBUG_PRINT("SetOutputPower: ");
     DEBUG_PRINTLN(power);
+
+    current_power = power;
 }
 
 void SX1280Driver::SetPacketParams(uint8_t PreambleLength, SX1280_RadioLoRaPacketLengthsModes_t HeaderType,
@@ -109,7 +116,11 @@ void SX1280Driver::SetPacketParams(uint8_t PreambleLength, SX1280_RadioLoRaPacke
 
 void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
 {
-    WORD_ALIGNED_ATTR uint8_t buf3[3]; //TODO make word alignmed
+    WORD_ALIGNED_ATTR uint8_t buffer[3]; //TODO make word alignmed
+
+    if (OPmode == currOpmode) {
+       return;
+    }
 
     switch (OPmode)
     {
@@ -134,18 +145,18 @@ void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
 
     case SX1280_MODE_RX:
         //uses timeout Time-out duration = periodBase * periodBaseCount
-        buf3[0] = 0x02; // periodBase: 0x2 = 1ms, page 71 datasheet
-        buf3[1] = 0xFF; // periodBaseCount: 0xffff = Rx Continuous mode.
-        buf3[2] = 0xFF;
-        WriteCommand(SX1280_RADIO_SET_RX, buf3, sizeof(buf3));
+        buffer[0] = 0x02; // periodBase: 0x2 = 1ms, page 71 datasheet
+        buffer[1] = 0xFF; // periodBaseCount: 0xffff = Rx Continuous mode.
+        buffer[2] = 0xFF;
+        WriteCommand(SX1280_RADIO_SET_RX, buffer, sizeof(buffer));
         break;
 
     case SX1280_MODE_TX:
         //uses timeout Time-out duration = periodBase * periodBaseCount
-        buf3[0] = 0x02; // periodBase: 0x2 = 1ms, page 71 datasheet
-        buf3[1] = 0x00; // periodBaseCount: 0x0 = no timeout, returns when TX is ready
-        buf3[2] = 0x00;
-        WriteCommand(SX1280_RADIO_SET_TX, buf3, sizeof(buf3));
+        buffer[0] = 0x02; // periodBase: 0x2 = 1ms, page 71 datasheet
+        buffer[1] = 0x00; // periodBaseCount: 0x0 = no timeout, returns when TX is ready
+        buffer[2] = 0x00;
+        WriteCommand(SX1280_RADIO_SET_TX, buffer, sizeof(buffer));
         break;
 
     case SX1280_MODE_CAD:
@@ -154,6 +165,8 @@ void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
     default:
         break;
     }
+
+    currOpmode = OPmode;
 }
 
 void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw, SX1280_RadioLoRaSpreadingFactors_t sf, SX1280_RadioLoRaCodingRates_t cr)
@@ -186,6 +199,9 @@ void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw, SX1280_Radio
 
 void ICACHE_RAM_ATTR SX1280Driver::SetFrequency(uint32_t Reqfreq)
 {
+    // Skip if already set
+    if (currFreq == Reqfreq) return;
+
     //uint32_t freq = (uint32_t)((double)Reqfreq / (double)SX1280_FREQ_STEP);
     // 1024 * x / 203125
     uint64_t freq = Reqfreq;

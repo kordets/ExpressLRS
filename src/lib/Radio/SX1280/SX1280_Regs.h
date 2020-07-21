@@ -27,7 +27,8 @@ typedef enum
     SX1280_MODE_FS,           //! The radio is in frequency synthesis mode
     SX1280_MODE_RX,           //! The radio is in receive mode
     SX1280_MODE_TX,           //! The radio is in transmit mode
-    SX1280_MODE_CAD           //! The radio is in channel activity detection mode
+    SX1280_MODE_CAD,          //! The radio is in channel activity detection mode
+    SX1280_MODE_UNKNOWN_MAX
 } SX1280_RadioOperatingModes_t;
 
 #define SX1280_RX_TX_CONTINUOUS \
