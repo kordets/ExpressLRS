@@ -55,8 +55,8 @@ SX127xDriver::SX127xDriver(HwSpi &spi):
     currSF = SF_6;
     currCR = CR_4_5;
     _syncWord = SX127X_SYNC_WORD;
-    currFreq = 0;
-    currPWR = (SX127X_PA_SELECT_BOOST + SX127X_MAX_OUTPUT_POWER); // define to max for forced init.
+    current_freq = 0;
+    current_power = 0xF; // define to max for forced init.
 
     LastPacketRSSI = LastPacketRssiRaw = 0;
     LastPacketSNR = 0;
@@ -105,13 +105,13 @@ void SX127xDriver::SetSyncWord(uint8_t syncWord)
 void SX127xDriver::SetOutputPower(uint8_t Power)
 {
     Power &= 0xF; // 4bits
-    if (currPWR == Power)
+    if (current_power == Power)
         return;
 
     writeRegister(SX127X_REG_PA_CONFIG, SX127X_PA_SELECT_BOOST | SX127X_MAX_OUTPUT_POWER | Power);
     writeRegister(SX127X_REG_PA_DAC, (0x80 | ((Power == 0xf) ? SX127X_PA_BOOST_ON : SX127X_PA_BOOST_OFF)));
 
-    currPWR = Power;
+    current_power = Power;
 }
 
 void SX127xDriver::SetPreambleLength(uint16_t PreambleLen)
@@ -127,7 +127,7 @@ void SX127xDriver::SetPreambleLength(uint16_t PreambleLen)
 void ICACHE_RAM_ATTR SX127xDriver::SetFrequency(uint32_t freq, uint8_t mode)
 {
     // TODO: Take this into use if ok!!
-    if (freq == currFreq)
+    if (freq == current_freq)
         return;
 
     if (mode != 0xff)
@@ -147,7 +147,7 @@ void ICACHE_RAM_ATTR SX127xDriver::SetFrequency(uint32_t freq, uint8_t mode)
     };
 #endif
     writeRegisterBurst(SX127X_REG_FRF_MSB, buff, sizeof(buff));
-    currFreq = freq;
+    current_freq = freq;
 
     if (mode != 0xff && mode != SX127X_SLEEP)
         SetMode(mode);
@@ -445,7 +445,7 @@ uint8_t SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr, ui
     uint8_t newBandwidth, newSpreadingFactor, newCodingRate;
 
     if (freq == 0)
-        freq = currFreq;
+        freq = current_freq;
     if (syncWord == 0)
         syncWord = _syncWord;
 
@@ -547,7 +547,7 @@ uint8_t SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr, ui
     currBW = bw;
     currSF = sf;
     currCR = cr;
-    currFreq = freq;
+    current_freq = freq;
 
     return ERR_NONE;
 }
@@ -565,7 +565,7 @@ void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t fre
     SetFrequency(freq, 0xff); // 0xff = skip mode set calls
 
     // output power configuration
-    SetOutputPower(currPWR);
+    SetOutputPower(current_power);
     //if (RFmodule == RFMOD_SX1276)
     //    // Increase max current limit
     //    writeRegister(SX127X_REG_OCP, SX127X_OCP_ON | 18); // 15 (120mA) -> 18 (150mA)
@@ -710,7 +710,7 @@ uint32_t ICACHE_RAM_ATTR SX127xDriver::getCurrBandwidth() const
 void ICACHE_RAM_ATTR SX127xDriver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
 {
     if (!frf) // use locally stored value if not defined
-        frf = currFreq;
+        frf = current_freq;
     if (!frf)
         return;
     // Calc new PPM

@@ -61,18 +61,6 @@ public:
     volatile SpreadingFactor currSF;
     volatile CodingRate currCR;
     volatile uint8_t _syncWord;
-    volatile uint32_t currFreq;
-    volatile uint8_t currPWR;
-    ///////////////////////////////////
-
-    /////////////Packet Stats//////////
-    volatile uint32_t LastPacketIsrMicros = 0;
-    volatile int16_t LastPacketRSSI;
-    volatile uint8_t LastPacketRssiRaw;
-    volatile int8_t LastPacketSNR;
-    volatile uint8_t NonceTX;
-    volatile uint8_t NonceRX;
-    /////////////////////////////////
 
     ////////////////Configuration Functions/////////////
     uint8_t Begin(void);

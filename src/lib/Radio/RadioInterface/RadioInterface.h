@@ -27,7 +27,7 @@ public:
     void SetPins(int rst, int dio1, int dio2, int dio3,
                  int busy, int txpin, int rxpin);
 
-    ///////Callback Function Pointers/////
+    ////////// Callback Function Pointers //////////
     static void rx_nullCallback(uint8_t *){};
     static void tx_nullCallback(void){};
     static void (*RXdoneCallback1)(uint8_t *buff);
@@ -38,6 +38,14 @@ public:
     static void (*TXdoneCallback4)(void);
 
     static volatile enum isr_states DRAM_ATTR p_state_isr;
+
+    ////////// Packet Stats //////////
+    volatile uint32_t LastPacketIsrMicros = 0;
+    volatile int16_t LastPacketRSSI;
+    volatile uint8_t LastPacketRssiRaw;
+    volatile int8_t LastPacketSNR;
+    volatile uint8_t NonceTX = 0;
+    volatile uint8_t NonceRX = 0;
 
 protected:
     void InitPins(void);
@@ -54,6 +62,10 @@ protected:
     volatile int8_t _DIO3 = -1;
     volatile int8_t _RST = -1;
     volatile int8_t _BUSY = -1;
+
+    ////////// Config Variables //////////
+    volatile uint32_t current_freq;
+    volatile int8_t current_power;
 
 private:
 };

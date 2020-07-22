@@ -26,6 +26,8 @@ SX1280Driver::SX1280Driver(HwSpi &spi):
     RadioInterface(spi)
 {
     instance = this;
+    current_freq = 2400000000;
+    current_power = -100;
 }
 
 void SX1280Driver::Begin()
@@ -54,7 +56,7 @@ void SX1280Driver::Begin()
     WriteCommand(SX1280_RADIO_SET_AUTOFS, 0x01); //enable auto FS
     SetPacketParams(12, SX1280_LORA_PACKET_IMPLICIT, RX_BUFFER_LEN, SX1280_LORA_CRC_OFF, SX1280_LORA_IQ_NORMAL);
     // Step 3: Set Freq
-    SetFrequency(currFreq);
+    SetFrequency(current_freq);
     // Step 4: Config FIFO addr
     SetFIFOaddr(0x00, 0x00);
     // Config IRQs
@@ -71,7 +73,10 @@ void SX1280Driver::End()
     detachInterrupt(_DIO2);
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::Config(SX1280_RadioLoRaBandwidths_t bw, SX1280_RadioLoRaSpreadingFactors_t sf, SX1280_RadioLoRaCodingRates_t cr, uint32_t freq, uint8_t PreambleLength)
+void ICACHE_RAM_ATTR SX1280Driver::Config(SX1280_RadioLoRaBandwidths_t bw,
+                                          SX1280_RadioLoRaSpreadingFactors_t sf,
+                                          SX1280_RadioLoRaCodingRates_t cr,
+                                          uint32_t freq, uint8_t PreambleLength)
 {
     SetMode(SX1280_MODE_STDBY_XOSC);
     ConfigModParams(bw, sf, cr);
@@ -97,8 +102,10 @@ void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power)
     current_power = power;
 }
 
-void SX1280Driver::SetPacketParams(uint8_t PreambleLength, SX1280_RadioLoRaPacketLengthsModes_t HeaderType,
-                                   uint8_t PayloadLength, SX1280_RadioLoRaCrcModes_t crc,
+void SX1280Driver::SetPacketParams(uint8_t PreambleLength,
+                                   SX1280_RadioLoRaPacketLengthsModes_t HeaderType,
+                                   uint8_t PayloadLength,
+                                   SX1280_RadioLoRaCrcModes_t crc,
                                    SX1280_RadioLoRaIQModes_t InvertIQ)
 {
     uint8_t buf[7];
@@ -169,7 +176,9 @@ void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
     currOpmode = OPmode;
 }
 
-void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw, SX1280_RadioLoRaSpreadingFactors_t sf, SX1280_RadioLoRaCodingRates_t cr)
+void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
+                                   SX1280_RadioLoRaSpreadingFactors_t sf,
+                                   SX1280_RadioLoRaCodingRates_t cr)
 {
     // Care must therefore be taken to ensure that modulation parameters are set using the command
     // SetModulationParam() only after defining the packet type SetPacketType() to be used
@@ -200,7 +209,7 @@ void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw, SX1280_Radio
 void ICACHE_RAM_ATTR SX1280Driver::SetFrequency(uint32_t Reqfreq)
 {
     // Skip if already set
-    if (currFreq == Reqfreq) return;
+    if (current_freq == Reqfreq) return;
 
     //uint32_t freq = (uint32_t)((double)Reqfreq / (double)SX1280_FREQ_STEP);
     // 1024 * x / 203125
@@ -213,7 +222,7 @@ void ICACHE_RAM_ATTR SX1280Driver::SetFrequency(uint32_t Reqfreq)
     buf[2] = (uint8_t)(freq & 0xFF);
 
     WriteCommand(SX1280_RADIO_SET_RFFREQUENCY, buf, sizeof(buf));
-    currFreq = Reqfreq;
+    current_freq = Reqfreq;
 }
 
 int32_t ICACHE_RAM_ATTR SX1280Driver::GetFrequencyError()

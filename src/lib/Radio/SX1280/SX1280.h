@@ -22,25 +22,27 @@ public:
     SX1280_RadioLoRaBandwidths_t currBW = SX1280_LORA_BW_0800;
     SX1280_RadioLoRaSpreadingFactors_t currSF = SX1280_LORA_SF6;
     SX1280_RadioLoRaCodingRates_t currCR = SX1280_LORA_CR_4_7;
-    uint32_t currFreq = 2400000000;
 
     /////////////Packet Stats//////////
-    volatile uint32_t LastPacketIsrMicros = 0;
-    volatile int16_t LastPacketRSSI;
-    volatile uint8_t LastPacketRssiRaw;
-    volatile int8_t LastPacketSNR;
     volatile uint8_t LastRadioStatus = 0;
-    volatile uint8_t NonceTX = 0;
-    volatile uint8_t NonceRX = 0;
 
     ////////////////Configuration Functions/////////////
     SX1280Driver(HwSpi &spi);
     void Begin();
     void End();
     void SetMode(SX1280_RadioOperatingModes_t OPmode);
-    void Config(SX1280_RadioLoRaBandwidths_t bw, SX1280_RadioLoRaSpreadingFactors_t sf, SX1280_RadioLoRaCodingRates_t cr, uint32_t freq, uint8_t PreambleLength);
-    void ConfigModParams(SX1280_RadioLoRaBandwidths_t bw, SX1280_RadioLoRaSpreadingFactors_t sf, SX1280_RadioLoRaCodingRates_t cr);
-    void SetPacketParams(uint8_t PreambleLength, SX1280_RadioLoRaPacketLengthsModes_t HeaderType, uint8_t PayloadLength, SX1280_RadioLoRaCrcModes_t crc, SX1280_RadioLoRaIQModes_t InvertIQ);
+    void Config(SX1280_RadioLoRaBandwidths_t bw,
+                SX1280_RadioLoRaSpreadingFactors_t sf,
+                SX1280_RadioLoRaCodingRates_t cr,
+                uint32_t freq, uint8_t PreambleLength);
+    void ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
+                         SX1280_RadioLoRaSpreadingFactors_t sf,
+                         SX1280_RadioLoRaCodingRates_t cr);
+    void SetPacketParams(uint8_t PreambleLength,
+                         SX1280_RadioLoRaPacketLengthsModes_t HeaderType,
+                         uint8_t PayloadLength,
+                         SX1280_RadioLoRaCrcModes_t crc,
+                         SX1280_RadioLoRaIQModes_t InvertIQ);
     void ICACHE_RAM_ATTR SetFrequency(uint32_t freq);
     void SetOutputPower(int8_t power);
 
@@ -62,7 +64,6 @@ public:
 
 private:
     volatile SX1280_RadioOperatingModes_t currOpmode = SX1280_MODE_UNKNOWN_MAX;
-    volatile int8_t current_power = -100;
 
     void ICACHE_RAM_ATTR SetFIFOaddr(uint8_t txBaseAddr, uint8_t rxBaseAddr);
     uint16_t ICACHE_RAM_ATTR GetIRQFlags();
