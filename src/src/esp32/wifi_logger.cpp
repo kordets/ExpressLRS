@@ -8,6 +8,7 @@
 
 #include "wifi_logger.h"
 #include <Arduino.h>
+#include <freertos/ringbuf.h>
 #if USE_WIFI
 #include <WiFi.h>
 #endif
@@ -28,7 +29,6 @@
 #include "msp.h"
 #include "platform.h"
 #include "targets.h"
-#include "POWERMGNT.h"
 
 #if 1
 
@@ -64,8 +64,52 @@ WebSocketsServer webSocket = WebSocketsServer(81);
 #define WEBSOCKET_SEND(...)
 #endif
 
-QueueHandle_t input_queue = NULL;
-QueueHandle_t output_queue = NULL;
+/*************************************************************************/
+
+static QueueHandle_t DRAM_ATTR receive_queue = NULL;
+static QueueHandle_t DRAM_ATTR send_queue = NULL;
+
+class CtrlSerialPrivate: public CtrlSerial
+{
+public:
+  void set_queue_rx(QueueHandle_t q) {
+    p_queue_rx = q;
+  }
+  void set_queue_tx(QueueHandle_t q) {
+    p_queue_tx = q;
+  }
+
+  size_t available(void) {
+    if (p_queue_rx == NULL)
+      return 0;
+    return uxQueueMessagesWaiting(p_queue_rx);
+  }
+  uint8_t read(void) {
+    uint8_t out;
+    if (p_queue_rx && xQueueReceive(p_queue_rx, &out, (TickType_t)1)) {
+      return out;
+    }
+    return 0;
+  }
+
+  void write(uint8_t * buffer, size_t size) {
+    if (p_queue_tx == NULL)
+      return;
+    while (size--)
+      xQueueSend(p_queue_tx, (void *)buffer++, (TickType_t)0);
+  }
+
+private:
+  QueueHandle_t p_queue_rx = NULL;
+  QueueHandle_t p_queue_tx = NULL;
+};
+
+CtrlSerialPrivate ctrl_msp_send;
+CtrlSerialPrivate ctrl_msp_receive;
+CtrlSerial& ctrl_serial = ctrl_msp_send;
+
+/*************************************************************************/
+
 String inputString = "";
 String my_ipaddress_info_str = "NA";
 
@@ -167,17 +211,16 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
           var elem = document.getElementById(type);
           if (elem) {
             if (type == "region_domain") {
+              var domain_info = "Regulatory domain UNKNOWN";
               if (value == "0")
-                value = "Regulatory domain 915MHz";
+                domain_info = "Regulatory domain 915MHz";
               else if (value == "1")
-                value = "Regulatory domain 868MHz";
+                domain_info = "Regulatory domain 868MHz";
               else if (value == "2")
-                value = "Regulatory domain 433MHz";
+                domain_info = "Regulatory domain 433MHz";
               else if (value == "3")
-                value = "Regulatory domain ISM 2400";
-              else
-                value = "Regulatory domain UNKNOWN";
-              elem.innerHTML = value;
+                domain_info = "Regulatory domain ISM 2400";
+              elem.innerHTML = domain_info;
 
               // update rate options
               var rates = document.getElementById("rates_input");
@@ -346,15 +389,10 @@ curl --include \
 </html>
 )rawliteral";
 
-#if 0
 static uint8_t settings_rate = 1;
 static uint8_t settings_power = 4, settings_power_max = 8;
 static uint8_t settings_tlm = 7;
 static uint8_t settings_region = 0;
-#else
-extern struct platform_config pl_config;
-extern POWERMGNT PowerMgmt;
-#endif
 String settings_out;
 
 MSP msp_handler;
@@ -369,7 +407,7 @@ void SettingsWrite(uint8_t * buff, uint8_t len)
     msp_out.function = ELRS_INT_MSP_PARAMS;
     memcpy((void*)msp_out.payload, buff, len);
     // Send packet
-    msp_handler.sendPacket(&msp_out, &ctrl_serial);
+    msp_handler.sendPacket(&msp_out, &ctrl_msp_receive);
 }
 
 void SettingsGet(void)
@@ -383,14 +421,10 @@ void handleSettingRate(const char * input, int num)
   settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_rates_input=";
-#if 0
     settings_out += settings_rate;
-#else
-    settings_out += pl_config.mode;
-#endif
   } else if (*input == '=') {
     input++;
-    settings_out = "Setting rate: ";
+    settings_out = "[L] Setting rate: ";
     settings_out += input;
     // Write to ELRS
     char val = *input;
@@ -408,18 +442,12 @@ void handleSettingPower(const char * input, int num)
   settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_power_input=";
-#if 0
     settings_out += settings_power;
     settings_out += ",";
     settings_out += settings_power_max;
-#else
-    settings_out += pl_config.power;
-    settings_out += ",";
-    settings_out += PowerMgmt.maxPowerGet();
-#endif
   } else if (*input == '=') {
     input++;
-    settings_out = "Setting power: ";
+    settings_out = "[L] Setting power: ";
     settings_out += input;
     // Write to ELRS
     char val = *input;
@@ -437,14 +465,10 @@ void handleSettingTlm(const char * input, int num)
   settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_tlm_input=";
-#if 0
     settings_out += settings_tlm;
-#else
-    settings_out += pl_config.tlm;
-#endif
   } else if (*input == '=') {
     input++;
-    settings_out = "Setting telemetry: ";
+    settings_out = "[L] Setting telemetry: ";
     settings_out += input;
     // Write to ELRS
     char val = *input;
@@ -462,7 +486,7 @@ void handleSettingDomain(const char * input, int num)
   settings_out = "[ERROR] Domain set is not supported!";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_region_domain=";
-#if 0
+#if 1
     settings_out += settings_region;
 #else
 #if defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915)
@@ -484,12 +508,12 @@ void handleSettingDomain(const char * input, int num)
     WEBSOCKET_BROADCASET(settings_out);
 }
 
-void SettingsSendWS(void)
+void SettingsSendWS(int num)
 {
-  handleSettingDomain(NULL, -1);
-  handleSettingRate(NULL, -1);
-  handleSettingPower(NULL, -1);
-  handleSettingTlm(NULL, -1);
+  handleSettingDomain(NULL, num);
+  handleSettingRate(NULL, num);
+  handleSettingPower(NULL, num);
+  handleSettingTlm(NULL, num);
 }
 
 void MspVtxWrite(void)
@@ -510,7 +534,7 @@ void MspVtxWrite(void)
   msp_out.payloadSize = sizeof(vtx_cmd);
   memcpy((void*)msp_out.payload, vtx_cmd, sizeof(vtx_cmd));
   // Send packet
-  msp_handler.sendPacket(&msp_out, &ctrl_serial);
+  msp_handler.sendPacket(&msp_out, &ctrl_msp_receive);
 }
 
 #if USE_WEBSOCKET
@@ -530,9 +554,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     //Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", num, ip[0], ip[1], ip[2], ip[3], payload);
 
     WEBSOCKET_SEND(num, my_ipaddress_info_str);
-
     // Send settings
-    SettingsSendWS();
+    SettingsSendWS(num);
   }
   break;
   case WStype_TEXT:
@@ -603,6 +626,7 @@ void handleNotFound()
 void wifi_setup(void)
 {
   IPAddress my_ip;
+  uint32_t iter, jter, timeout;
 
   //wifi_station_set_hostname("elrs_tx");
 
@@ -617,36 +641,37 @@ void wifi_setup(void)
 #elif defined(WIFI_SSID) && defined(WIFI_PSK)
   Serial.begin(115200);
   Serial.print("Connecting to wifi ");
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi.persistent(false);
-    WiFi.disconnect();
-    WiFi.mode(WIFI_OFF);
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PSK);
 
-    uint32_t i = 0;
-#define TIMEOUT (WIFI_TIMEOUT * 10)
-    while (WiFi.status() != WL_CONNECTED)
-    {
-      vTaskDelay(100);
-      if (++i > TIMEOUT) {
-        Serial.println(" TIMEOUT!");
-        break;
+  timeout = WIFI_TIMEOUT * 2;
+  timeout /= 10;
+
+  for (iter = 0; (iter < timeout) && (WiFi.status() != WL_CONNECTED); iter++) {
+    if (WiFi.status() != WL_CONNECTED) {
+      WiFi.persistent(false);
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
+      WiFi.mode(WIFI_STA);
+      WiFi.begin(WIFI_SSID, WIFI_PSK);
+
+      jter = 0;
+      while (++jter <= 50) {
+        vTaskDelay(100);
+        if (WiFi.status() == WL_CONNECTED) {
+          break;
+        } else if ((jter % 10) == 0) {
+          Serial.print(".");
+        }
       }
-      if (i % 10 == 0)
-        Serial.print(".");
     }
-
-  } else {
-    Serial.print("WiFi already connected! ");
   }
   if (WiFi.status() == WL_CONNECTED) {
     my_ip = WiFi.localIP();
-    Serial.println(" DONE!");
+    Serial.println(" CONNECTED!");
   } else
 #endif // USE_MANAGER
   {
 #if USE_WIFI
+    Serial.println(" FAILED! Starting AP...");
     // No WiFi found, start access point
     WiFi.mode(WIFI_AP);
     WiFi.softAP(STASSID" ESP32 TX", STAPSK);
@@ -662,7 +687,7 @@ void wifi_setup(void)
   }
 #endif
 
-  my_ipaddress_info_str = "My IP address = ";
+  my_ipaddress_info_str = "[L] My IP address = ";
   my_ipaddress_info_str += my_ip.toString();
 
   Serial.print("Connect to http://elrs_tx.local or http://");
@@ -686,6 +711,7 @@ void wifi_setup(void)
   }, []() {
     HTTPUpload& upload = server.upload();
     if (upload.status == UPLOAD_FILE_START) {
+      platform_radio_force_stop();
       Serial.printf("Update: %s\n", upload.filename.c_str());
       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
         Update.printError(Serial);
@@ -695,9 +721,7 @@ void wifi_setup(void)
       if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
         Update.printError(Serial);
       }
-      Serial.printf("OTA prog: %u\n", Update.progress());
     } else if (upload.status == UPLOAD_FILE_END) {
-      Serial.printf("OTA remaining: %u , finnished %u\n", Update.remaining(), Update.isFinished());
       if (Update.end(true)) { //true to set the size to the current progress
         Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
       } else {
@@ -725,23 +749,20 @@ int serialEvent(QueueHandle_t queue)
   {
     if (xQueueReceive(queue, &inChar, (TickType_t)10)) {
       if (msp_handler.processReceivedByte(inChar)) {
-        WEBSOCKET_BROADCASET("MSP received");
+        WEBSOCKET_BROADCASET("[L] MSP received");
         // msp fully received
         mspPacket_t &msp_in = msp_handler.getPacket();
         if (msp_in.type == MSP_PACKET_V1_ELRS) {
           switch (msp_in.function) {
             case ELRS_INT_MSP_PARAMS: {
-              WEBSOCKET_BROADCASET("ELRS params resp");
-#if 0
+              WEBSOCKET_BROADCASET("[L] ELRS params resp");
               uint8_t * payload = (uint8_t*)msp_in.payload;
               settings_rate = payload[0];
               settings_tlm = payload[1];
               settings_power = payload[2];
               settings_power_max = payload[3];
               settings_region = payload[4];
-#else
-#endif
-              SettingsSendWS();
+              SettingsSendWS(-1); // send to all clients
               break;
             }
           };
@@ -788,12 +809,12 @@ void httpsTask(void *pvParameters)
   }
 
   /* delete the input queue */
-  input_queue = NULL;
+  receive_queue = NULL;
   vQueueDelete(queue);
 
   /* and output queue */
-  queue = output_queue;
-  output_queue = NULL;
+  queue = send_queue;
+  send_queue = NULL;
   vQueueDelete(queue);
 
   /* remove task */
@@ -806,66 +827,39 @@ void wifi_start(void)
   if (wifiTask != NULL)
     return;
 
-  input_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
-  output_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
+  receive_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
+  send_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
+
+  ctrl_msp_send.set_queue_rx(send_queue);
+  ctrl_msp_send.set_queue_tx(receive_queue);
+
+  ctrl_msp_receive.set_queue_rx(receive_queue);
+  ctrl_msp_receive.set_queue_tx(send_queue);
 
   uint8_t taskPriority = 10;
   xTaskCreatePinnedToCore(
     httpsTask,              //Function to implement the task
     "wifiTask",             //Name of the task
     4096,                   //Stack size in words
-    input_queue,            //Task input parameter
+    receive_queue,          //Task input parameter
     taskPriority,           //Priority of the task
     &wifiTask, 0);
 }
 
 /*************************************************************************/
 
-void CtrlSerial::write(uint8_t data)
-{
-  ctrl_serial.write(&data, 1);
-}
-
-void CtrlSerial::write(uint8_t * data, size_t len)
-{
-  if (output_queue == NULL)
-    return;
-  while (len--)
-    xQueueSend(output_queue, (void *)data++, (TickType_t)0);
-}
-
-size_t CtrlSerial::available(void)
-{
-  if (output_queue == NULL)
-    return 0;
-  return uxQueueMessagesWaiting(output_queue);
-}
-
-uint8_t CtrlSerial::read(void)
-{
-  uint8_t out;
-  if (output_queue && xQueueReceive(output_queue, &out, (TickType_t)1)) {
-    return out;
-  }
-  return 0;
-}
-
-CtrlSerial ctrl_serial;
-
-/*************************************************************************/
-
 int DebugSerial::available(void)
 {
-  if (input_queue == NULL)
+  if (receive_queue == NULL)
     return 0;
-  return uxQueueMessagesWaiting(input_queue);
+  return uxQueueMessagesWaiting(receive_queue);
 }
 
 int DebugSerial::availableForWrite(void)
 {
-  if (input_queue == NULL)
+  if (receive_queue == NULL)
     return 0;
-  return uxQueueSpacesAvailable(input_queue);
+  return uxQueueSpacesAvailable(receive_queue);
 }
 
 int DebugSerial::peek(void)
@@ -876,7 +870,7 @@ int DebugSerial::peek(void)
 int DebugSerial::read(void)
 {
   uint8_t out;
-  if (input_queue && xQueueReceive(input_queue, &out, (TickType_t)1)) {
+  if (receive_queue && xQueueReceive(receive_queue, &out, (TickType_t)1)) {
     return out;
   }
   return 0;
@@ -895,17 +889,15 @@ size_t DebugSerial::write(uint8_t data)
 size_t DebugSerial::write(const uint8_t *buffer, size_t size)
 {
   size_t num = 0;
-  if (input_queue == NULL)
+  if (receive_queue == NULL)
     return 0;
   while (size--) {
-    xQueueSend(input_queue, (void *)buffer++, (TickType_t)0);
+    xQueueSend(receive_queue, (void *)buffer++, (TickType_t)0);
     num++;
   }
   return num;
 }
 
-#ifdef WIFI_LOGGER
 DebugSerial debug_serial;
-#endif
 
 #endif

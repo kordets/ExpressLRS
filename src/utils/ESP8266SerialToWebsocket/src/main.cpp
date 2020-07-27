@@ -150,17 +150,16 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
           var elem = document.getElementById(type);
           if (elem) {
             if (type == "region_domain") {
+              var domain_info = "Regulatory domain UNKNOWN";
               if (value == "0")
-                value = "Regulatory domain 915MHz";
+                domain_info = "Regulatory domain 915MHz";
               else if (value == "1")
-                value = "Regulatory domain 868MHz";
+                domain_info = "Regulatory domain 868MHz";
               else if (value == "2")
-                value = "Regulatory domain 433MHz";
+                domain_info = "Regulatory domain 433MHz";
               else if (value == "3")
-                value = "Regulatory domain ISM 2400";
-              else
-                value = "Regulatory domain UNKNOWN";
-              elem.innerHTML = value;
+                domain_info = "Regulatory domain ISM 2400";
+              elem.innerHTML = domain_info;
 
               // update rate options
               var rates = document.getElementById("rates_input");

@@ -58,11 +58,7 @@ typedef enum
 
 enum
 {
-#if RADIO_SX128x
-    RATE_250HZ,
-#else
     RATE_200HZ,
-#endif
     RATE_100HZ,
     RATE_50HZ,
 #if !RADIO_SX128x
@@ -73,7 +69,7 @@ enum
 };
 
 #define RATE_GET_OSD_NUM(_x) ((RATE_MAX + 1) - (_x))
-#define RATE_DEFAULT         0 // RATE_200HZ or 250Hz
+#define RATE_DEFAULT         0 // 200HZ or 250Hz
 
 typedef struct expresslrs_mod_settings_s
 {

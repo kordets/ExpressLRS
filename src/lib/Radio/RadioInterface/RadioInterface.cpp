@@ -28,8 +28,10 @@ void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
 
 void RadioInterface::InitPins(void)
 {
-    if (-1 < _RST)
+    if (-1 < _RST) {
         pinMode(_RST, OUTPUT);
+        digitalWrite(_RST, HIGH);
+    }
     if (-1 < _BUSY)
         pinMode(_BUSY, INPUT);
     if (-1 < _DIO1)
@@ -84,8 +86,8 @@ void ICACHE_RAM_ATTR RadioInterface::RxEnable() const
 {
     p_state_isr = RX_DONE;
     if (0 > _RXen) return;
-    digitalWrite(_RXen, HIGH);
     digitalWrite(_TXen, LOW);
+    digitalWrite(_RXen, HIGH);
 }
 
 void ICACHE_RAM_ATTR RadioInterface::TxRxDisable() const

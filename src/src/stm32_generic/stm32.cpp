@@ -318,21 +318,23 @@ void platform_wd_feed(void)
 
 /*************************************************************************/
 
-void CtrlSerial::write(uint8_t data)
+class CtrlSerialPrivate: public CtrlSerial
 {
-#if defined(CTRL_SERIAL)
-    CTRL_SERIAL.write(data);
-#endif
-}
+public:
+    size_t available(void);
+    uint8_t read(void);
 
-void CtrlSerial::write(uint8_t * data, size_t len)
+    void write(uint8_t * buffer, size_t size);
+};
+
+void CtrlSerialPrivate::write(uint8_t * data, size_t len)
 {
 #if defined(CTRL_SERIAL)
     CTRL_SERIAL.write(data, len);
 #endif
 }
 
-size_t CtrlSerial::available(void)
+size_t CtrlSerialPrivate::available(void)
 {
 #if defined(CTRL_SERIAL)
     return CTRL_SERIAL.available();
@@ -341,7 +343,7 @@ size_t CtrlSerial::available(void)
 #endif
 }
 
-uint8_t CtrlSerial::read(void)
+uint8_t CtrlSerialPrivate::read(void)
 {
 #if defined(CTRL_SERIAL)
     return CTRL_SERIAL.read();
@@ -350,4 +352,5 @@ uint8_t CtrlSerial::read(void)
 #endif
 }
 
-CtrlSerial ctrl_serial;
+CtrlSerialPrivate ctrl_serial_private;
+CtrlSerial& ctrl_serial = ctrl_serial_private;

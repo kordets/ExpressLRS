@@ -64,7 +64,7 @@ protected:
     volatile int8_t _BUSY = -1;
 
     ////////// Config Variables //////////
-    volatile uint32_t current_freq;
+    volatile uint32_t current_freq = 0;
     volatile int8_t current_power;
 
 private:

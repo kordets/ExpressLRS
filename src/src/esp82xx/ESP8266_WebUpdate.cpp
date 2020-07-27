@@ -77,13 +77,13 @@ void BeginWebUpdate(void)
   uint32_t i = 0;
 #define TIMEOUT (WIFI_TIMEOUT * 10)
   while (WiFi.status() != WL_CONNECTED)
-      {
+  {
     delay(100);
     if (++i > TIMEOUT) {
       break;
     }
   }
-  if (i < TIMEOUT) {
+  if (WiFi.status() == WL_CONNECTED) {
     addr = WiFi.localIP();
   } else
 #endif /* WIFI_MANAGER */

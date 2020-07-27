@@ -92,7 +92,7 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
 
 #if RADIO_SX128x
 #if defined(TARGET_MODULE_LORA1280F27)
-    switch (Power)
+    switch (power)
     {
     case PWR_10mW:
         Radio.SetOutputPower(-10);
@@ -116,14 +116,14 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
         Radio.SetOutputPower(13);
         break;
     default:
-        Power = PWR_100mW;
+        power = PWR_100mW;
         Radio.SetOutputPower(-1);
         break;
     }
 
 #elif defined(TARGET_MODULE_E28)
     // TODO: Measure outputs!!
-    switch (Power)
+    switch (power)
     {
     case PWR_10mW:
         Radio.SetOutputPower(-17);
@@ -142,7 +142,7 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
         break;
     case PWR_100mW:
     default:
-        Power = PWR_100mW;
+        power = PWR_100mW;
         Radio.SetOutputPower(-7);
         break;
     }

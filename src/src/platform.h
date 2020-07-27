@@ -29,20 +29,23 @@ void platform_connection_state(int state);
 void platform_set_led(bool state);
 void platform_restart(void);
 void platform_wd_feed(void);
-
+void platform_radio_force_stop(void);
 
 class CtrlSerial
 {
 public:
-    size_t available(void);
-    uint8_t read(void);
+    virtual size_t available(void) = 0;
+    virtual uint8_t read(void) = 0;
 
-    void write(uint8_t data);
-    void write(uint8_t * buffer, size_t size);
+    void write(uint8_t data) {
+        write(&data, 1);
+    }
+    virtual void write(uint8_t * buffer, size_t size) = 0;
 
 private:
 };
 
-extern CtrlSerial ctrl_serial;
+// NOTE! tx_main uses CtrlSerial class for RX and TX
+extern CtrlSerial& ctrl_serial;
 
 #endif // _PLATFORM_H_

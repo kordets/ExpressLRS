@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 #include <HardwareSerial.h>
-//#include "targets.h"
 #include "HwSerial.h"
 
 #ifndef DEBUG_SERIAL
@@ -12,15 +11,13 @@
 #define DEBUG_SERIAL debug_serial
 #elif defined(TARGET_R9M_TX)
 #define DEBUG_SERIAL Serial1
-#elif defined(PLATFORM_ESP8266)
-//#define DEBUG_SERIAL CrsfSerial
-//#define DEBUG_SERIAL Serial1 // TX1 as output
 #elif defined(TARGET_R9M_RX)
 //#define DEBUG_SERIAL CrsfSerial
 //#define DEBUG_SERIAL Serial
-#elif defined(TARGET_RHF76_052)
+#elif defined(PLATFORM_ESP8266)
 //#define DEBUG_SERIAL CrsfSerial
-#elif defined(TARGET_RAK4200)
+//#define DEBUG_SERIAL Serial1 // TX1 as output
+#else
 //#define DEBUG_SERIAL CrsfSerial
 #endif
 

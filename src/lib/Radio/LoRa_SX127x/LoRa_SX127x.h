@@ -63,14 +63,15 @@ public:
     volatile uint8_t _syncWord;
 
     ////////////////Configuration Functions/////////////
-    uint8_t Begin(void);
-    uint8_t Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
-                   uint32_t freq = 0, uint8_t syncWord = 0, uint8_t crc = 0);
+    void Begin(void);
+    void End(void);
+    void Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
+                uint32_t freq, uint16_t PreambleLength,
+                uint8_t syncWord = 0, uint8_t crc = 0);
 
     uint32_t getCurrBandwidth() const;
     void SetSyncWord(uint8_t syncWord);
     void SetOutputPower(uint8_t Power);
-    void SetPreambleLength(uint16_t PreambleLen);
     void ICACHE_RAM_ATTR SetFrequency(uint32_t freq, uint8_t mode);
     int32_t ICACHE_RAM_ATTR GetFrequencyError();
     void ICACHE_RAM_ATTR setPPMoffsetReg(int32_t error_hz, uint32_t frf = 0);
@@ -108,6 +109,7 @@ private:
 
     uint8_t CheckChipVersion();
     void SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t freq, uint8_t syncWord, uint8_t crc);
+    void SetPreambleLength(uint16_t PreambleLen);
     void ICACHE_RAM_ATTR SetMode(uint8_t mode);
 
     void ICACHE_RAM_ATTR RxConfig(uint32_t freq);

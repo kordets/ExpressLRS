@@ -94,6 +94,10 @@
 #define GPIO_PIN_RCSIGNAL_RX 13
 #define GPIO_PIN_RCSIGNAL_TX 13
 
+#ifdef WIFI_LOGGER
+#define CTRL_SERIAL
+#endif
+
 #elif defined(TARGET_SX1280_RX_STM32F1)
 #define GPIO_PIN_NSS         PA4
 #define GPIO_PIN_MOSI        PA7

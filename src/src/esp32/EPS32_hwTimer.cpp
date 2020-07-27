@@ -36,6 +36,7 @@ void ICACHE_RAM_ATTR HwTimer::start()
     if (!timer)
         init();
     running = true;
+    reset(0);
     timerStart(timer);
 }
 

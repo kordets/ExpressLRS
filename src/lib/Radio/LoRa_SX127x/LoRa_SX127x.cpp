@@ -64,10 +64,8 @@ SX127xDriver::SX127xDriver(HwSpi &spi):
     NonceRX = 0;
 }
 
-uint8_t SX127xDriver::Begin(void)
+void SX127xDriver::Begin(void)
 {
-    uint8_t status;
-
     RadioInterface::InitPins();
 
     Reset();
@@ -75,10 +73,9 @@ uint8_t SX127xDriver::Begin(void)
     // initialize low-level drivers
     RadioHalSpi::Begin(SX127X_SPI_SPEED);
 
-    status = CheckChipVersion();
-    if (status != ERR_NONE)
+    if (CheckChipVersion() != ERR_NONE)
     {
-        return (status);
+        return;
     }
 
     // Store mode register locally
@@ -92,8 +89,13 @@ uint8_t SX127xDriver::Begin(void)
     /* Attach interrupts to pins */
     if (-1 < _DIO1)
         attachInterrupt(digitalPinToInterrupt(_DIO1), _rxtx_isr_handler_dio0, RISING);
+}
 
-    return (status);
+void SX127xDriver::End(void)
+{
+    StopContRX();
+    if (-1 < _DIO1)
+        detachInterrupt(_DIO1);
 }
 
 void SX127xDriver::SetSyncWord(uint8_t syncWord)
@@ -350,7 +352,7 @@ void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint8_t irqs)
 void ICACHE_RAM_ATTR SX127xDriver::StopContRX()
 {
     SetMode(SX127X_STANDBY);
-    RadioInterface::p_state_isr = NONE;
+    TxRxDisable();
 }
 
 void ICACHE_RAM_ATTR SX127xDriver::RXnb(uint32_t freq)
@@ -440,7 +442,9 @@ void ICACHE_RAM_ATTR SX127xDriver::SetMode(uint8_t mode)
     }
 }
 
-uint8_t SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr, uint32_t freq, uint8_t syncWord, uint8_t crc)
+void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
+                          uint32_t freq, uint16_t PreambleLength,
+                          uint8_t syncWord, uint8_t crc)
 {
     uint8_t newBandwidth, newSpreadingFactor, newCodingRate;
 
@@ -455,7 +459,7 @@ uint8_t SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr, ui
     {
         DEBUG_PRINT("Invalid Frequnecy!: ");
         DEBUG_PRINTLN(freq);
-        return (ERR_INVALID_FREQUENCY);
+        return;
     }
 
     // check the supplied BW, CR and SF values
@@ -492,7 +496,7 @@ uint8_t SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr, ui
             newBandwidth = SX127X_BW_500_00_KHZ;
             break;
         default:
-            return (ERR_INVALID_BANDWIDTH);
+            return;
     }
 
     switch (sf)
@@ -519,7 +523,7 @@ uint8_t SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr, ui
             newSpreadingFactor = SX127X_SF_12;
             break;
         default:
-            return (ERR_INVALID_SPREADING_FACTOR);
+            return;
     }
 
     switch (cr)
@@ -537,19 +541,18 @@ uint8_t SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr, ui
             newCodingRate = SX127X_CR_4_8;
             break;
         default:
-            return (ERR_INVALID_CODING_RATE);
+            return;
     }
 
     // configure common registers
     SX127xConfig(newBandwidth, newSpreadingFactor, newCodingRate, freq, syncWord, crc);
+    SetPreambleLength(PreambleLength);
 
     // save the new settings
     currBW = bw;
     currSF = sf;
     currCR = cr;
     current_freq = freq;
-
-    return ERR_NONE;
 }
 
 void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t freq, uint8_t syncWord, uint8_t crc)

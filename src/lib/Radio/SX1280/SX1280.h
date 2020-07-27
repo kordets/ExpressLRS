@@ -4,11 +4,8 @@
 #include "SX1280_Regs.h"
 #include "RadioInterface.h"
 
-#ifdef TARGET_E28_MODULE
-#define SX128X_SPI_SPEED (10000000) // speed up to 10 MHz
-#else
-#define SX128X_SPI_SPEED (18000000) // speed up to 20 MHz
-#endif
+// speed up to 10 MHz, SX1280 can handle up to 18MHz
+#define SX128X_SPI_SPEED (10000000)
 
 // SX127x compatible typedef
 typedef SX1280_RadioLoRaBandwidths_t Bandwidth;
@@ -19,7 +16,11 @@ class SX1280Driver: public RadioInterface
 {
 public:
     ///////////Radio Variables////////
+#if RADIO_SX128x_BW800
     SX1280_RadioLoRaBandwidths_t currBW = SX1280_LORA_BW_0800;
+#else
+    SX1280_RadioLoRaBandwidths_t currBW = SX1280_LORA_BW_1600;
+#endif
     SX1280_RadioLoRaSpreadingFactors_t currSF = SX1280_LORA_SF6;
     SX1280_RadioLoRaCodingRates_t currCR = SX1280_LORA_CR_4_7;
 
@@ -28,25 +29,17 @@ public:
 
     ////////////////Configuration Functions/////////////
     SX1280Driver(HwSpi &spi);
-    void Begin();
-    void End();
+    void Begin(void);
+    void End(void);
+    int16_t MeasureNoiseFloor(uint32_t num_meas, uint32_t freq);
     void SetMode(SX1280_RadioOperatingModes_t OPmode);
     void Config(SX1280_RadioLoRaBandwidths_t bw,
                 SX1280_RadioLoRaSpreadingFactors_t sf,
                 SX1280_RadioLoRaCodingRates_t cr,
-                uint32_t freq, uint8_t PreambleLength);
-    void ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
-                         SX1280_RadioLoRaSpreadingFactors_t sf,
-                         SX1280_RadioLoRaCodingRates_t cr);
-    void SetPacketParams(uint8_t PreambleLength,
-                         SX1280_RadioLoRaPacketLengthsModes_t HeaderType,
-                         uint8_t PayloadLength,
-                         SX1280_RadioLoRaCrcModes_t crc,
-                         SX1280_RadioLoRaIQModes_t InvertIQ);
+                uint32_t freq, uint16_t PreambleLength,
+                uint8_t syncWord = 0, uint8_t crc = 0);
     void ICACHE_RAM_ATTR SetFrequency(uint32_t freq);
     void SetOutputPower(int8_t power);
-
-    void SetPreambleLength(uint16_t PreambleLen) {};
     void SetSyncWord(uint8_t syncWord) {};
 
     int32_t ICACHE_RAM_ATTR GetFrequencyError();
@@ -54,22 +47,32 @@ public:
 
     void ICACHE_RAM_ATTR TXnb(const uint8_t *data, uint8_t length, uint32_t freq = 0);
     void ICACHE_RAM_ATTR RXnb(uint32_t freq = 0);
-    void ICACHE_RAM_ATTR StopContRX() {}
+    void ICACHE_RAM_ATTR StopContRX(void);
 
     int8_t ICACHE_RAM_ATTR GetLastPacketRSSI();
 
     // Internal ISR callbacks, don't use these!
-    void ICACHE_RAM_ATTR TXnbISR();
-    void ICACHE_RAM_ATTR RXnbISR();
+    void ICACHE_RAM_ATTR TXnbISR(uint16_t irqs);
+    void ICACHE_RAM_ATTR RXnbISR(uint16_t irqs);
+
+    uint16_t ICACHE_RAM_ATTR GetIRQFlags();
+    void ICACHE_RAM_ATTR ClearIrqStatus(uint16_t irqMask);
 
 private:
     volatile SX1280_RadioOperatingModes_t currOpmode = SX1280_MODE_UNKNOWN_MAX;
 
+    void ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
+                         SX1280_RadioLoRaSpreadingFactors_t sf,
+                         SX1280_RadioLoRaCodingRates_t cr);
+    void SetPacketParams(SX1280_RadioLoRaPacketLengthsModes_t HeaderType,
+                         SX1280_RadioLoRaCrcModes_t crc,
+                         SX1280_RadioLoRaIQModes_t InvertIQ,
+                         uint8_t PreambleLength,
+                         uint8_t PayloadLength);
+
     void ICACHE_RAM_ATTR SetFIFOaddr(uint8_t txBaseAddr, uint8_t rxBaseAddr);
-    uint16_t ICACHE_RAM_ATTR GetIRQFlags();
-    void ICACHE_RAM_ATTR ClearIrqStatus(uint16_t irqMask);
     void SetDioIrqParams(uint16_t irqMask, uint16_t dio1Mask, uint16_t dio2Mask, uint16_t dio3Mask);
-    uint8_t ICACHE_RAM_ATTR GetRxBufferAddr();
+    int32_t ICACHE_RAM_ATTR GetRxBufferAddr(void);
     void ICACHE_RAM_ATTR GetLastRssiSnr(void);
 
     void ICACHE_RAM_ATTR WriteCommand(SX1280_RadioCommands_t command, uint8_t val) {

@@ -452,8 +452,7 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
     TxTimer.updateInterval(config->interval); // TODO: Make sure this is equiv to above commented lines
 
     FHSSsetCurrIndex(0);
-    Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(), 0);
-    Radio.SetPreambleLength(config->PreambleLen);
+    Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(), config->PreambleLen);
     crsf.setRcPacketRate(config->interval);
     crsf.LinkStatistics.rf_Mode = RATE_GET_OSD_NUM(config->enum_rate);
 
@@ -531,6 +530,12 @@ static void msp_data_cb(uint8_t const *const input)
     DEBUG_PRINTLN(" >>");
 
     tlm_msp_send = 1; // rdy for sending
+}
+
+void platform_radio_force_stop(void)
+{
+    TxTimer.stop();
+    Radio.End();
 }
 
 void setup()
