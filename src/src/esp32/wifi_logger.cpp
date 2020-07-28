@@ -1,68 +1,39 @@
 #ifdef WIFI_LOGGER
-#define USE_MANAGER   0 // size =  78632B
-#define USE_MDNS      1 // size =  32284B
-#define USE_WEBSOCKET 1 // size =  13476B
-#define USE_SERVER    1 // size = 117956B !!!
-#define USE_WIFI      1 // size = 400733B !!!
-#endif
 
 #include "wifi_logger.h"
+
 #include <Arduino.h>
 #include <freertos/ringbuf.h>
-#if USE_WIFI
-#include <WiFi.h>
-#endif
-#if USE_MDNS
 #include <ESPmDNS.h>
-#endif
-#if USE_MANAGER
+#if WIFI_MANAGER
 #include <WiFiManager.h>
 #endif
-#if USE_WEBSOCKET
 #include <WebSocketsServer.h>
-#endif
-#if USE_SERVER
 #include <WebServer.h>
 #include <HTTPUpdate.h>
-#endif
 
 #include "msp.h"
 #include "platform.h"
 #include "targets.h"
 
-#if 1
-
 #define QUEUE_SIZE 256
 
-#ifdef WIFI_AP_SSID
-#define STASSID WIFI_AP_SSID
-#else
-#define STASSID "ExpressLRS AP"
+#ifndef WIFI_AP_SSID
+#define WIFI_AP_SSID "ExpressLRS AP"
 #endif
-#ifdef WIFI_AP_PSK
-#define STAPSK WIFI_AP_PSK
-#else
-#define STAPSK "expresslrs"
+#ifndef WIFI_AP_PSK
+#define WIFI_AP_PSK "expresslrs"
 #endif
 
 #ifndef WIFI_TIMEOUT
 #define WIFI_TIMEOUT 60 // default to 1min
 #endif
 
-#if USE_MDNS
 MDNSResponder mdns;
-#endif
-#if USE_SERVER
 WebServer server(80);
-#endif
-#if USE_WEBSOCKET
 WebSocketsServer webSocket = WebSocketsServer(81);
 #define WEBSOCKET_BROADCASET(text) webSocket.broadcastTXT(text)
 #define WEBSOCKET_SEND(sock, text) webSocket.sendTXT(sock, text)
-#else
-#define WEBSOCKET_BROADCASET(...)
-#define WEBSOCKET_SEND(...)
-#endif
 
 /*************************************************************************/
 
@@ -537,7 +508,6 @@ void MspVtxWrite(void)
   msp_handler.sendPacket(&msp_out, &ctrl_msp_receive);
 }
 
-#if USE_WEBSOCKET
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
   char * temp;
@@ -592,9 +562,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     break;
   }
 }
-#endif
 
-#if USE_SERVER
 void sendReturn()
 {
   server.send_P(200, "text/html", GO_BACK);
@@ -621,19 +589,19 @@ void handleNotFound()
   }
   server.send(404, "text/plain", message);
 }
-#endif // USE_SERVER
 
 void wifi_setup(void)
 {
   IPAddress my_ip;
+#if defined(WIFI_SSID) && defined(WIFI_PSK)
   uint32_t iter, jter, timeout;
-
+#endif
   //wifi_station_set_hostname("elrs_tx");
 
-#if USE_MANAGER
+#if WIFI_MANAGER
   WiFiManager wifiManager;
   wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
-  if (wifiManager.autoConnect(STASSID" ESP32 TX")) {
+  if (wifiManager.autoConnect(WIFI_AP_SSID" ESP32 TX")) {
     // AP found, connected
     my_ip = WiFi.localIP();
   }
@@ -668,24 +636,20 @@ void wifi_setup(void)
     my_ip = WiFi.localIP();
     Serial.println(" CONNECTED!");
   } else
-#endif // USE_MANAGER
+#endif // WIFI_MANAGER
   {
-#if USE_WIFI
     Serial.println(" FAILED! Starting AP...");
     // No WiFi found, start access point
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(STASSID" ESP32 TX", STAPSK);
+    WiFi.softAP(WIFI_AP_SSID" ESP32 TX", WIFI_AP_PSK);
     my_ip = WiFi.softAPIP();
-#endif
   }
 
-#if USE_MDNS
   if (mdns.begin("elrs_tx"))
   {
     mdns.addService("http", "tcp", 80);
     mdns.addService("ws", "tcp", 81);
   }
-#endif
 
   my_ipaddress_info_str = "[L] My IP address = ";
   my_ipaddress_info_str += my_ip.toString();
@@ -693,7 +657,6 @@ void wifi_setup(void)
   Serial.print("Connect to http://elrs_tx.local or http://");
   Serial.println(my_ip);
 
-#if USE_SERVER
   server.on("/", handleRoot);
   server.on("/return", sendReturn);
 
@@ -732,12 +695,9 @@ void wifi_setup(void)
 
   server.onNotFound(handleRoot);
   server.begin();
-#endif // USE_SERVER
 
-#if USE_WEBSOCKET
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
-#endif
 }
 
 int serialEvent(QueueHandle_t queue)
@@ -791,12 +751,8 @@ void wifi_loop(QueueHandle_t queue)
     WEBSOCKET_BROADCASET(inputString);
     inputString = "";
   }
-#if USE_SERVER
   server.handleClient();
-#endif // USE_SERVER
-#if USE_WEBSOCKET
   webSocket.loop();
-#endif
 }
 
 void httpsTask(void *pvParameters)
@@ -900,4 +856,4 @@ size_t DebugSerial::write(const uint8_t *buffer, size_t size)
 
 DebugSerial debug_serial;
 
-#endif
+#endif // WIFI_LOGGER
