@@ -6,15 +6,15 @@
 class CtrlSerial
 {
 public:
-    size_t available(void);
-    uint8_t read(void);
+    virtual size_t available(void) = 0;
+    virtual uint8_t read(void) = 0;
 
-    void write(uint8_t data);
-    void write(uint8_t * buffer, size_t size);
-
-private:
+    void write(uint8_t data) {
+        write(&data, 1);
+    }
+    virtual void write(uint8_t * buffer, size_t size) = 0;
 };
 
-extern CtrlSerial ctrl_serial;
+extern CtrlSerial &ctrl_serial;
 
 #endif /* _PALTFORM_H_ */

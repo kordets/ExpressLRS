@@ -344,6 +344,26 @@ curl --include \
 </html>
 )rawliteral";
 
+/*************************************************************************/
+
+class CtrlSerialPrivate: public CtrlSerial
+{
+public:
+  size_t available(void) {
+    return Serial.available();
+  }
+  uint8_t read(void) {
+    return Serial.read();
+  }
+
+  void write(uint8_t * buffer, size_t size) {
+    Serial.write(buffer, size);
+  }
+};
+
+CtrlSerialPrivate my_ctrl_serial;
+CtrlSerial& ctrl_serial = my_ctrl_serial;
+
 static uint8_t settings_rate = 1;
 static uint8_t settings_power = 4, settings_power_max = 8;
 static uint8_t settings_tlm = 7;
@@ -362,7 +382,7 @@ void SettingsWrite(uint8_t * buff, uint8_t len)
   msp_out.function = ELRS_INT_MSP_PARAMS;
   memcpy((void*)msp_out.payload, buff, len);
   // Send packet
-  msp_handler.sendPacket(&msp_out, &ctrl_serial);
+  msp_handler.sendPacket(&msp_out, &my_ctrl_serial);
 }
 
 void SettingsGet(void)
@@ -467,7 +487,7 @@ void MspVtxWrite(void)
   msp_out.payloadSize = sizeof(vtx_cmd);
   memcpy((void*)msp_out.payload, vtx_cmd, sizeof(vtx_cmd));
   // Send packet
-  msp_handler.sendPacket(&msp_out, &ctrl_serial);
+  msp_handler.sendPacket(&msp_out, &my_ctrl_serial);
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
@@ -780,27 +800,3 @@ void loop()
   webSocket.loop();
   mdns.update();
 }
-
-/*************************************************************************/
-
-void CtrlSerial::write(uint8_t data)
-{
-  Serial.write(data);
-}
-
-void CtrlSerial::write(uint8_t * data, size_t len)
-{
-  Serial.write(data, len);
-}
-
-size_t CtrlSerial::available(void)
-{
-  return Serial.available();
-}
-
-uint8_t CtrlSerial::read(void)
-{
-  return Serial.read();
-}
-
-CtrlSerial ctrl_serial;
