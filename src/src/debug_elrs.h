@@ -8,7 +8,11 @@
 #ifndef DEBUG_SERIAL
 
 #if defined(PLATFORM_ESP32)
-#define DEBUG_SERIAL debug_serial
+#ifdef WIFI_LOGGER
+#define DEBUG_SERIAL wifi_logger_serial
+#else
+#define DEBUG_SERIAL Serial
+#endif
 #elif defined(TARGET_R9M_TX)
 #define DEBUG_SERIAL Serial1
 #elif defined(TARGET_R9M_RX)

@@ -79,6 +79,7 @@ local Bind = {
 }
 
 local function web_server_start(item, event)
+    crossfireTelemetryPush(0x2D, {0xEE, 0xEA, 5, 1})
     playTone(2000, 50, 0)
     item.exec = false
     return 0
@@ -113,7 +114,7 @@ local menu = {
     modify = false,
     -- Note: list indexes must match to param handling in tx_main!
     --list = {AirRate, TLMinterval, MaxPower, RFfreq, Bind, WebServer, exit_script},
-    list = {AirRate, TLMinterval, MaxPower, RFfreq, exit_script},
+    list = {AirRate, TLMinterval, MaxPower, RFfreq, WebServer, exit_script},
 }
 
 -- returns flags to pass to lcd.drawText for inverted and flashing text

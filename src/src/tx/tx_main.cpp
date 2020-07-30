@@ -348,10 +348,14 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
             // RFFreq
             break;
 
+        case 5:
+            // Start WiFi
+            platform_wifi_start();
+            break;
+
         default:
             return -1;
     }
-
 
     // Fill response
     if (out) {
@@ -546,10 +550,10 @@ void setup()
 
     CRCCaesarCipher = CalcCRC16(UID, sizeof(UID), 0);
 
-    DEBUG_PRINTLN("ExpressLRS TX Module...");
     CrsfSerial.Begin(CRSF_TX_BAUDRATE_FAST);
 
     platform_setup();
+    DEBUG_PRINTLN("ExpressLRS TX Module...");
     platform_config_load(pl_config);
     current_rate_config = pl_config.mode % RATE_MAX;
     power = (PowerLevels_e)(pl_config.power % PWR_UNKNOWN);

@@ -29,6 +29,7 @@ void platform_connection_state(int state);
 void platform_set_led(bool state);
 void platform_restart(void);
 void platform_wd_feed(void);
+void platform_wifi_start(void);
 void platform_radio_force_stop(void);
 
 class CtrlSerial

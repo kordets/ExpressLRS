@@ -1,4 +1,4 @@
-#ifdef WIFI_LOGGER
+#if WIFI_LOGGER || WIFI_UPDATER
 
 #include "wifi_logger.h"
 
@@ -37,8 +37,10 @@ WebSocketsServer webSocket = WebSocketsServer(81);
 
 /*************************************************************************/
 
+#if WIFI_LOGGER
 static QueueHandle_t DRAM_ATTR receive_queue = NULL;
 static QueueHandle_t DRAM_ATTR send_queue = NULL;
+#endif // WIFI_LOGGER
 
 class CtrlSerialPrivate: public CtrlSerial
 {
@@ -97,6 +99,7 @@ static const char PROGMEM GO_BACK[] = R"rawliteral(
 </html>
 )rawliteral";
 
+#if WIFI_LOGGER
 static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -563,6 +566,45 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   }
 }
 
+#else // WIFI_UPDATER html page
+
+static const char PROGMEM INDEX_HTML[] = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0">
+    <title>ESP update</title>
+    <style>
+        body {
+            background-color: #1E1E1E;
+            font-family: Arial, Helvetica, Sans-Serif;
+            Color: #69cbf7;
+        }
+
+        textarea {
+            background-color: #252525;
+            Color: #C5C5C5;
+            border-radius: 5px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+  <center>
+    <div>
+      <form method='POST' action='/update' enctype='multipart/form-data'>
+          Update Firmware:
+          <input type='file' accept='.bin' name='firmware'>
+          <input type='submit' value='Upload and Flash'>
+      </form>
+    </div>
+
+  </center>
+</body>
+</html>
+)rawliteral";
+#endif // WIFI_LOGGER
+
 void sendReturn()
 {
   server.send_P(200, "text/html", GO_BACK);
@@ -607,7 +649,7 @@ void wifi_setup(void)
   }
   else
 #elif defined(WIFI_SSID) && defined(WIFI_PSK)
-  Serial.begin(115200);
+  //Serial.begin(115200);
   Serial.print("Connecting to wifi ");
 
   timeout = WIFI_TIMEOUT * 2;
@@ -696,10 +738,13 @@ void wifi_setup(void)
   server.onNotFound(handleRoot);
   server.begin();
 
+#if WIFI_LOGGER
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
+#endif // WIFI_LOGGER
 }
 
+#if WIFI_LOGGER
 int serialEvent(QueueHandle_t queue)
 {
   char inChar;
@@ -743,27 +788,39 @@ int serialEvent(QueueHandle_t queue)
   }
   return -1;
 }
+#endif // WIFI_LOGGER
 
 void wifi_loop(QueueHandle_t queue)
 {
+#if WIFI_LOGGER
   if (0 <= serialEvent(queue))
   {
     WEBSOCKET_BROADCASET(inputString);
     inputString = "";
   }
+#else
+  (void)queue;
+#endif // WIFI_LOGGER
+
   server.handleClient();
+#if WIFI_LOGGER
   webSocket.loop();
+#endif // WIFI_LOGGER
 }
+
+TaskHandle_t wifiTask = NULL;
 
 void httpsTask(void *pvParameters)
 {
   QueueHandle_t queue = (QueueHandle_t)pvParameters;
 
+  Serial.println("HTTP task about to start...");
   wifi_setup();
   for(;;) {
     wifi_loop(queue);
   }
 
+#if WIFI_LOGGER
   /* delete the input queue */
   receive_queue = NULL;
   vQueueDelete(queue);
@@ -772,17 +829,27 @@ void httpsTask(void *pvParameters)
   queue = send_queue;
   send_queue = NULL;
   vQueueDelete(queue);
+#endif // WIFI_LOGGER
 
   /* remove task */
   vTaskDelete( NULL );
+  wifiTask = NULL;
+  Serial.println("HTTP task exit");
 }
 
-TaskHandle_t wifiTask = NULL;
+void wifi_stop(void)
+{
+
+}
+
 void wifi_start(void)
 {
-  if (wifiTask != NULL)
+  if (wifiTask != NULL) {
+    Serial.println("HTTP task already started");
     return;
+  }
 
+#if WIFI_LOGGER
   receive_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
   send_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
 
@@ -791,6 +858,10 @@ void wifi_start(void)
 
   ctrl_msp_receive.set_queue_rx(receive_queue);
   ctrl_msp_receive.set_queue_tx(send_queue);
+#else
+#define receive_queue NULL
+  Serial.println("Logger disabled!");
+#endif // WIFI_LOGGER
 
   uint8_t taskPriority = 10;
   xTaskCreatePinnedToCore(
@@ -800,10 +871,12 @@ void wifi_start(void)
     receive_queue,          //Task input parameter
     taskPriority,           //Priority of the task
     &wifiTask, 0);
+  Serial.println("HTTP task started");
 }
 
 /*************************************************************************/
 
+#if WIFI_LOGGER
 int DebugSerial::available(void)
 {
   if (receive_queue == NULL)
@@ -854,6 +927,7 @@ size_t DebugSerial::write(const uint8_t *buffer, size_t size)
   return num;
 }
 
-DebugSerial debug_serial;
-
+DebugSerial wifi_logger_serial;
 #endif // WIFI_LOGGER
+
+#endif // WIFI_LOGGER || WIFI_UPDATER

@@ -54,9 +54,7 @@ private:
 };
 
 #ifdef WIFI_LOGGER
-extern DebugSerial debug_serial;
-#else
-#define debug_serial Serial1
+extern DebugSerial wifi_logger_serial;
 #endif
 
 #endif /* __PLATFORM_H_ */

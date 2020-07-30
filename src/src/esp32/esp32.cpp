@@ -88,15 +88,14 @@ void platform_setup(void)
     platform_set_led(0);
 #endif
 
-#ifdef WIFI_LOGGER
+#if WIFI_LOGGER && WIFI_LOGGER_AUTO_START
     wifi_start();
 #endif
 
 #ifdef DEBUG_SERIAL
     DEBUG_SERIAL.begin(115200);
-#endif
+#endif // DEBUG_SERIAL
 
-//#ifdef TARGET_EXPRESSLRS_PCB_TX_V3
 #if 1
     //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
 
@@ -142,12 +141,22 @@ void platform_set_led(bool state)
 {
 #if (GPIO_PIN_LED != UNDEF_PIN)
     digitalWrite(GPIO_PIN_LED, (uint32_t)(state));
+#else
+    (void)state;
 #endif
 }
 
 void platform_restart(void)
 {
     ESP.restart();
+}
+
+void platform_wifi_start(void)
+{
+#if WIFI_LOGGER || WIFI_UPDATER
+    platform_radio_force_stop();
+    wifi_start();
+#endif
 }
 
 void platform_wd_feed(void)

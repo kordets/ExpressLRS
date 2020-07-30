@@ -312,6 +312,10 @@ void platform_restart(void)
     NVIC_SystemReset();
 }
 
+void platform_wifi_start(void)
+{
+}
+
 void platform_wd_feed(void)
 {
 }
