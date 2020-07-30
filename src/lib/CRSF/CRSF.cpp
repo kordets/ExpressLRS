@@ -13,8 +13,15 @@ void (*CRSF::connected)() = &nullCallback;    // called when CRSF stream is rega
 
 uint8_t DMA_ATTR outBuffer[CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX)];
 
+//#define DBF_PIN_CRSF_PACKET 2
+
 void CRSF::Begin()
 {
+#ifdef DBF_PIN_CRSF_PACKET
+    pinMode(DBF_PIN_CRSF_PACKET, OUTPUT);
+    digitalWrite(DBF_PIN_CRSF_PACKET, 0);
+#endif
+
     GoodPktsCount = 0;
     BadPktsCount = 0;
     SerialInPacketStart = 0;
@@ -103,6 +110,9 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
         {
             CRSFframeActive = true;
             SerialInPacketLen = 0;
+#ifdef DBF_PIN_CRSF_PACKET
+            digitalWrite(DBF_PIN_CRSF_PACKET, 1);
+#endif
         }
         else
         {
@@ -140,11 +150,16 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
                 else
                 {
 #if 0
-                    DEBUG_PRINTLN("UART CRC failure");
-                    for (int i = 0; i < (SerialInPacketLen + 2); i++)
+                    // https://crccalc.com/
+                    // CRC algorithm: CRC-8/DVB-S2
+                    DEBUG_PRINT("UART CRC failure ");
+                    DEBUG_PRINT(SerialInCrc, HEX);
+                    DEBUG_PRINT("!=");
+                    DEBUG_PRINT(inChar, HEX);
+                    for (int i = (SerialInPacketStart-2); i < (SerialInPacketLen + 2); i++)
                     {
+                        DEBUG_PRINT(" 0x");
                         DEBUG_PRINT(SerialInBuffer[i], HEX);
-                        DEBUG_PRINT(" ");
                     }
                     DEBUG_PRINTLN();
 #elif defined(DEBUG_SERIAL)
@@ -153,6 +168,10 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
 #endif
                     BadPktsCount++;
                 }
+
+#ifdef DBF_PIN_CRSF_PACKET
+                digitalWrite(DBF_PIN_CRSF_PACKET, 0);
+#endif
 
                 // packet handled, start next
                 CRSFframeActive = false;

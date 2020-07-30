@@ -60,9 +60,8 @@ private:
     volatile int32_t OpenTXsyncOffset = 0;
     uint32_t RequestedRCpacketInterval = 5000; // default to 200hz as per 'normal'
     uint32_t OpenTXsynNextSend = 0;
-    uint8_t sendSyncPacketToRadio(); // called from main loop
-
 #endif /* FEATURE_OPENTX_SYNC */
+    int sendSyncPacketToRadio(); // called from main loop
 
     // for the UART wdt, every 1000ms we change bauds when connect is lost
 #define UARTwdtInterval 1000

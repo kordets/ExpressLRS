@@ -2,6 +2,8 @@
 #include "debug_elrs.h"
 #include <string.h>
 
+//#define DBF_PIN_CRSF_BYTES_IN 4
+
 void paramNullCallback(uint8_t const *, uint16_t){};
 void (*CRSF_TX::ParamWriteCallback)(uint8_t const *msg, uint16_t len) = &paramNullCallback;
 
@@ -17,6 +19,11 @@ static volatile uint_fast8_t DMA_ATTR send_buffers = SEND_NA;
 
 void CRSF_TX::Begin(void)
 {
+#ifdef DBF_PIN_CRSF_BYTES_IN
+    pinMode(DBF_PIN_CRSF_BYTES_IN, OUTPUT);
+    digitalWrite(DBF_PIN_CRSF_BYTES_IN, 0);
+#endif
+
     CRSF::Begin();
     p_UartNextCheck = millis(); //  +UARTwdtInterval * 2;
 }
@@ -133,10 +140,9 @@ void CRSF_TX::BatteryStatisticsProcess(void)
     CrsfFramePushToFifo(outBuffer, len);
 }
 
-#if (FEATURE_OPENTX_SYNC)
-uint8_t CRSF_TX::sendSyncPacketToRadio()
+int CRSF_TX::sendSyncPacketToRadio()
 {
-    uint8_t retval = 1;
+#if (FEATURE_OPENTX_SYNC)
     if (RCdataLastRecv && p_RadioConnected)
     {
         uint32_t current = millis();
@@ -180,12 +186,12 @@ uint8_t CRSF_TX::sendSyncPacketToRadio()
             outBuffer[13] = (offset & 0x000000FF) >> 0;
 
             CrsfFramePushToFifo(outBuffer, len);
-            retval = 0;
+            return 0;
         }
     }
-    return retval;
-}
 #endif /* FEATURE_OPENTX_SYNC */
+    return -1;
+}
 
 void CRSF_TX::processPacket(uint8_t const *input)
 {
@@ -196,7 +202,11 @@ void CRSF_TX::processPacket(uint8_t const *input)
         RCdataLastRecv = 0;
         OpenTXsynNextSend = millis(); //+60;
 #endif
-        DEBUG_PRINTLN("CRSF Connected");
+        DEBUG_PRINT("CRSF Connected. Baud ");
+        if (p_slowBaudrate)
+            DEBUG_PRINTLN("115k");
+        else
+            DEBUG_PRINTLN("400k");
         connected();
     }
 
@@ -240,6 +250,9 @@ uint8_t CRSF_TX::handleUartIn(volatile uint8_t &rx_data_rcvd) // Merge with RX v
 
     for (split_cnt = 0; (rx_data_rcvd == 0) && _dev->available() && (split_cnt < 16); split_cnt++)
     {
+#ifdef DBF_PIN_CRSF_BYTES_IN
+        digitalWrite(DBF_PIN_CRSF_BYTES_IN, 1);
+#endif
         uint8_t *ptr = ParseInByte(_dev->read());
         if (ptr)
         {
@@ -249,9 +262,8 @@ uint8_t CRSF_TX::handleUartIn(volatile uint8_t &rx_data_rcvd) // Merge with RX v
             if (rx_data_rcvd == 0)
             {
                 /* Can write right after successful package reception */
-#if (FEATURE_OPENTX_SYNC)
                 sendSyncPacketToRadio();
-#endif
+
                 if (!rx_data_rcvd)
                 {
                     if (send_buffers & SEND_LNK_STAT)
@@ -265,6 +277,10 @@ uint8_t CRSF_TX::handleUartIn(volatile uint8_t &rx_data_rcvd) // Merge with RX v
                 }
             }
         }
+
+#ifdef DBF_PIN_CRSF_BYTES_IN
+        digitalWrite(DBF_PIN_CRSF_BYTES_IN, 0);
+#endif
     }
 
     if (rx_data_rcvd == 0)
@@ -276,7 +292,7 @@ uint8_t CRSF_TX::handleUartIn(volatile uint8_t &rx_data_rcvd) // Merge with RX v
 void CRSF_TX::uart_wdt(void)
 {
     uint32_t now = millis();
-    if (UARTwdtInterval < (now - p_UartNextCheck))
+    if (UARTwdtInterval <= (now - p_UartNextCheck))
     {
         DEBUG_PRINT("CRSF Bad:Good ");
         DEBUG_PRINT(BadPktsCount);
