@@ -60,6 +60,7 @@ void ICACHE_RAM_ATTR HwSerial::enable_receiver(void)
     /* Attach RX pin */
     gpio_set_direction((gpio_num_t)GPIO_PIN_RCSIGNAL_RX, GPIO_MODE_INPUT);
     gpio_matrix_in((gpio_num_t)GPIO_PIN_RCSIGNAL_RX, UART_RXD_IDX, true);
+    //gpio_pulldown_en((gpio_num_t)GPIO_PIN_RCSIGNAL_RX);
     //uart_enable_rx_intr((uart_port_t)CRSF_SERIAL_NBR);
     yield();
 
@@ -74,8 +75,9 @@ void ICACHE_RAM_ATTR HwSerial::enable_transmitter(void)
     digitalWrite(DBG_PIN_UART_TX, 1);
 #endif
     delayMicroseconds(20);
-    //uart_disable_rx_intr((uart_port_t)CRSF_SERIAL_NBR);
     /* Detach RX pin */
+    //uart_disable_rx_intr((uart_port_t)CRSF_SERIAL_NBR);
+    //gpio_pulldown_dis((gpio_num_t)GPIO_PIN_RCSIGNAL_RX);
     gpio_matrix_in((gpio_num_t)-1, UART_RXD_IDX, false);
     /* Attach TX pin */
     gpio_set_level((gpio_num_t)GPIO_PIN_RCSIGNAL_TX, 0);
