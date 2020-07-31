@@ -611,7 +611,7 @@ void loop()
     {
         uint32_t current_ms = millis();
 
-        if (connectionState > STATE_disconnected &&
+        if (STATE_lost < connectionState &&
             RX_CONNECTION_LOST_TIMEOUT < (uint32_t)(current_ms - LastPacketRecvMillis))
         {
             connectionState = STATE_disconnected;

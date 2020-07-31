@@ -311,7 +311,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 
 void ICACHE_RAM_ATTR LostConnection()
 {
-    if (connectionState <= STATE_disconnected)
+    if (connectionState <= STATE_lost)
     {
         return; // Already disconnected
     }
@@ -323,7 +323,7 @@ void ICACHE_RAM_ATTR LostConnection()
     FHSSsetCurrIndex(0);
     LPF_FreqError.init(0);
 
-    connectionState = STATE_disconnected; //set lost connection
+    connectionState = STATE_lost; //set lost connection
     scanIndex = ExpressLRS_currAirRate->enum_rate;
 
     led_set_state(1);             // turn off led
@@ -413,7 +413,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
                 sync->uid4 == UID[4] &&
                 sync->uid5 == UID[5])
             {
-                if (_conn_state == STATE_disconnected)
+                if (_conn_state == STATE_disconnected || _conn_state == STATE_lost)
                 {
                     TentativeConnection(rx_freqerror);
                 }
@@ -448,8 +448,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
         }
         case UL_PACKET_RC_DATA: //Standard RC Data Packet
             DEBUG_PRINT(" R");
-            //if (_conn_state == STATE_connected)
-            if (STATE_disconnected < _conn_state)
+            if (STATE_lost < _conn_state)
             {
                 rc_ch.channels_extract(rx_buffer, crsf.ChannelsPacked);
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
@@ -469,7 +468,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
                 (rx_buffer[3] == rx_buffer[1]))
             {
                 //if (_conn_state == STATE_connected)
-                if (STATE_disconnected < _conn_state)
+                if (STATE_lost < _conn_state)
                 {
                     rc_ch.channels_extract(rx_buffer, crsf.ChannelsPacked);
                     crsf.sendRCFrameToFC();
@@ -641,15 +640,17 @@ void loop()
     uint8_t rx_buffer_handle = 0;
 
     /* update air rate config, timed to FHSS index 0 */
-    if (updatedAirRate < RATE_MAX && updatedAirRate != current_rate_config /*&& FHSSgetCurrIndex() == 0*/)
+    if (updatedAirRate < RATE_MAX && updatedAirRate != current_rate_config)
     {
-        connectionState = STATE_disconnected; // Force resync
+        //connectionState = STATE_disconnected; // Force resync
+        connectionState = STATE_lost; // Mark to lost to stay on received rate and force resync.
         SetRFLinkRate(updatedAirRate); // configure air rate
         RFmodeNextCycle = now;
-        updatedAirRate = RATE_MAX;
+        //updatedAirRate = RATE_MAX;
         return;
     }
 
+    /* Cycle only if initial connection search */
     if (connectionState == STATE_disconnected)
     {
         if (RFmodeCycleDelay < (uint32_t)(now - RFmodeNextCycle))
@@ -667,7 +668,15 @@ void loop()
             led_toggle_ms = now;
         }
     }
-    else if (connectionState > STATE_disconnected)
+    else if (connectionState == STATE_lost)
+    {
+        if (300 <= (uint32_t)(now - led_toggle_ms))
+        {
+            led_toggle();
+            led_toggle_ms = now;
+        }
+    }
+    else if (STATE_lost < connectionState)
     {
         // check if we lost conn.
         if (ExpressLRS_currAirRate->connectionLostTimeout <= (int32_t)(now - LastValidPacket))

@@ -18,8 +18,9 @@ typedef enum
     STATE_search_iteration_done = -2, // e.g. RX could start SW upgrade
     STATE_fw_upgrade = -1,
     STATE_disconnected = 0,
-    STATE_tentative = 1,
-    STATE_connected = 2,
+    STATE_lost,
+    STATE_tentative,
+    STATE_connected,
 } connectionState_e;
 extern volatile connectionState_e connectionState;
 
