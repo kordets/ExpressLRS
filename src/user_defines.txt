@@ -43,6 +43,9 @@
 
 # ESP TX WiFi logger
 -DWIFI_LOGGER=1
+#-DWIFI_LOGGER_AUTO_START=0
+# ... or only WiFi update (Can be started by using LUA)
+#-DWIFI_UPDATER=1
 
 # Connect timeout in seconds
 -DWIFI_TIMEOUT=60
