@@ -4,6 +4,7 @@
 #include "platform.h"
 #include "RadioHalSpi.h"
 
+// default payload size is 8 bytes
 #define RX_BUFFER_LEN (8)
 
 enum isr_states
@@ -46,6 +47,7 @@ public:
     volatile int8_t LastPacketSNR;
     volatile uint8_t NonceTX = 0;
     volatile uint8_t NonceRX = 0;
+    volatile uint8_t RX_buffer_size;
 
 protected:
     void InitPins(void);

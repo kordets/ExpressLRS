@@ -26,12 +26,13 @@ static void ICACHE_RAM_ATTR _rxtx_isr_handler(void)
 
 /////////////////////////////////////////////////////////////////
 
-SX1280Driver::SX1280Driver(HwSpi &spi):
+SX1280Driver::SX1280Driver(HwSpi &spi, uint8_t payload_len):
     RadioInterface(spi)
 {
     instance = this;
     current_freq = 0; //2400000000;
     current_power = -100;
+    RX_buffer_size = payload_len;
 }
 
 void SX1280Driver::Begin(void)
@@ -71,10 +72,9 @@ void SX1280Driver::Config(SX1280_RadioLoRaBandwidths_t bw,
                           SX1280_RadioLoRaSpreadingFactors_t sf,
                           SX1280_RadioLoRaCodingRates_t cr,
                           uint32_t freq, uint16_t PreambleLength,
-                          uint8_t syncWord, uint8_t crc)
+                          uint8_t crc)
 {
     uint16_t irqs = (SX1280_IRQ_TX_DONE | SX1280_IRQ_RX_DONE | SX1280_IRQ_RX_TX_TIMEOUT);
-    (void)syncWord;
     //Reset(); // ????
     //SetMode(SX1280_MODE_STDBY_XOSC);
     SetMode(SX1280_MODE_STDBY_RC);
@@ -86,7 +86,7 @@ void SX1280Driver::Config(SX1280_RadioLoRaBandwidths_t bw,
     SetPacketParams(SX1280_LORA_PACKET_IMPLICIT,
                     (crc) ? SX1280_LORA_CRC_ON : SX1280_LORA_CRC_OFF,
                     SX1280_LORA_IQ_NORMAL,
-                    PreambleLength, RX_BUFFER_LEN);
+                    PreambleLength, RX_buffer_size);
     if (crc)
         irqs |= SX1280_IRQ_CRC_ERROR;
     // Config IRQs
@@ -306,7 +306,7 @@ void ICACHE_RAM_ATTR SX1280Driver::TXnb(const uint8_t *data, uint8_t length, uin
     SetMode(SX1280_MODE_TX);
 }
 
-static uint8_t DMA_ATTR RXdataBuffer[RX_BUFFER_LEN];
+static uint8_t DMA_ATTR RXdataBuffer[16];
 
 void ICACHE_RAM_ATTR SX1280Driver::RXnbISR(uint16_t irqs)
 {
@@ -320,7 +320,7 @@ void ICACHE_RAM_ATTR SX1280Driver::RXnbISR(uint16_t irqs)
     FIFOaddr = GetRxBufferAddr();
     if (FIFOaddr < 0) // RX len is not correct!
         return;
-    ReadBuffer(FIFOaddr, RXdataBuffer, sizeof(RXdataBuffer));
+    ReadBuffer(FIFOaddr, RXdataBuffer, RX_buffer_size);
     RXdoneCallback1(RXdataBuffer);
 }
 

@@ -28,7 +28,7 @@ public:
     volatile uint8_t LastRadioStatus = 0;
 
     ////////////////Configuration Functions/////////////
-    SX1280Driver(HwSpi &spi);
+    SX1280Driver(HwSpi &spi, uint8_t payload_len = RX_BUFFER_LEN);
     void Begin(void);
     void End(void);
     int16_t MeasureNoiseFloor(uint32_t num_meas, uint32_t freq);
@@ -37,7 +37,7 @@ public:
                 SX1280_RadioLoRaSpreadingFactors_t sf,
                 SX1280_RadioLoRaCodingRates_t cr,
                 uint32_t freq, uint16_t PreambleLength,
-                uint8_t syncWord = 0, uint8_t crc = 0);
+                uint8_t crc = 0);
     void ICACHE_RAM_ATTR SetFrequency(uint32_t freq);
     void SetOutputPower(int8_t power);
     void SetSyncWord(uint8_t syncWord) {};

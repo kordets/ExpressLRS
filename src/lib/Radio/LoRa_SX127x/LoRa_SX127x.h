@@ -43,15 +43,13 @@ typedef enum
     RFMOD_SX1276
 } RFmodule_;
 
-#define SX127X_SYNC_WORD          0xC8  //  200 - default ExpressLRS sync word - 200Hz
-#define SX127X_SYNC_WORD_LORAWAN  0x34  //  52  - sync word reserved for LoRaWAN networks
-
-#define SX127X_SPI_SPEED 10000000
+#define SX127X_SYNC_WORD    0xC8  //  200 - default ExpressLRS sync word - 200Hz
+#define SX127X_SPI_SPEED    10000000
 
 class SX127xDriver: public RadioInterface
 {
 public:
-    SX127xDriver(HwSpi &spi);
+    SX127xDriver(HwSpi &spi, uint8_t payload_len = RX_BUFFER_LEN);
 
     ///////////Radio Variables////////
     volatile bool headerExplMode;
@@ -67,7 +65,7 @@ public:
     void End(void);
     void Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
                 uint32_t freq, uint16_t PreambleLength,
-                uint8_t syncWord = 0, uint8_t crc = 0);
+                uint8_t crc = 0);
 
     uint32_t getCurrBandwidth() const;
     void SetSyncWord(uint8_t syncWord);

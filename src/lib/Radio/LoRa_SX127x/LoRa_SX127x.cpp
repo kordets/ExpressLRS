@@ -43,7 +43,7 @@ static void ICACHE_RAM_ATTR _rxtx_isr_handler_dio0(void)
 
 //////////////////////////////////////////////
 
-SX127xDriver::SX127xDriver(HwSpi &spi):
+SX127xDriver::SX127xDriver(HwSpi &spi, uint8_t payload_len):
     RadioInterface(spi, SX127X_SPI_READ, SX127X_SPI_WRITE)
 {
     instance = this;
@@ -62,6 +62,7 @@ SX127xDriver::SX127xDriver(HwSpi &spi):
     LastPacketSNR = 0;
     NonceTX = 0;
     NonceRX = 0;
+    RX_buffer_size = payload_len;
 }
 
 void SX127xDriver::Begin(void)
@@ -302,10 +303,10 @@ void ICACHE_RAM_ATTR SX127xDriver::RxConfig(uint32_t freq)
     if (freq)
         SetFrequency(freq, 0xff);
 
-    if (headerExplMode == false && p_last_payload_len != RX_BUFFER_LEN)
+    if (headerExplMode == false && p_last_payload_len != RX_buffer_size)
     {
-        writeRegister(SX127X_REG_PAYLOAD_LENGTH, RX_BUFFER_LEN);
-        p_last_payload_len = RX_BUFFER_LEN;
+        writeRegister(SX127X_REG_PAYLOAD_LENGTH, RX_buffer_size);
+        p_last_payload_len = RX_buffer_size;
     }
 
     /* ESP requires aligned buffer when -Os is not set! */
@@ -326,9 +327,7 @@ void ICACHE_RAM_ATTR SX127xDriver::RxConfig(uint32_t freq)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//uint32_t DRAM_ATTR __RXdataBuffer[16 / 4]; // ESP requires aligned buffer
-//uint8_t * DRAM_ATTR RXdataBuffer = (uint8_t *)&__RXdataBuffer;
-static uint8_t DMA_ATTR RXdataBuffer[RX_BUFFER_LEN];
+static uint8_t DMA_ATTR RXdataBuffer[16];
 
 void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint8_t irqs)
 {
@@ -336,10 +335,8 @@ void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint8_t irqs)
     if ((!(irqs & SX127X_CLEAR_IRQ_FLAG_PAYLOAD_CRC_ERROR)) &&
         (irqs & SX127X_CLEAR_IRQ_FLAG_RX_DONE))
     {
-        // make sure the buffer is clean
-        memset(RXdataBuffer, 0, RX_BUFFER_LEN);
         // fetch data from modem
-        readRegisterBurst((uint8_t)SX127X_REG_FIFO, RX_BUFFER_LEN, (uint8_t *)RXdataBuffer);
+        readRegisterBurst((uint8_t)SX127X_REG_FIFO, RX_buffer_size, (uint8_t *)RXdataBuffer);
         // fetch RSSI and SNR
         GetLastRssiSnr();
         NonceRX++;
@@ -444,14 +441,12 @@ void ICACHE_RAM_ATTR SX127xDriver::SetMode(uint8_t mode)
 
 void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
                           uint32_t freq, uint16_t PreambleLength,
-                          uint8_t syncWord, uint8_t crc)
+                          uint8_t crc)
 {
     uint8_t newBandwidth, newSpreadingFactor, newCodingRate;
 
     if (freq == 0)
         freq = current_freq;
-    if (syncWord == 0)
-        syncWord = _syncWord;
 
     if ((freq < 137000000) ||
         ((RFmodule == RFMOD_SX1276) && (freq > 1020000000)) ||
@@ -545,7 +540,7 @@ void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
     }
 
     // configure common registers
-    SX127xConfig(newBandwidth, newSpreadingFactor, newCodingRate, freq, syncWord, crc);
+    SX127xConfig(newBandwidth, newSpreadingFactor, newCodingRate, freq, _syncWord, crc);
     SetPreambleLength(PreambleLength);
 
     // save the new settings
