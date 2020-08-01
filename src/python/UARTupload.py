@@ -25,8 +25,9 @@ except:
     filename = "firmware.bin"
 
 if not os.path.exists(filename):
-    dbg_print("[FAILED] bin file '%s' does not exist\n" % filename)
-    raise SystemExit
+    msg = "[FAILED] bin file '%s' does not exist\n" % filename
+    dbg_print(msg)
+    raise EnvironmentError(msg)
 
 def dbg_print(line):
     sys.stdout.write(line)
@@ -66,8 +67,9 @@ serial_ports()
 #sys.stdout.write("\n")
 
 if not result:
-    dbg_print("\n[FAILED] Cannot find suitable serial port\n\n")
-    raise SystemExit
+    msg = "\n[FAILED] Cannot find suitable serial port\n\n"
+    dbg_print(msg)
+    raise EnvironmentError(msg)
 
 dbg_print("Going to use "+ result[0]+"\n")
 
@@ -94,8 +96,9 @@ if 'CC' not in already_in_bl:
         dbg_print("[%2u] retry...\n" % currAttempt)
         time.sleep(.5)
         if 10 < currAttempt:
-            dbg_print("Failed to get to BL in reasonable time\n")
-            raise SystemExit
+            msg = "Failed to get to BL in reasonable time\n"
+            dbg_print(msg)
+            raise EnvironmentError(msg)
 
         # request reboot
         s.write(BootloaderInitSeq1)
@@ -128,8 +131,9 @@ if 'CC' not in already_in_bl:
         if char == 'C':
             break
         if ((time.time() - start) > 10):
-            dbg_print("[FAILED] Unable to communicate with bootloader...\n")
-            raise SystemExit
+            msg = "[FAILED] Unable to communicate with bootloader...\n"
+            dbg_print(msg)
+            raise EnvironmentError(msg)
 else:
     dbg_print("\nWe were already in bootloader\n")
 
