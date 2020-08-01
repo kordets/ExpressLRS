@@ -27,10 +27,10 @@ rand_version = 1
 # The 0 index is special - the 'sync' channel. The sync channel appears every
 # syncInterval hops. The other channels are randomly distributed between the
 # sync channels
-SYNC_INTERVAL = 15
+SYNC_INTERVAL = 24
 
 # Size of the FHSS sequence entries
-#   TODO: modify biffer at some day (e.g 20 * SYNC_INTERVAL).
+#   TODO: modify bigger at some day (e.g 20 * SYNC_INTERVAL).
 #         ElrsSyncPacket_s need to be updated to hold bigger than uin8_t value!!
 NR_SEQUENCE_ENTRIES = 256
 
@@ -77,16 +77,16 @@ def print_fhss(vals, num_of_fhss):
     print_lst = []
     i = 0
     for val in vals:
-        print_lst.append("%2u" % val);
+        print_lst.append("%2u" % val)
 
         if ((i + 1) % 16 == 0):
             buffer.append(", ".join(print_lst))
-            print(" ".join(print_lst));
+            print(" ".join(print_lst))
             print_lst = []
         i += 1
     if print_lst:
         buffer.append(", ".join(print_lst))
-        print(" ".join(print_lst));
+        print(" ".join(print_lst))
 
     for iter in range(num_of_fhss):
         print("  index %2d: %3u" % (iter, vals.count(iter)))
@@ -159,6 +159,8 @@ def FHSSrandomiseFHSSsequence_v2(num_of_fhss, sync_interval):
 
 
 def check_fhss_freqs_h(DOMAIN, MY_UID):
+    global SYNC_INTERVAL
+
     _uid = [int(val, 16) for val in MY_UID.replace("-DMY_UID=", "").split(",")]
     _uid_crc = CalcCRC32(bytearray(_uid))
 
