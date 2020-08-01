@@ -40,17 +40,18 @@ void updateLEDs(uint8_t isRXconnected, uint8_t tlm)
 
     if (isRXconnected || tlm == 0)
     {
-        if (ExpressLRS_currAirRate->enum_rate == RATE_200HZ)
+        uint8_t index = current_rate_config;
+        if (index == 0)
         {
             for (int n = 0; n < numberOfLEDs; n++)
                 strip.SetPixelColor(n, RgbColor(0, 0, LEDGlowIndex));
         }
-        else if (ExpressLRS_currAirRate->enum_rate == RATE_100HZ)
+        else if (index == 1)
         {
             for (int n = 0; n < numberOfLEDs; n++)
                 strip.SetPixelColor(n, RgbColor(0, LEDGlowIndex, 0));
         }
-        else if (ExpressLRS_currAirRate->enum_rate == RATE_50HZ)
+        else if (index == 2)
         {
             for (int n = 0; n < numberOfLEDs; n++)
                 strip.SetPixelColor(n, RgbColor(LEDGlowIndex, 0, 0));

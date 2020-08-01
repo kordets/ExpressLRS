@@ -138,7 +138,7 @@ int8_t platform_config_load(struct platform_config &config)
     int8_t res = 0;
     config.key = ELRS_EEPROM_KEY;
 #endif
-    if (rate_config_dips < RATE_MAX)
+    if (rate_config_dips < get_elrs_airRateMax())
         config.mode = rate_config_dips;
     return res;
 }
@@ -186,7 +186,7 @@ void platform_setup(void)
     rate_config_dips = digitalRead(GPIO_PIN_DIP1) ? 0u : 1u;
     rate_config_dips <<= 1;
     rate_config_dips |= digitalRead(GPIO_PIN_DIP2) ? 0u : 1u;
-    if (rate_config_dips < RATE_MAX)
+    if (rate_config_dips < get_elrs_airRateMax())
     {
         current_rate_config = rate_config_dips;
     }
@@ -269,7 +269,8 @@ void platform_setup(void)
 
 void platform_mode_notify(void)
 {
-    for (int i = 0; i < RATE_GET_OSD_NUM(current_rate_config); i++)
+#if (GPIO_PIN_BUZZER != UNDEF_PIN) || (GPIO_PIN_LED_GREEN != UNDEF_PIN)
+    for (int i = 0; i < get_elrs_airRateOsd(); i++)
     {
         delay(300);
         LED_STATE_GREEN(HIGH);
@@ -277,6 +278,7 @@ void platform_mode_notify(void)
         delay(50);
         LED_STATE_GREEN(LOW);
     }
+#endif
 }
 
 void platform_loop(int state)

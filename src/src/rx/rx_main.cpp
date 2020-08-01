@@ -28,9 +28,9 @@ void ICACHE_RAM_ATTR LostConnection();
 ///////////////////
 
 #if RADIO_SX128x
-SX1280Driver Radio(RadioSpi);
+SX1280Driver Radio(RadioSpi, OTA_PACKET_SIZE);
 #else
-SX127xDriver Radio(RadioSpi);
+SX127xDriver Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
 CRSF_RX crsf(CrsfSerial); //pass a serial port object to the class for it to use
 RcChannels rc_ch;
@@ -67,9 +67,11 @@ static volatile uint_fast8_t uplink_Link_quality = 0;
 ///////////// Variables for Sync Behaviour ////////////////////
 static volatile uint32_t RFmodeNextCycle = 0; // set from isr
 static uint32_t RFmodeCycleDelay = 0;
-static volatile uint8_t scanIndex = 0; // set from isr
+static uint8_t scanIndex = 0;
 static uint8_t tentative_cnt = 0;
-static volatile uint32_t updatedAirRate = RATE_MAX;
+#if RX_UPDATE_AIR_RATE
+static volatile uint32_t updatedAirRate = 0xff;
+#endif
 
 ///////////////////////////////////////
 
@@ -177,8 +179,10 @@ uint8_t ICACHE_RAM_ATTR HandleFHSS()
 void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
 {
     DEBUG_PRINT(" X");
-    uint32_t __tx_buffer[2]; // esp requires aligned buffer
+    // esp requires word aligned buffer
+    uint32_t __tx_buffer[(OTA_PACKET_SIZE + sizeof(uint32_t) - 1) / sizeof(uint32_t)];
     uint8_t *tx_buffer = (uint8_t *)__tx_buffer;
+    uint8_t index = OTA_PACKET_DATA;
 
     if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
@@ -188,19 +192,19 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
             tlm_msp_send = 0;
         }
         /* send msp packet if needed */
-        tx_buffer[6] = TYPE_PACK(DL_PACKET_TLM_MSP);
+        tx_buffer[index] = TYPE_PACK(DL_PACKET_TLM_MSP);
     }
     else
     {
         crsf.LinkStatistics.uplink_Link_quality = uplink_Link_quality;
         crsf.LinkStatisticsPack(tx_buffer);
-        tx_buffer[6] = TYPE_PACK(DL_PACKET_TLM_LINK);
+        tx_buffer[index] = TYPE_PACK(DL_PACKET_TLM_LINK);
     }
 
-    uint16_t crc = CalcCRC16(tx_buffer, 6, CRCCaesarCipher);
-    tx_buffer[6] += ((crc >> 8) & 0x3F);
-    tx_buffer[7] = (crc & 0xFF);
-    Radio.TXnb(tx_buffer, 8, FHSSgetCurrFreq());
+    uint16_t crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
+    tx_buffer[index++] += ((crc >> 8) & 0x3F);
+    tx_buffer[index++] = (crc & 0xFF);
+    Radio.TXnb(tx_buffer, index, FHSSgetCurrFreq());
 }
 
 void tx_done_cb(void)
@@ -324,7 +328,6 @@ void ICACHE_RAM_ATTR LostConnection()
     LPF_FreqError.init(0);
 
     connectionState = STATE_lost; //set lost connection
-    scanIndex = ExpressLRS_currAirRate->enum_rate;
 
     led_set_state(1);             // turn off led
     Radio.RXnb(GetInitialFreq()); // in conn lost state we always want to listen on freq index 0
@@ -376,9 +379,9 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
     //DEBUG_PRINT("I");
     const connectionState_e _conn_state = connectionState;
     const uint32_t current_us = Radio.LastPacketIsrMicros;
-    const uint16_t crc = CalcCRC16(rx_buffer, 6, CRCCaesarCipher);
-    const uint16_t crc_in = ((uint16_t)(rx_buffer[6] & 0x3f) << 8) + rx_buffer[7];
-    const uint8_t type = TYPE_EXTRACT(rx_buffer[6]);
+    const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
+    const uint16_t crc_in = ((uint16_t)(rx_buffer[OTA_PACKET_DATA] & 0x3f) << 8) + rx_buffer[OTA_PACKET_DATA+1];
+    const uint8_t type = TYPE_EXTRACT(rx_buffer[OTA_PACKET_DATA]);
 
 #if PRINT_TIMER && PRINT_RX_ISR
     DEBUG_PRINT("RX us ");
@@ -397,9 +400,6 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
 
     rx_freqerror = Radio.GetFrequencyError();
 
-#if NUM_FAILS_TO_RESYNC
-    rx_lost_packages = 0;
-#endif
     rx_last_valid_us = current_us;
     LastValidPacket = millis();
 
@@ -409,9 +409,13 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
         {
             DEBUG_PRINT(" S");
             ElrsSyncPacket_s const * const sync = (ElrsSyncPacket_s*)rx_buffer;
-            if (sync->uid3 == UID[3] &&
-                sync->uid4 == UID[4] &&
-                sync->uid5 == UID[5])
+
+            if
+#if USE_CRC_CAESAR_CIPHER_IN_SYNC
+                (sync->CRCCaesarCipher == CRCCaesarCipher)
+#else
+                (sync->uid3 == UID[3] && sync->uid4 == UID[4] && sync->uid5 == UID[5])
+#endif
             {
                 if (_conn_state == STATE_disconnected || _conn_state == STATE_lost)
                 {
@@ -429,16 +433,20 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
                         LostConnection();
                     }
                 }
+#if 1
                 else
                 {
                     // Send last command to FC if connected to keep it running
                     crsf.sendRCFrameToFC();
                 }
+#endif
 
+#if RX_UPDATE_AIR_RATE
                 if (current_rate_config != sync->air_rate)
                 {
                     updatedAirRate = sync->air_rate;
                 }
+#endif
 
                 handle_tlm_ratio(sync->tlm_interval);
                 FHSSsetCurrIndex(sync->fhssIndex);
@@ -485,9 +493,16 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             break;
 
         default:
-            break;
+            /* Not a valid packet, ignore it */
+            rx_last_valid_us = 0;
+            rx_freqerror = 0;
+            return;
+            //break;
     }
 
+#if NUM_FAILS_TO_RESYNC
+    rx_lost_packages = 0;
+#endif
     LQ_packetAck();
     FillLinkStats();
 
@@ -514,7 +529,7 @@ void forced_stop(void)
 
 static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
 {
-    const expresslrs_mod_settings_s *const config = get_elrs_airRateConfig(rate);
+    const expresslrs_mod_settings_t *const config = get_elrs_airRateConfig(rate);
     if (config == NULL || config == ExpressLRS_currAirRate)
         return; // No need to modify, rate is same
 
@@ -539,7 +554,8 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
 
     handle_tlm_ratio(config->TLMinterval);
 
-    Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(), config->PreambleLen);
+    Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(),
+                 config->PreambleLen, (OTA_PACKET_CRC == 0));
 
     // Measure RF noise
 #ifdef DEBUG_SERIAL // TODO: Enable this when noize floor is used!
@@ -554,7 +570,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     LPF_FreqError.init(0);
     LPF_UplinkRSSI.init(0);
     crsf.LinkStatistics.uplink_RSSI_2 = 0;
-    crsf.LinkStatistics.rf_Mode = RATE_GET_OSD_NUM(config->enum_rate);
+    crsf.LinkStatistics.rf_Mode = config->rate_osd_num;
     Radio.RXnb();
     TxTimer.init();
 }
@@ -620,7 +636,7 @@ void setup()
                   GPIO_PIN_BUSY, GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
     Radio.SetSyncWord(getSyncWord());
     Radio.Begin();
-    Radio.SetOutputPower(0b1111); // default is max power (17dBm for RX)
+    Radio.SetOutputPower(0b1111); // default RX to max power for tlm
     Radio.RXdoneCallback1 = ProcessRFPacketCallback;
     Radio.TXdoneCallback1 = tx_done_cb;
 
@@ -639,25 +655,27 @@ void loop()
     uint32_t now = millis();
     uint8_t rx_buffer_handle = 0;
 
+#if RX_UPDATE_AIR_RATE
     /* update air rate config, timed to FHSS index 0 */
-    if (updatedAirRate < RATE_MAX && updatedAirRate != current_rate_config)
+    if (updatedAirRate < get_elrs_airRateMax() && updatedAirRate != current_rate_config)
     {
         //connectionState = STATE_disconnected; // Force resync
         connectionState = STATE_lost; // Mark to lost to stay on received rate and force resync.
         SetRFLinkRate(updatedAirRate); // configure air rate
         RFmodeNextCycle = now;
-        //updatedAirRate = RATE_MAX;
         return;
     }
+#endif /* RX_UPDATE_AIR_RATE */
 
     /* Cycle only if initial connection search */
     if (connectionState == STATE_disconnected)
     {
         if (RFmodeCycleDelay < (uint32_t)(now - RFmodeNextCycle))
         {
-            SetRFLinkRate((scanIndex % RATE_MAX)); //switch between rates
+            uint8_t max_rate = get_elrs_airRateMax();
+            SetRFLinkRate((scanIndex % max_rate)); //switch between rates
             scanIndex++;
-            if (RATE_MAX <= scanIndex)
+            if (max_rate <= scanIndex)
                 platform_connection_state(STATE_search_iteration_done);
 
             RFmodeNextCycle = now;

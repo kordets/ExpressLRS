@@ -1,5 +1,10 @@
 #pragma once
 
+#if !RADIO_SX128x
+//#define RATE_ENABLED_25Hz 1
+//#define RATE_ENABLED_4Hz  1
+#endif
+
 #if RADIO_SX128x
 //#if !defined(Regulatory_Domain_ISM_2400) && !defined(Regulatory_Domain_ISM_2400_800kHz)
 //#error "Not suitable build target! Enable ISM 2400 regulatory domain or use other targets"
@@ -57,19 +62,6 @@ typedef enum
     RF_AIRMODE_PARAMETERS = 2
 } expresslrs_tlm_header_e;
 
-enum
-{
-    RATE_200HZ,
-    RATE_100HZ,
-    RATE_50HZ,
-#if !RADIO_SX128x
-    //RATE_25HZ,
-    //RATE_4HZ,
-#endif
-    RATE_MAX
-};
-
-#define RATE_GET_OSD_NUM(_x) ((RATE_MAX + 1) - (_x))
 #define RATE_DEFAULT         0 // 200HZ or 250Hz
 
 typedef struct expresslrs_mod_settings_s
@@ -81,19 +73,26 @@ typedef struct expresslrs_mod_settings_s
     uint8_t rate;            // rate in hz
     uint8_t TLMinterval;     // every X packets is a response TLM packet, should be a power of 2
     uint8_t FHSShopInterval; // every X packets we hope to a new frequnecy.
-    uint8_t PreambleLen;
-    uint8_t enum_rate;
+    uint8_t rate_osd_num;
+    uint16_t PreambleLen;
     uint16_t connectionLostTimeout;
     uint16_t syncSearchTimeout;
     uint32_t syncInterval;
 } expresslrs_mod_settings_t;
 
-const expresslrs_mod_settings_s *get_elrs_airRateConfig(uint8_t rate);
-
-extern volatile const expresslrs_mod_settings_s *ExpressLRS_currAirRate;
+extern volatile const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
 extern volatile uint8_t current_rate_config;
+
+const expresslrs_mod_settings_t *get_elrs_airRateConfig(uint8_t rate);
+uint8_t get_elrs_airRateIndex(void * current);
+uint8_t get_elrs_airRateMax(void);
+static inline uint8_t get_elrs_airRateOsd(void) {
+    return ExpressLRS_currAirRate->rate_osd_num;
+}
 
 #define TLMratioEnumToValue(TLM) (256U >> (TLM))
 
+#if defined(RX_MODULE)
 void forced_start(void);
 void forced_stop(void);
+#endif /* RX_MODULE */

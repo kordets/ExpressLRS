@@ -35,16 +35,16 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 
 /// define some libs to use ///
 #if RADIO_SX128x
-SX1280Driver Radio(RadioSpi);
+SX1280Driver Radio(RadioSpi, OTA_PACKET_SIZE);
 #else
-SX127xDriver Radio(RadioSpi);
+SX127xDriver Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
 CRSF_TX crsf(CrsfSerial);
 RcChannels DRAM_ATTR rc_ch;
 POWERMGNT PowerMgmt(Radio);
 
 volatile uint32_t DRAM_ATTR _rf_rxtx_counter = 0;
-static volatile uint8_t DMA_ATTR rx_buffer[8];
+static volatile uint8_t DMA_ATTR rx_buffer[OTA_PACKET_SIZE];
 static volatile uint8_t DRAM_ATTR rx_buffer_handle = 0;
 static volatile uint8_t red_led_state = 0;
 
@@ -143,9 +143,9 @@ int8_t tx_tlm_toggle(void)
 static void process_rx_buffer()
 {
     uint32_t ms = millis();
-    const uint16_t crc = CalcCRC16((uint8_t*)rx_buffer, 6, CRCCaesarCipher);
-    const uint16_t crc_in = ((uint16_t)(rx_buffer[6] & 0x3f) << 8) + rx_buffer[7];
-    uint8_t type = TYPE_EXTRACT(rx_buffer[6]);
+    const uint16_t crc = CalcCRC16((uint8_t*)rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
+    const uint16_t crc_in = ((uint16_t)(rx_buffer[OTA_PACKET_DATA] & 0x3f) << 8) + rx_buffer[OTA_PACKET_DATA+1];
+    uint8_t type = TYPE_EXTRACT(rx_buffer[OTA_PACKET_DATA]);
 
     if (crc_in != (crc & 0x3FFF))
     {
@@ -234,20 +234,29 @@ static void ICACHE_RAM_ATTR GenerateSyncPacketData(uint8_t *const output)
     ElrsSyncPacket_s * sync = (ElrsSyncPacket_s*)output;
     sync->fhssIndex = FHSSgetCurrIndex();
     sync->rxtx_counter = _rf_rxtx_counter;
-    sync->air_rate = ExpressLRS_currAirRate->enum_rate;
+#if RX_UPDATE_AIR_RATE
+    sync->air_rate = current_rate_config;
+#endif
     sync->tlm_interval = TLMinterval;
+#if USE_CRC_CAESAR_CIPHER_IN_SYNC
+    sync->CRCCaesarCipher = CRCCaesarCipher;
+#else
     sync->uid3 = UID[3];
     sync->uid4 = UID[4];
     sync->uid5 = UID[5];
-    output[6] = TYPE_PACK(UL_PACKET_SYNC);
+#endif
+    // Store type with CRC
+    output[OTA_PACKET_DATA] = TYPE_PACK(UL_PACKET_SYNC);
 }
 
 static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
 {
     // Called by HW timer
     uint32_t freq;
-    uint32_t __tx_buffer[2]; // esp requires aligned buffer
+    // esp requires word aligned buffer
+    uint32_t __tx_buffer[(OTA_PACKET_SIZE + sizeof(uint32_t) - 1) / sizeof(uint32_t)];
     uint8_t *tx_buffer = (uint8_t *)__tx_buffer;
+    uint8_t index = OTA_PACKET_DATA;
 
     crsf.UpdateOpenTxSyncOffset(current_us); // tells the crsf that we want to send data now - this allows opentx packet syncing
 
@@ -284,16 +293,16 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     }
 
     // Calculate the CRC
-    uint16_t crc = CalcCRC16(tx_buffer, 6, CRCCaesarCipher);
-    tx_buffer[6] += (crc >> 8) & 0x3F;
-    tx_buffer[7] = (crc & 0xFF);
+    uint16_t crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
+    tx_buffer[index++] += (crc >> 8) & 0x3F;
+    tx_buffer[index++] = (crc & 0xFF);
     // Enable PA
     PowerMgmt.pa_on();
     // Debugging
     //delayMicroseconds(random(0, 400)); // 300 ok
     //if (random(0, 99) < 55) tx_buffer[1] = 0;
     // Send data to rf
-    Radio.TXnb(tx_buffer, 8, freq);
+    Radio.TXnb(tx_buffer, index, freq);
     // Increase TX counter
     HandleFHSS_TX();
     //DEBUG_PRINT(" T");
@@ -316,10 +325,12 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
                 return -1;
 
             // set air rate
-            if (RATE_MAX > value)
+            if (get_elrs_airRateMax() > value)
                 modified |= SetRFLinkRate(value) ? (1 << 1) : 0;
             DEBUG_PRINT("Rate: ");
-            DEBUG_PRINTLN(ExpressLRS_currAirRate->enum_rate);
+            //DEBUG_PRINTLN(get_elrs_airRateIndex((void*)ExpressLRS_currAirRate));
+            //DEBUG_PRINTLN(current_rate_config);
+            DEBUG_PRINTLN(ExpressLRS_currAirRate->rate);
             break;
 
         case 2:
@@ -359,10 +370,11 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
 
     // Fill response
     if (out) {
-        out[0] = (uint8_t)(ExpressLRS_currAirRate->enum_rate);
-        out[1] = (uint8_t)(TLMinterval);
-        out[2] = (uint8_t)(PowerMgmt.currPower());
-        out[3] = (uint8_t)(PowerMgmt.maxPowerGet());
+        //out[0] = get_elrs_airRateIndex((void*)ExpressLRS_currAirRate);
+        out[0] = (uint8_t)current_rate_config;
+        out[1] = (uint8_t)TLMinterval;
+        out[2] = (uint8_t)PowerMgmt.currPower();
+        out[3] = (uint8_t)PowerMgmt.maxPowerGet();
 #if defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915)
         out[4] = 0;
 #elif defined(Regulatory_Domain_EU_868) || defined(Regulatory_Domain_EU_868_R9)
@@ -386,7 +398,8 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
 
         // Save modified values
         pl_config.key = ELRS_EEPROM_KEY;
-        pl_config.mode = ExpressLRS_currAirRate->enum_rate;
+        pl_config.mode = current_rate_config;
+        //pl_config.mode = get_elrs_airRateIndex((void*)ExpressLRS_currAirRate);
         pl_config.power = PowerMgmt.currPower();
         pl_config.tlm = TLMinterval;
         platform_config_save(pl_config);
@@ -439,7 +452,7 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
 {
     // TODO: Protect this by disabling timer/isr...
 
-    const expresslrs_mod_settings_s *const config = get_elrs_airRateConfig(rate);
+    const expresslrs_mod_settings_t *const config = get_elrs_airRateConfig(rate);
     if (config == NULL || config == ExpressLRS_currAirRate)
         return 0; // No need to modify, rate is same
 
@@ -452,13 +465,15 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
 
     LPF_dyn_tx_power.init(-55);
 
+    current_rate_config = rate;
     ExpressLRS_currAirRate = config;
     TxTimer.updateInterval(config->interval); // TODO: Make sure this is equiv to above commented lines
 
     FHSSsetCurrIndex(0);
-    Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(), config->PreambleLen);
+    Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(),
+                 config->PreambleLen, (OTA_PACKET_CRC == 0));
     crsf.setRcPacketRate(config->interval);
-    crsf.LinkStatistics.rf_Mode = RATE_GET_OSD_NUM(config->enum_rate);
+    crsf.LinkStatistics.rf_Mode = config->rate_osd_num;
 
     tx_tlm_change_interval(TLMinterval, init);
 
@@ -555,7 +570,7 @@ void setup()
     platform_setup();
     DEBUG_PRINTLN("ExpressLRS TX Module...");
     platform_config_load(pl_config);
-    current_rate_config = pl_config.mode % RATE_MAX;
+    current_rate_config = pl_config.mode % get_elrs_airRateMax();
     power = (PowerLevels_e)(pl_config.power % PWR_UNKNOWN);
     TLMinterval = pl_config.tlm;
     platform_mode_notify();

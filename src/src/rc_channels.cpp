@@ -32,7 +32,7 @@ typedef struct
  */
 void RcChannels::channels_pack()
 {
-    packed_buffer[6] = TYPE_PACK(UL_PACKET_RC_DATA);
+    setPacketType(UL_PACKET_RC_DATA);
 
     // find the next switch to send
     uint8_t ch_idx = getNextSwitchIndex() & 0b111;
@@ -125,7 +125,7 @@ typedef struct
  */
 void RcChannels::channels_pack()
 {
-    packed_buffer[6] = TYPE_PACK(UL_PACKET_RC_DATA);
+    setPacketType(UL_PACKET_RC_DATA);
 
     // find the next switch to send
     uint8_t ch_idx = getNextSwitchIndex() & 0b111; // mask for paranoia
@@ -229,7 +229,7 @@ void RcChannels::channels_pack()
         SwitchPacketNextSend = current_ms + SWITCH_PACKET_SEND_INTERVAL;
         p_auxChannelsChanged = 0;
 
-        packed_buffer[6] = TYPE_PACK(UL_PACKET_SWITCH_DATA);
+        setPacketType(UL_PACKET_SWITCH_DATA);
         SwitchPacket_s *rcdata = (SwitchPacket_s *)&packed_buffer[0];
         rcdata->aux1 = (CRSF_to_UINT10(ChannelDataIn[4]) >> 6);
         rcdata->aux2 = (CRSF_to_UINT10(ChannelDataIn[5]) >> 6);
@@ -243,7 +243,7 @@ void RcChannels::channels_pack()
     else // else we just have regular channel data which we send as 8 + 2 bits
 #endif // !One_Bit_Switches
     {
-        packed_buffer[6] = TYPE_PACK(UL_PACKET_RC_DATA);
+        setPacketType(UL_PACKET_RC_DATA);
 
         RcDataPacket_s *rcdata = (RcDataPacket_s *)&packed_buffer[0];
         rcdata->rc1 = ChannelDataIn[0];

@@ -6,6 +6,10 @@
 #include "msp.h"
 #include <stdint.h>
 
+#define OTA_PACKET_DATA     6
+#define OTA_PACKET_CRC      2
+#define OTA_PACKET_SIZE     (OTA_PACKET_DATA+OTA_PACKET_CRC)
+
 // current and sent switch values
 #define N_CONTROLS 4
 #define N_SWITCHES 8
@@ -32,19 +36,33 @@ enum
     DL_PACKET_TLM_LINK = 0b11,
 };
 
+#define USE_CRC_CAESAR_CIPHER_IN_SYNC 1
 typedef struct ElrsSyncPacket_s {
+#if USE_CRC_CAESAR_CIPHER_IN_SYNC
+    uint16_t CRCCaesarCipher;
+    uint8_t padding;
+#endif
     uint8_t fhssIndex;
     uint8_t rxtx_counter;
+#if RX_UPDATE_AIR_RATE
     uint8_t air_rate: 4;
     uint8_t tlm_interval : 4;
+#else
+    uint8_t tlm_interval;
+#endif
+#if !USE_CRC_CAESAR_CIPHER_IN_SYNC
     uint8_t uid3;
     uint8_t uid4;
     uint8_t uid5;
+#endif
 } ElrsSyncPacket_s;
 
 #define TYPE_PACK(T) (((T) & 0b11) << 6)
 #define TYPE_EXTRACT(B) (((B) >> 6) & 0b11)
 
+#if (OTA_PACKET_DATA < 6)
+#error "Min OTA size is 6 bytes!"
+#endif
 
 class RcChannels
 {
@@ -73,13 +91,16 @@ private:
     void channels_pack(void);
     // Switches / AUX channel handling
     uint8_t getNextSwitchIndex(void);
+    void setPacketType(uint8_t type) {
+        packed_buffer[OTA_PACKET_DATA] = TYPE_PACK(type);
+    }
 
     // Channel processing data
     volatile uint16_t ChannelDataIn[N_CHANNELS] = {0};  // range: 0...2048
     volatile uint8_t currentSwitches[N_SWITCHES] = {0}; // range: 0,1,2
 
     // esp requires aligned buffer
-    volatile uint8_t WORD_ALIGNED_ATTR packed_buffer[8];
+    volatile uint8_t WORD_ALIGNED_ATTR packed_buffer[OTA_PACKET_SIZE];
 
     volatile uint16_t p_auxChannelsChanged = 0; // bitmap of changed switches
     // which switch should be sent in the next rc packet
