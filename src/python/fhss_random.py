@@ -301,7 +301,7 @@ def check_env_and_parse(build_flags):
     if my_domain and my_uid:
         check_fhss_freqs_h(my_domain, my_uid)
     else:
-        raise Exception("Domain and UI are missing!")
+        raise Exception("Domain or UID is missing!")
 
 if DEBUG:
     check_fhss_freqs_h("-DRegulatory_Domain_EU_868", "-DMY_UID=0xB8,0x27,0xEB,0x61,0x1D,0x38")
