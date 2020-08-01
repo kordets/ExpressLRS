@@ -93,11 +93,11 @@ def print_fhss(vals, num_of_fhss):
     return buffer
 
 
-def FHSSrandomiseFHSSsequence_v1(num_of_fhss):
+def FHSSrandomiseFHSSsequence_v1(num_of_fhss, sync_interval):
 
     def resetIsAvailable():
         l = [1] * num_of_fhss
-        if SYNC_INTERVAL is not None:
+        if sync_interval is not None:
             l[0] = 0
         return l
 
@@ -107,7 +107,7 @@ def FHSSrandomiseFHSSsequence_v1(num_of_fhss):
 
     # for each slot in the sequence table
     for i in range(NR_SEQUENCE_ENTRIES):
-        if SYNC_INTERVAL is not None and ((i % SYNC_INTERVAL) == 0):
+        if sync_interval is not None and ((i % sync_interval) == 0):
             # assign sync channel 0
             FHSSsequence[i] = 0
             prev = 0
@@ -118,7 +118,7 @@ def FHSSrandomiseFHSSsequence_v1(num_of_fhss):
                 c = rngN(isAvailable.count(1)) # returnc 0<c<nLeft
                 # find the c'th entry in the isAvailable array
                 # can skip 0 as that's the sync channel and is never available for normal allocation
-                index = 1 if SYNC_INTERVAL is not None else 0
+                index = 1 if sync_interval is not None else 0
                 found = 0
                 while (index < num_of_fhss):
                     if (isAvailable[index]):
@@ -144,7 +144,7 @@ def FHSSrandomiseFHSSsequence_v1(num_of_fhss):
     return FHSSsequence
 
 
-def FHSSrandomiseFHSSsequence_v2(num_of_fhss):
+def FHSSrandomiseFHSSsequence_v2(num_of_fhss, sync_interval):
     vals = [-1] * NR_SEQUENCE_ENTRIES
     index = -1
     for iter in range(NR_SEQUENCE_ENTRIES):
@@ -217,12 +217,14 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
     elif DOMAIN == "Regulatory_Domain_ISM_2400":
         # These are for 1625kHz band
         FHSSfreqs = [f for f in range(2400400000, 2480000000, 1650000)]
+        SYNC_INTERVAL = 48
 
     elif DOMAIN == "Regulatory_Domain_ISM_2400_800kHz":
         # These are for 812.5kHz band
         #FHSSfreqs = [f for f in range(2400400000, 2480000000, 1000000)]
         #FHSSfreqs = [f for f in range(2400400000, 2480000000, 900000)]
         FHSSfreqs = [f for f in range(2400400000, 2480000000, 850000)]
+        SYNC_INTERVAL = 64
 
     else:
         raise Exception("[error] No regulatory domain defined, please define one in common.h")
@@ -268,9 +270,9 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
 
             _f.write('uint8_t DRAM_ATTR FHSSsequence[NR_SEQUENCE_ENTRIES] = {\n')
             if rand_version == 1:
-                FHSSsequence = FHSSrandomiseFHSSsequence_v1(num_of_fhss)
+                FHSSsequence = FHSSrandomiseFHSSsequence_v1(num_of_fhss, SYNC_INTERVAL)
             elif rand_version == 2:
-                FHSSsequence = FHSSrandomiseFHSSsequence_v2(num_of_fhss)
+                FHSSsequence = FHSSrandomiseFHSSsequence_v2(num_of_fhss, SYNC_INTERVAL)
             else:
                 raise Exception("Unknown FHSS rand version!")
             hops = print_fhss(FHSSsequence, num_of_fhss)
