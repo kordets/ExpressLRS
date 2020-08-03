@@ -55,6 +55,17 @@ enum
     FHSS_8 = 8,
 };
 
+enum
+{
+    OSD_MODE_4Hz = 0,
+    OSD_MODE_25Hz,
+    OSD_MODE_50Hz,
+    OSD_MODE_100Hz,
+    OSD_MODE_125Hz,
+    OSD_MODE_200Hz,
+    OSD_MODE_250Hz,
+};
+
 typedef enum
 {
     RF_DOWNLINK_INFO = 0,
