@@ -186,23 +186,21 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
 
     if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
-        if (rc_ch.tlm_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error)
+        if (rc_ch.tlm_send(tx_buffer, msp_packet_tx, 0) || msp_packet_tx.error)
         {
             msp_packet_tx.reset();
             tlm_msp_send = 0;
         }
-        /* send msp packet if needed */
-        tx_buffer[OTA_PACKET_TYPE_IDX] = TYPE_PACK(DL_PACKET_TLM_MSP);
     }
     else
     {
         crsf.LinkStatistics.uplink_Link_quality = uplink_Link_quality;
         crsf.LinkStatisticsPack(tx_buffer);
-        tx_buffer[OTA_PACKET_TYPE_IDX] = TYPE_PACK(DL_PACKET_TLM_LINK);
+        rc_ch.packetTypeSet(tx_buffer, DL_PACKET_TLM_LINK);
     }
 
     uint16_t crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
-    tx_buffer[index++] += ((crc >> 8) & 0x3F);
+    tx_buffer[index++] = (crc >> 8);
     tx_buffer[index++] = (crc & 0xFF);
     Radio.TXnb(tx_buffer, index, FHSSgetCurrFreq());
 }
@@ -380,15 +378,15 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
     const connectionState_e _conn_state = connectionState;
     const uint32_t current_us = Radio.LastPacketIsrMicros;
     const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
-    const uint16_t crc_in = ((uint16_t)(rx_buffer[OTA_PACKET_DATA] & 0x3f) << 8) + rx_buffer[OTA_PACKET_DATA+1];
-    const uint8_t type = TYPE_EXTRACT(rx_buffer[OTA_PACKET_TYPE_IDX]);
+    const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_DATA] << 8) + rx_buffer[OTA_PACKET_DATA+1];
+    const uint8_t type = rc_ch.packetTypeGet(rx_buffer);
 
 #if PRINT_TIMER && PRINT_RX_ISR
     DEBUG_PRINT("RX us ");
     DEBUG_PRINT(current_us);
 #endif
 
-    if (crc_in != (crc & 0x3FFF))
+    if (crc_in != crc)
     {
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
         digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
@@ -410,12 +408,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             DEBUG_PRINT(" S");
             ElrsSyncPacket_s const * const sync = (ElrsSyncPacket_s*)rx_buffer;
 
-            if
-#if USE_CRC_CAESAR_CIPHER_IN_SYNC
-                (sync->CRCCaesarCipher == CRCCaesarCipher)
-#else
-                (sync->uid3 == UID[3] && sync->uid4 == UID[4] && sync->uid5 == UID[5])
-#endif
+            if (sync->CRCCaesarCipher == CRCCaesarCipher)
             {
                 if (_conn_state == STATE_disconnected || _conn_state == STATE_lost)
                 {
@@ -469,29 +462,12 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             }
             break;
 
-#if !defined(SEQ_SWITCHES) && !defined(HYBRID_SWITCHES_8)
-        case UL_PACKET_SWITCH_DATA: // Switch Data Packet
-            // extra layer of protection incase the crc and addr headers fail us.
-            if ((rx_buffer[2] == rx_buffer[0]) &&
-                (rx_buffer[3] == rx_buffer[1]))
-            {
-                //if (_conn_state == STATE_connected)
-                if (STATE_lost < _conn_state)
-                {
-                    rc_ch.channels_extract(rx_buffer, crsf.ChannelsPacked);
-                    crsf.sendRCFrameToFC();
-                }
-                NonceRXlocal = rx_buffer[4];
-                FHSSsetCurrIndex(rx_buffer[5]);
-            }
-            break;
-#endif
-
         case UL_PACKET_MSP:
             DEBUG_PRINT(" M");
             rc_ch.tlm_receive(rx_buffer, msp_packet_rx);
             break;
 
+        case UL_PACKET_UNKNOWN:
         default:
             /* Not a valid packet, ignore it */
             rx_last_valid_us = 0;

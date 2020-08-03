@@ -81,38 +81,6 @@
 # Default value is 320ms
 # -DTLM_REPORT_INTERVAL=320U
 
-##################################################
-### ONLY DEFINE ONE OF THE SWITCH ENCODING OPTIONS
-
-# === Sequential switches ===
-# 5 bits are used in each rc packet to encode 8 3 position switches
-# first 3 bits are the switch ID, followed by 2 bits for the switch value.
-# Switches that have changed are given priority, otherwise each switch value
-# is sent in round-robin.
-# Channel 4 is reduced to 10bit resolution in order to get the 5th bit needed
-# for sequential switch encoding.
-
-#-DSEQ_SWITCHES
-
-# === Hybrid switches ===
-# The first switch is treated as a low-latency switch to be used for arm/disarm.
-# It is sent with every packet. The remaining 7 switch channels are sent
-# in the same change-prioritized round-robin fashion as described for sequential
-# switches above. All switches are encoded for 3 position support. All analog
-# channels are reduced to 10bit resolution to free up space in the rc packet
-# for switches.
-
--DHYBRID_SWITCHES_8
-
-# === Legacy switches ===
-# Separated switch packet is sent to RX
-#-DLEGACY_SWITCHES
-
-### Enable this for 1bit switches
-# Used if LEGACY_SWITCHES is selected and switches are sent together
-# with RC command packet but only 1bit is used
--DOne_Bit_Switches
-
 ################################
 ### Set your UID or PHRASE.
 # Only one of these is allowed!

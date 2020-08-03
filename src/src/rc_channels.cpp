@@ -8,18 +8,20 @@
 #error "CRSF Channels Config is not OK"
 #endif
 
-#if defined(SEQ_SWITCHES)
+#define USE_3b_SWITCH 1
 
 typedef struct
 {
     // The analog channels
-    unsigned rc1 : 11;
-    unsigned rc2 : 11;
-    unsigned rc3 : 11;
+    unsigned rc1 : 10;
+    unsigned rc2 : 10;
+    unsigned rc3 : 10;
     unsigned rc4 : 10;
+    // Packet type
+    unsigned pkt_type : 2;
     // The round-robin switch
     unsigned aux_n_idx : 3;
-    unsigned aux_n : 2;
+    unsigned aux_n : 3;
 } PACKED RcDataPacket_s;
 
 /**
@@ -32,26 +34,26 @@ typedef struct
  */
 void RcChannels::channels_pack()
 {
-    setPacketType(UL_PACKET_RC_DATA);
-
     // find the next switch to send
     uint8_t ch_idx = getNextSwitchIndex() & 0b111;
 
     RcDataPacket_s *rcdata = (RcDataPacket_s *)&packed_buffer[0];
-    // The analog channels, ch4 scaled to 10bits
-    rcdata->rc1 = (ChannelDataIn[0]);
-    rcdata->rc2 = (ChannelDataIn[1]);
-    rcdata->rc3 = (ChannelDataIn[2]);
+    // The analog channels, scale down to 10bits
+    rcdata->rc1 = (ChannelDataIn[0] >> 1);
+    rcdata->rc2 = (ChannelDataIn[1] >> 1);
+    rcdata->rc3 = (ChannelDataIn[2] >> 1);
     rcdata->rc4 = (ChannelDataIn[3] >> 1);
     // The round-robin switch
     rcdata->aux_n_idx = ch_idx;
-    rcdata->aux_n = currentSwitches[ch_idx] & 0b11;
+    rcdata->aux_n = currentSwitches[ch_idx] & 0b111;
+    // Set type
+    rcdata->pkt_type = UL_PACKET_RC_DATA;
 }
 
 /**
  * Seq switches uses 10 bits for ch3, 3 bits for the switch index and 2 bits for the switch value
  */
-void ICACHE_RAM_ATTR RcChannels::channels_extract(volatile uint8_t const *const input,
+void ICACHE_RAM_ATTR RcChannels::channels_extract(uint8_t const *const input,
                                                   crsf_channels_t &PackedRCdataOut)
 {
     uint16_t switchValue;
@@ -59,13 +61,17 @@ void ICACHE_RAM_ATTR RcChannels::channels_extract(volatile uint8_t const *const 
 
     RcDataPacket_s *rcdata = (RcDataPacket_s *)&input[0];
     // The analog channels
-    PackedRCdataOut.ch0 = rcdata->rc1;
-    PackedRCdataOut.ch1 = rcdata->rc2;
-    PackedRCdataOut.ch2 = rcdata->rc3;
+    PackedRCdataOut.ch0 = ((uint16_t)rcdata->rc1 << 1);
+    PackedRCdataOut.ch1 = ((uint16_t)rcdata->rc2 << 1);
+    PackedRCdataOut.ch2 = ((uint16_t)rcdata->rc3 << 1);
     PackedRCdataOut.ch3 = ((uint16_t)rcdata->rc4 << 1);
     // The round-robin switch
     switchIndex = rcdata->aux_n_idx;
+#if USE_3b_SWITCH
+    switchValue = SWITCH3b_to_CRSF(rcdata->aux_n);
+#else
     switchValue = SWITCH2b_to_CRSF(rcdata->aux_n);
+#endif
 
     switch (switchIndex)
     {
@@ -96,198 +102,6 @@ void ICACHE_RAM_ATTR RcChannels::channels_extract(volatile uint8_t const *const 
     }
 }
 
-#elif defined(HYBRID_SWITCHES_8)
-
-typedef struct
-{
-    // The analog channels
-    unsigned rc1 : 10;
-    unsigned rc2 : 10;
-    unsigned rc3 : 10;
-    unsigned rc4 : 10;
-    // The low latency switch
-    unsigned aux1 : 2;
-    // The round-robin switch
-    unsigned aux_n_idx : 3;
-    unsigned aux_n : 3; // 2b or 3b switches
-} PACKED RcDataPacket_s;
-
-/**
- * Hybrid switches packet
- * Replaces Generate4ChannelData_11bit
- * Analog channels are reduced to 10 bits to allow for switch encoding
- * Switch[0] is sent on every packet.
- * A 3 bit switch index and 2 bit value is used to send the remaining switches
- * in a round-robin fashion.
- * If any of the round-robin switches have changed
- * we take the lowest indexed one and send that, hence lower indexed switches have
- * higher priority in the event that several are changed at once.
- */
-void RcChannels::channels_pack()
-{
-    setPacketType(UL_PACKET_RC_DATA);
-
-    // find the next switch to send
-    uint8_t ch_idx = getNextSwitchIndex() & 0b111; // mask for paranoia
-
-    RcDataPacket_s *rcdata = (RcDataPacket_s *)&packed_buffer[0];
-    // The analog channels, scale down to 10bits
-    rcdata->rc1 = (ChannelDataIn[0] >> 1);
-    rcdata->rc2 = (ChannelDataIn[1] >> 1);
-    rcdata->rc3 = (ChannelDataIn[2] >> 1);
-    rcdata->rc4 = (ChannelDataIn[3] >> 1);
-    // The low latency switch
-    rcdata->aux1 = currentSwitches[0] & 0b111;
-    // The round-robin switch
-    rcdata->aux_n_idx = ch_idx;
-    rcdata->aux_n = currentSwitches[ch_idx] & 0b111;
-}
-
-/**
- * Hybrid switches uses 10 bits for each analog channel,
- * 2 bits for the low latency switch[0]
- * 3 bits for the round-robin switch index and 2 bits for the value
- */
-void ICACHE_RAM_ATTR RcChannels::channels_extract(volatile uint8_t const *const input,
-                                                  crsf_channels_t &PackedRCdataOut)
-{
-    RcDataPacket_s *rcdata = (RcDataPacket_s *)&input[0];
-    // The analog channels, scaled back to 11bits
-    PackedRCdataOut.ch0 = ((uint16_t)rcdata->rc1 << 1);
-    PackedRCdataOut.ch1 = ((uint16_t)rcdata->rc2 << 1);
-    PackedRCdataOut.ch2 = ((uint16_t)rcdata->rc3 << 1);
-    PackedRCdataOut.ch3 = ((uint16_t)rcdata->rc4 << 1);
-    // The low latency switch
-    PackedRCdataOut.ch4 = SWITCH2b_to_CRSF(rcdata->aux1);
-    // The round-robin switch
-    uint8_t switchIndex = rcdata->aux_n_idx;
-    uint16_t switchValue = SWITCH2b_to_CRSF(rcdata->aux_n);
-
-    switch (switchIndex)
-    {
-        case 0: // we should never get index 0 here since that is the low latency switch
-            DEBUG_PRINTLN("BAD switchIndex 0");
-            break;
-        case 1:
-            PackedRCdataOut.ch5 = switchValue;
-            break;
-        case 2:
-            PackedRCdataOut.ch6 = switchValue;
-            break;
-        case 3:
-            PackedRCdataOut.ch7 = switchValue;
-            break;
-        case 4:
-            PackedRCdataOut.ch8 = switchValue;
-            break;
-        case 5:
-            PackedRCdataOut.ch9 = switchValue;
-            break;
-        case 6:
-            PackedRCdataOut.ch10 = switchValue;
-            break;
-        case 7:
-            PackedRCdataOut.ch11 = switchValue;
-            break;
-    }
-}
-
-#else
-
-typedef struct
-{
-    // Swtiches
-    unsigned aux1 : 4;
-    unsigned aux2 : 4;
-    unsigned aux3 : 4;
-    unsigned aux4 : 4;
-} PACKED SwitchPacket_s;
-
-typedef struct
-{
-    // The analog channels
-    unsigned rc1 : 11;
-    unsigned rc2 : 11;
-    unsigned rc3 : 11;
-    unsigned rc4 : 11;
-    // One_Bit_Switches
-    unsigned aux1 : 1;
-    unsigned aux2 : 1;
-    unsigned aux3 : 1;
-    unsigned aux4 : 1;
-} PACKED RcDataPacket_s;
-
-extern volatile uint32_t DRAM_ATTR _rf_rxtx_counter;
-
-void RcChannels::channels_pack()
-{
-    uint32_t current_ms = millis();
-
-#ifndef One_Bit_Switches
-    if ((current_ms > SwitchPacketNextSend) || (p_auxChannelsChanged & 0xf))
-    {
-        SwitchPacketNextSend = current_ms + SWITCH_PACKET_SEND_INTERVAL;
-        p_auxChannelsChanged = 0;
-
-        setPacketType(UL_PACKET_SWITCH_DATA);
-        SwitchPacket_s *rcdata = (SwitchPacket_s *)&packed_buffer[0];
-        rcdata->aux1 = (CRSF_to_UINT10(ChannelDataIn[4]) >> 6);
-        rcdata->aux2 = (CRSF_to_UINT10(ChannelDataIn[5]) >> 6);
-        rcdata->aux3 = (CRSF_to_UINT10(ChannelDataIn[6]) >> 6);
-        rcdata->aux4 = (CRSF_to_UINT10(ChannelDataIn[7]) >> 6);
-        packed_buffer[2] = packed_buffer[0];
-        packed_buffer[3] = packed_buffer[1];
-        packed_buffer[4] = _rf_rxtx_counter;
-        packed_buffer[5] = FHSSgetCurrIndex();
-    }
-    else // else we just have regular channel data which we send as 8 + 2 bits
-#endif // !One_Bit_Switches
-    {
-        setPacketType(UL_PACKET_RC_DATA);
-
-        RcDataPacket_s *rcdata = (RcDataPacket_s *)&packed_buffer[0];
-        rcdata->rc1 = ChannelDataIn[0];
-        rcdata->rc2 = ChannelDataIn[1];
-        rcdata->rc3 = ChannelDataIn[2];
-        rcdata->rc4 = ChannelDataIn[3];
-#ifdef One_Bit_Switches
-        rcdata->aux1 = CRSF_to_BIT(ChannelDataIn[4]);
-        rcdata->aux2 = CRSF_to_BIT(ChannelDataIn[5]);
-        rcdata->aux3 = CRSF_to_BIT(ChannelDataIn[6]);
-        rcdata->aux4 = CRSF_to_BIT(ChannelDataIn[7]);
-#endif // One_Bit_Switches
-    }
-}
-
-void ICACHE_RAM_ATTR RcChannels::channels_extract(volatile uint8_t const *const input,
-                                                  crsf_channels_t &PackedRCdataOut)
-{
-    uint8_t type = TYPE_EXTRACT(input[6]);
-    if (type == UL_PACKET_RC_DATA)
-    {
-        RcDataPacket_s *rcdata = (RcDataPacket_s *)&input[0];
-        PackedRCdataOut.ch0 = rcdata->rc1;
-        PackedRCdataOut.ch1 = rcdata->rc2;
-        PackedRCdataOut.ch2 = rcdata->rc3;
-        PackedRCdataOut.ch3 = rcdata->rc4;
-#ifdef One_Bit_Switches
-        PackedRCdataOut.ch4 = BIT_to_CRSF(rcdata->aux1);
-        PackedRCdataOut.ch5 = BIT_to_CRSF(rcdata->aux2);
-        PackedRCdataOut.ch6 = BIT_to_CRSF(rcdata->aux3);
-        PackedRCdataOut.ch7 = BIT_to_CRSF(rcdata->aux4);
-#endif // One_Bit_Switches
-    }
-    else if (type == UL_PACKET_SWITCH_DATA)
-    {
-        SwitchPacket_s *rcdata = (SwitchPacket_s *)&input[0];
-        PackedRCdataOut.ch4 = SWITCH3b_to_CRSF(rcdata->aux1);
-        PackedRCdataOut.ch5 = SWITCH3b_to_CRSF(rcdata->aux2);
-        PackedRCdataOut.ch6 = SWITCH3b_to_CRSF(rcdata->aux3);
-        PackedRCdataOut.ch7 = SWITCH3b_to_CRSF(rcdata->aux4);
-    }
-}
-#endif
-
 void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
 {
     uint8_t switch_state;
@@ -305,10 +119,18 @@ void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
     ChannelDataIn[9] = (rcChannels->ch9);
     ChannelDataIn[10] = (rcChannels->ch10);
     ChannelDataIn[11] = (rcChannels->ch11);
+#if 12 < N_CHANNELS
     ChannelDataIn[12] = (rcChannels->ch12);
+#if 13 < N_CHANNELS
     ChannelDataIn[13] = (rcChannels->ch13);
+#if 14 < N_CHANNELS
     ChannelDataIn[14] = (rcChannels->ch14);
+#if 15 < N_CHANNELS
     ChannelDataIn[15] = (rcChannels->ch15);
+#endif
+#endif
+#endif
+#endif
 
     /**
      * Convert the rc data corresponding to switches to 2 bit values.
@@ -318,14 +140,18 @@ void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
      * (not 0-3 because most people use 3 way switches and expect the middle
      *  position to be represented by a middle numeric value)
      */
-    for (uint8_t i = 0; i < N_SWITCHES; i++)
+    for (uint8_t idx = 0; idx < N_SWITCHES; idx++)
     {
         // input is 0 - 2048, output is 0 - 2
-        switch_state = CRSF_to_SWITCH2b(ChannelDataIn[i + N_CONTROLS]) & 0b11; //ChannelDataIn[i + N_CONTROLS] / 682;
+#if USE_3b_SWITCH
+        switch_state = CRSF_to_SWITCH3b(ChannelDataIn[idx + N_CONTROLS]) & 0b111;
+#else
+        switch_state = CRSF_to_SWITCH2b(ChannelDataIn[idx + N_CONTROLS]) & 0b11;
+#endif
         // Check if state is changed
-        if (switch_state != currentSwitches[i])
-            p_auxChannelsChanged |= (0x1 << i);
-        currentSwitches[i] = switch_state;
+        if (switch_state != currentSwitches[idx])
+            p_auxChannelsChanged |= (0x1 << idx);
+        currentSwitches[idx] = switch_state;
     }
 
     channels_pack();
@@ -376,16 +202,17 @@ typedef union {
         uint16_t func;
         uint16_t payloadSize;
         uint8_t flags;
-        uint8_t type;
     } hdr;
     struct
     {
-        uint8_t data[6];
+        uint8_t data[5];
     } payload;
+    uint8_t pkt_type;
 } TlmDataPacket_s;
 
 uint8_t ICACHE_RAM_ATTR RcChannels::tlm_send(uint8_t *const output,
-                                             mspPacket_t &packet)
+                                             mspPacket_t &packet,
+                                             uint8_t tx)
 {
     TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)output;
 
@@ -393,12 +220,11 @@ uint8_t ICACHE_RAM_ATTR RcChannels::tlm_send(uint8_t *const output,
     if (packet.type != MSP_PACKET_TLM_OTA)
         return 0;
 
-    output[6] = TYPE_PACK(UL_PACKET_MSP);
+    tlm_ptr->pkt_type = tx ? UL_PACKET_MSP : DL_PACKET_TLM_MSP;
 
     if (!packet.header_sent_or_rcvd)
     {
         /* Send header and first byte */
-        tlm_ptr->hdr.type = MSP_PACKET_TLM_OTA;
         tlm_ptr->hdr.flags = packet.flags;
         tlm_ptr->hdr.func = packet.function;
         tlm_ptr->hdr.payloadSize = packet.payloadSize;
@@ -424,7 +250,7 @@ uint8_t ICACHE_RAM_ATTR RcChannels::tlm_receive(volatile uint8_t const *const in
         for (uint8_t iter = 0; iter < sizeof(tlm_ptr->payload.data); iter++)
             packet.addByte(tlm_ptr->payload.data[iter]);
     }
-    else if (packet.type == MSP_PACKET_UNKNOWN && tlm_ptr->hdr.type == MSP_PACKET_TLM_OTA)
+    else if (packet.type == MSP_PACKET_UNKNOWN && !packet.header_sent_or_rcvd)
     {
         // buffer free, fill header
         packet.type = MSP_PACKET_TLM_OTA;

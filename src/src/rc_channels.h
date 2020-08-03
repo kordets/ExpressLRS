@@ -9,12 +9,12 @@
 #define OTA_PACKET_DATA     6
 #define OTA_PACKET_CRC      2
 #define OTA_PACKET_SIZE     (OTA_PACKET_DATA+OTA_PACKET_CRC)
-#define OTA_PACKET_TYPE_IDX OTA_PACKET_DATA
 
 // current and sent switch values
 #define N_CONTROLS 4
 #define N_SWITCHES 8
-#define N_CHANNELS 16 // (N_CONTROLS + N_SWITCHES)
+//#define N_CHANNELS 16
+#define N_CHANNELS (N_CONTROLS + N_SWITCHES)
 
 // expresslrs packet header types
 // 00 -> standard 4 channel data packet
@@ -23,8 +23,8 @@
 // 11 -> tlm packet (MSP)
 enum
 {
-    UL_PACKET_RC_DATA = 0b00,
-    UL_PACKET_SWITCH_DATA = 0b01,
+    UL_PACKET_UNKNOWN = 0b00,
+    UL_PACKET_RC_DATA = 0b01,
     UL_PACKET_SYNC = 0b10,
     UL_PACKET_MSP = 0b11,
 };
@@ -37,12 +37,8 @@ enum
     DL_PACKET_TLM_LINK = 0b11,
 };
 
-#define USE_CRC_CAESAR_CIPHER_IN_SYNC 1
 typedef struct ElrsSyncPacket_s {
-#if USE_CRC_CAESAR_CIPHER_IN_SYNC
     uint16_t CRCCaesarCipher;
-    uint8_t padding;
-#endif
     uint8_t fhssIndex;
     uint8_t rxtx_counter;
 #if RX_UPDATE_AIR_RATE
@@ -51,15 +47,8 @@ typedef struct ElrsSyncPacket_s {
 #else
     uint8_t tlm_interval;
 #endif
-#if !USE_CRC_CAESAR_CIPHER_IN_SYNC
-    uint8_t uid3;
-    uint8_t uid4;
-    uint8_t uid5;
-#endif
+    uint8_t pkt_type;
 } ElrsSyncPacket_s;
-
-#define TYPE_PACK(T) (((T) & 0b11) << 6)
-#define TYPE_EXTRACT(B) (((B) >> 6) & 0b11)
 
 #if (OTA_PACKET_DATA < 6)
 #error "Min OTA size is 6 bytes!"
@@ -70,6 +59,15 @@ class RcChannels
 public:
     RcChannels() {}
 
+    uint8_t packetTypeGet(volatile uint8_t const *const input) {
+        return input[OTA_PACKET_DATA-1] & 0b11;
+    }
+    void packetTypeSet(uint8_t *const output, uint8_t type) {
+        uint8_t val = output[OTA_PACKET_DATA-1];
+        val = (val & 0xFC) + (type & 0b11);
+        output[OTA_PACKET_DATA-1] = val;
+    }
+
     // TX related
     void processChannels(crsf_channels_t const *const channels);
     void ICACHE_RAM_ATTR get_packed_data(uint8_t *const output)
@@ -79,22 +77,21 @@ public:
     }
 
     // RX related
-    void ICACHE_RAM_ATTR channels_extract(volatile uint8_t const *const input,
+    void ICACHE_RAM_ATTR channels_extract(uint8_t const *const input,
                                           crsf_channels_t &output);
 
     // TLM pkt
     uint8_t ICACHE_RAM_ATTR tlm_send(uint8_t *const output,
-                                     mspPacket_t &packet);
+                                     mspPacket_t &packet,
+                                     uint8_t tx=1);
     uint8_t ICACHE_RAM_ATTR tlm_receive(volatile uint8_t const *const input,
                                         mspPacket_t &packet);
 
 private:
+    // Pack channels into OTA TX buffer
     void channels_pack(void);
     // Switches / AUX channel handling
     uint8_t getNextSwitchIndex(void);
-    void setPacketType(uint8_t type) {
-        packed_buffer[OTA_PACKET_TYPE_IDX] = TYPE_PACK(type);
-    }
 
     // Channel processing data
     volatile uint16_t ChannelDataIn[N_CHANNELS] = {0};  // range: 0...2048
@@ -103,14 +100,10 @@ private:
     // esp requires aligned buffer
     volatile uint8_t WORD_ALIGNED_ATTR packed_buffer[OTA_PACKET_SIZE];
 
-    volatile uint16_t p_auxChannelsChanged = 0; // bitmap of changed switches
+    // bitmap of changed switches
+    volatile uint16_t p_auxChannelsChanged = 0;
     // which switch should be sent in the next rc packet
     volatile uint8_t p_nextSwitchIndex = 0;
-
-#if !defined(HYBRID_SWITCHES_8) && !defined(SEQ_SWITCHES)
-    uint32_t SwitchPacketNextSend = 0; //time in ms when the next switch data packet will be send
-#define SWITCH_PACKET_SEND_INTERVAL 200u
-#endif
 };
 
 #endif /* __RC_CHANNELS_H */

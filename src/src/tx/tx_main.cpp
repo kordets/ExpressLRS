@@ -140,10 +140,10 @@ static void process_rx_buffer()
 {
     uint32_t ms = millis();
     const uint16_t crc = CalcCRC16((uint8_t*)rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
-    const uint16_t crc_in = ((uint16_t)(rx_buffer[OTA_PACKET_DATA] & 0x3f) << 8) + rx_buffer[OTA_PACKET_DATA+1];
-    uint8_t type = TYPE_EXTRACT(rx_buffer[OTA_PACKET_TYPE_IDX]);
+    const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_DATA] << 8) + rx_buffer[OTA_PACKET_DATA+1];
+    uint8_t type = rc_ch.packetTypeGet(rx_buffer);
 
-    if (crc_in != (crc & 0x3FFF))
+    if (crc_in != crc)
     {
         DEBUG_PRINT("!C");
         return;
@@ -233,15 +233,8 @@ static void ICACHE_RAM_ATTR GenerateSyncPacketData(uint8_t *const output)
     sync->air_rate = current_rate_config;
 #endif
     sync->tlm_interval = TLMinterval;
-#if USE_CRC_CAESAR_CIPHER_IN_SYNC
     sync->CRCCaesarCipher = CRCCaesarCipher;
-#else
-    sync->uid3 = UID[3];
-    sync->uid4 = UID[4];
-    sync->uid5 = UID[5];
-#endif
-    // Store type with CRC
-    output[OTA_PACKET_TYPE_IDX] = TYPE_PACK(UL_PACKET_SYNC);
+    sync->pkt_type = UL_PACKET_SYNC;
 }
 
 static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
@@ -289,7 +282,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
 
     // Calculate the CRC
     uint16_t crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
-    tx_buffer[index++] += (crc >> 8) & 0x3F;
+    tx_buffer[index++] += (crc >> 8);
     tx_buffer[index++] = (crc & 0xFF);
     // Enable PA
     PowerMgmt.pa_on();
