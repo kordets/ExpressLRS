@@ -173,6 +173,8 @@
 
 #ifdef TARGET_RAK4200
 
+/* https://downloads.rakwireless.com/LoRa/RAK4200/Hardware-Specification/RAK4200_Schematic.pdf */
+
 #define GPIO_PIN_NSS         PA4
 #define GPIO_PIN_DIO0        PB0
 #define GPIO_PIN_DIO1        PB1

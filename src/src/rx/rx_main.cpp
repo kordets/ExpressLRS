@@ -192,13 +192,13 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
             tlm_msp_send = 0;
         }
         /* send msp packet if needed */
-        tx_buffer[index] = TYPE_PACK(DL_PACKET_TLM_MSP);
+        tx_buffer[OTA_PACKET_TYPE_IDX] = TYPE_PACK(DL_PACKET_TLM_MSP);
     }
     else
     {
         crsf.LinkStatistics.uplink_Link_quality = uplink_Link_quality;
         crsf.LinkStatisticsPack(tx_buffer);
-        tx_buffer[index] = TYPE_PACK(DL_PACKET_TLM_LINK);
+        tx_buffer[OTA_PACKET_TYPE_IDX] = TYPE_PACK(DL_PACKET_TLM_LINK);
     }
 
     uint16_t crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
@@ -381,7 +381,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
     const uint32_t current_us = Radio.LastPacketIsrMicros;
     const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)(rx_buffer[OTA_PACKET_DATA] & 0x3f) << 8) + rx_buffer[OTA_PACKET_DATA+1];
-    const uint8_t type = TYPE_EXTRACT(rx_buffer[OTA_PACKET_DATA]);
+    const uint8_t type = TYPE_EXTRACT(rx_buffer[OTA_PACKET_TYPE_IDX]);
 
 #if PRINT_TIMER && PRINT_RX_ISR
     DEBUG_PRINT("RX us ");

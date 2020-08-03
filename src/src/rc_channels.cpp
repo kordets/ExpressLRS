@@ -342,36 +342,32 @@ void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
  */
 uint8_t RcChannels::getNextSwitchIndex()
 {
-    int8_t i;
+    int8_t index;
 #ifdef HYBRID_SWITCHES_8
-#define firstSwitch 1 // skip 0 since it is sent on every packet
-#else
-#define firstSwitch 0 // sequential switches includes switch 0
-#endif
-
-#ifdef HYBRID_SWITCHES_8
-    // for hydrid switches 0 is sent on every packet
+    // for hydrid switches 0 is sent on every packet, so ignore it
     p_auxChannelsChanged &= 0xfffe;
 #endif
-    i = __builtin_ffs(p_auxChannelsChanged) - 1;
-    if (i < 0)
+    /* Check if channel is changed and send it immediately,
+     *  send next sequential switch if not changed */
+    index = __builtin_ffs(p_auxChannelsChanged) - 1;
+    if (index < 0)
     {
-        i = p_nextSwitchIndex++;
+        index = p_nextSwitchIndex++;
         p_nextSwitchIndex %= N_SWITCHES;
     }
     else
     {
-        p_auxChannelsChanged &= ~(0x1 << i);
+        p_auxChannelsChanged &= ~(0x1 << index);
     }
 
 #ifdef HYBRID_SWITCHES_8
     // for hydrid switches 0 is sent on every packet, so we can skip
     // that value for the round-robin
     if (p_nextSwitchIndex == 0)
-        p_nextSwitchIndex = firstSwitch;
+        p_nextSwitchIndex++;
 #endif
 
-    return i;
+    return index;
 }
 
 typedef union {

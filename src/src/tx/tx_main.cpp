@@ -26,10 +26,6 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 #define TLM_REPORT_INTERVAL               300u
 #endif
 #define TX_POWER_UPDATE_PERIOD            1500
-//#define SYNC_PACKET_SEND_INTERVAL_RX_LOST 150000u //  250000u
-//#define SYNC_PACKET_SEND_INTERVAL_RX_CONN 350000u // 1500000u
-#define SYNC_PACKET_SEND_INTERVAL_RX_LOST 250000u
-#define SYNC_PACKET_SEND_INTERVAL_RX_CONN SYNC_PACKET_SEND_INTERVAL_RX_LOST
 
 ///////////////////
 
@@ -59,7 +55,7 @@ struct platform_config pl_config = {
 
 /////////// SYNC PACKET ////////
 static uint32_t DRAM_ATTR SyncPacketNextSend = 0;
-static volatile uint32_t DRAM_ATTR sync_send_interval = SYNC_PACKET_SEND_INTERVAL_RX_LOST;
+static volatile uint32_t DRAM_ATTR sync_send_interval = 0; // Default is send always
 
 /////////// CONNECTION /////////
 static uint32_t DRAM_ATTR LastPacketRecvMillis = 0;
@@ -145,7 +141,7 @@ static void process_rx_buffer()
     uint32_t ms = millis();
     const uint16_t crc = CalcCRC16((uint8_t*)rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)(rx_buffer[OTA_PACKET_DATA] & 0x3f) << 8) + rx_buffer[OTA_PACKET_DATA+1];
-    uint8_t type = TYPE_EXTRACT(rx_buffer[OTA_PACKET_DATA]);
+    uint8_t type = TYPE_EXTRACT(rx_buffer[OTA_PACKET_TYPE_IDX]);
 
     if (crc_in != (crc & 0x3FFF))
     {
@@ -156,7 +152,6 @@ static void process_rx_buffer()
     //DEBUG_PRINT(" PROC_RX ");
 
     connectionState = STATE_connected;
-    //sync_send_interval = SYNC_PACKET_SEND_INTERVAL_RX_CONN;
     platform_connection_state(STATE_connected);
     platform_set_led(0);
     LastPacketRecvMillis = ms;
@@ -246,7 +241,7 @@ static void ICACHE_RAM_ATTR GenerateSyncPacketData(uint8_t *const output)
     sync->uid5 = UID[5];
 #endif
     // Store type with CRC
-    output[OTA_PACKET_DATA] = TYPE_PACK(UL_PACKET_SYNC);
+    output[OTA_PACKET_TYPE_IDX] = TYPE_PACK(UL_PACKET_SYNC);
 }
 
 static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
@@ -477,7 +472,6 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
 
     tx_tlm_change_interval(TLMinterval, init);
 
-    //sync_send_interval = (tlm_check_ratio) ? SYNC_PACKET_SEND_INTERVAL_RX_LOST : SYNC_PACKET_SEND_INTERVAL_RX_CONN;
     sync_send_interval = config->syncInterval;
 
     platform_connection_state(connectionState);
@@ -630,7 +624,6 @@ void loop()
             RX_CONNECTION_LOST_TIMEOUT < (uint32_t)(current_ms - LastPacketRecvMillis))
         {
             connectionState = STATE_disconnected;
-            //sync_send_interval = SYNC_PACKET_SEND_INTERVAL_RX_LOST;
             platform_connection_state(STATE_disconnected);
             platform_set_led(red_led_state);
         }

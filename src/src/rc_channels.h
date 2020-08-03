@@ -9,6 +9,7 @@
 #define OTA_PACKET_DATA     6
 #define OTA_PACKET_CRC      2
 #define OTA_PACKET_SIZE     (OTA_PACKET_DATA+OTA_PACKET_CRC)
+#define OTA_PACKET_TYPE_IDX OTA_PACKET_DATA
 
 // current and sent switch values
 #define N_CONTROLS 4
@@ -92,7 +93,7 @@ private:
     // Switches / AUX channel handling
     uint8_t getNextSwitchIndex(void);
     void setPacketType(uint8_t type) {
-        packed_buffer[OTA_PACKET_DATA] = TYPE_PACK(type);
+        packed_buffer[OTA_PACKET_TYPE_IDX] = TYPE_PACK(type);
     }
 
     // Channel processing data
