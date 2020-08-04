@@ -8,7 +8,7 @@
 #error "CRSF Channels Config is not OK"
 #endif
 
-#define USE_3b_SWITCH 1
+#define USE_3b_SWITCH 0
 
 typedef struct
 {
@@ -208,7 +208,7 @@ typedef union {
         uint8_t data[5];
     } payload;
     uint8_t pkt_type;
-} TlmDataPacket_s;
+} PACKED TlmDataPacket_s;
 
 uint8_t ICACHE_RAM_ATTR RcChannels::tlm_send(uint8_t *const output,
                                              mspPacket_t &packet,
@@ -220,7 +220,7 @@ uint8_t ICACHE_RAM_ATTR RcChannels::tlm_send(uint8_t *const output,
     if (packet.type != MSP_PACKET_TLM_OTA)
         return 0;
 
-    tlm_ptr->pkt_type = tx ? UL_PACKET_MSP : DL_PACKET_TLM_MSP;
+    tlm_ptr->pkt_type = tx ? (uint8_t)UL_PACKET_MSP : (uint8_t)DL_PACKET_TLM_MSP;
 
     if (!packet.header_sent_or_rcvd)
     {
