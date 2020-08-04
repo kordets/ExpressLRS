@@ -43,7 +43,24 @@ void BeginWebUpdate(void)
 
     IPAddress addr;
 
-#if WIFI_MANAGER
+#if defined(WIFI_SSID) && defined(WIFI_PSK)
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PSK);
+  }
+  uint32_t i = 0;
+#define TIMEOUT (WIFI_TIMEOUT * 10)
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(100);
+    if (++i > TIMEOUT) {
+      break;
+    }
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    addr = WiFi.localIP();
+  } else
+#elif WIFI_MANAGER
     WiFiManager wifiManager;
     //WiFiManagerParameter header("<p>Express LRS ESP82xx RX</p>");
     //wifiManager.addParameter(&header);
@@ -69,23 +86,6 @@ void BeginWebUpdate(void)
         addr = WiFi.localIP();
     }
     else
-#elif defined(WIFI_SSID) && defined(WIFI_PSK)
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PSK);
-  }
-  uint32_t i = 0;
-#define TIMEOUT (WIFI_TIMEOUT * 10)
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(100);
-    if (++i > TIMEOUT) {
-      break;
-    }
-  }
-  if (WiFi.status() == WL_CONNECTED) {
-    addr = WiFi.localIP();
-  } else
 #endif /* WIFI_MANAGER */
     {
         // No wifi found, start AP

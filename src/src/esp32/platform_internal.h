@@ -53,7 +53,7 @@ public:
 private:
 };
 
-#ifdef WIFI_LOGGER
+#if defined(WIFI_LOGGER) && !defined(WIFI_UPDATER)
 extern DebugSerial wifi_logger_serial;
 #endif
 

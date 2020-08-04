@@ -4,7 +4,9 @@
 #include <Hash.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
+#if WIFI_MANAGER
 #include <WiFiManager.h>
+#endif /* WIFI_MANAGER */
 #include <ESP8266HTTPUpdateServer.h>
 #include <FS.h>
 
@@ -683,15 +685,7 @@ void setup()
 
   wifi_station_set_hostname("elrs_tx");
 
-#if WIFI_MANAGER
-  WiFiManager wifiManager;
-  wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
-  if (wifiManager.autoConnect(STASSID " R9M")) {
-    // AP found, connected
-    my_ip = WiFi.localIP();
-  }
-  else
-#elif defined(WIFI_SSID) && defined(WIFI_PSK)
+#if defined(WIFI_SSID) && defined(WIFI_PSK)
   if (WiFi.status() != WL_CONNECTED) {
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PSK);
@@ -708,6 +702,14 @@ void setup()
   if (i < TIMEOUT) {
     my_ip = WiFi.localIP();
   } else
+#elif WIFI_MANAGER
+  WiFiManager wifiManager;
+  wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
+  if (wifiManager.autoConnect(STASSID " R9M")) {
+    // AP found, connected
+    my_ip = WiFi.localIP();
+  }
+  else
 #endif /* WIFI_MANAGER */
   {
     // No WiFi found, start access point

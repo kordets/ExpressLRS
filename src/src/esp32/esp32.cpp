@@ -88,7 +88,7 @@ void platform_setup(void)
     platform_set_led(0);
 #endif
 
-#if WIFI_LOGGER && WIFI_LOGGER_AUTO_START
+#if WIFI_LOGGER && WIFI_LOGGER_AUTO_START && !defined(WIFI_UPDATER)
     wifi_start();
 #endif
 

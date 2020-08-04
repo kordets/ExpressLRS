@@ -82,12 +82,12 @@ void platform_loop(int state)
 
 void platform_connection_state(int state)
 {
-#ifdef Auto_WiFi_On_Boot
+#ifdef AUTO_WIFI_ON_BOOT
     if (state == STATE_search_iteration_done && millis() < 30000)
     {
         beginWebsever();
     }
-#endif /* Auto_WiFi_On_Boot */
+#endif /* AUTO_WIFI_ON_BOOT */
 }
 
 void platform_set_led(bool state)

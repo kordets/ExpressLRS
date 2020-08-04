@@ -35,7 +35,7 @@
 ################################
 ### ESP RX auto WiFi startup
 # Wifi starts if no connection is found between 10 and 11 seconds after boot
--DAuto_WiFi_On_Boot
+-DAUTO_WIFI_ON_BOOT
 
 ################################
 ### WiFi settings

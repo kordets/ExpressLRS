@@ -37,7 +37,7 @@ WebSocketsServer webSocket = WebSocketsServer(81);
 
 /*************************************************************************/
 
-#if WIFI_LOGGER
+#if WIFI_LOGGER && !WIFI_UPDATER
 static QueueHandle_t DRAM_ATTR receive_queue = NULL;
 static QueueHandle_t DRAM_ATTR send_queue = NULL;
 #endif // WIFI_LOGGER
@@ -99,7 +99,45 @@ static const char PROGMEM GO_BACK[] = R"rawliteral(
 </html>
 )rawliteral";
 
-#if WIFI_LOGGER
+#if WIFI_UPDATER
+
+static const char PROGMEM INDEX_HTML[] = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0">
+    <title>ESP update</title>
+    <style>
+        body {
+            background-color: #1E1E1E;
+            font-family: Arial, Helvetica, Sans-Serif;
+            Color: #69cbf7;
+        }
+
+        textarea {
+            background-color: #252525;
+            Color: #C5C5C5;
+            border-radius: 5px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+  <center>
+    <div>
+      <form method='POST' action='/update' enctype='multipart/form-data'>
+          Update Firmware:
+          <input type='file' accept='.bin' name='firmware'>
+          <input type='submit' value='Upload and Flash'>
+      </form>
+    </div>
+
+  </center>
+</body>
+</html>
+)rawliteral";
+
+#elif WIFI_LOGGER
 static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -566,43 +604,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   }
 }
 
-#else // WIFI_UPDATER html page
-
-static const char PROGMEM INDEX_HTML[] = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-    <meta name="viewport" content="width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0">
-    <title>ESP update</title>
-    <style>
-        body {
-            background-color: #1E1E1E;
-            font-family: Arial, Helvetica, Sans-Serif;
-            Color: #69cbf7;
-        }
-
-        textarea {
-            background-color: #252525;
-            Color: #C5C5C5;
-            border-radius: 5px;
-            border: none;
-        }
-    </style>
-</head>
-<body>
-  <center>
-    <div>
-      <form method='POST' action='/update' enctype='multipart/form-data'>
-          Update Firmware:
-          <input type='file' accept='.bin' name='firmware'>
-          <input type='submit' value='Upload and Flash'>
-      </form>
-    </div>
-
-  </center>
-</body>
-</html>
-)rawliteral";
 #endif // WIFI_LOGGER
 
 void sendReturn()
@@ -640,15 +641,7 @@ void wifi_setup(void)
 #endif
   //wifi_station_set_hostname("elrs_tx");
 
-#if WIFI_MANAGER
-  WiFiManager wifiManager;
-  wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
-  if (wifiManager.autoConnect(WIFI_AP_SSID" ESP32 TX")) {
-    // AP found, connected
-    my_ip = WiFi.localIP();
-  }
-  else
-#elif defined(WIFI_SSID) && defined(WIFI_PSK)
+#if defined(WIFI_SSID) && defined(WIFI_PSK)
   //Serial.begin(115200);
   Serial.print("Connecting to wifi ");
 
@@ -678,6 +671,14 @@ void wifi_setup(void)
     my_ip = WiFi.localIP();
     Serial.println(" CONNECTED!");
   } else
+#elif WIFI_MANAGER
+  WiFiManager wifiManager;
+  wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
+  if (wifiManager.autoConnect(WIFI_AP_SSID" ESP32 TX")) {
+    // AP found, connected
+    my_ip = WiFi.localIP();
+  }
+  else
 #endif // WIFI_MANAGER
   {
     Serial.println(" FAILED! Starting AP...");
@@ -738,13 +739,13 @@ void wifi_setup(void)
   server.onNotFound(handleRoot);
   server.begin();
 
-#if WIFI_LOGGER
+#if WIFI_LOGGER && !WIFI_UPDATER
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
 #endif // WIFI_LOGGER
 }
 
-#if WIFI_LOGGER
+#if WIFI_LOGGER && !WIFI_UPDATER
 int serialEvent(QueueHandle_t queue)
 {
   char inChar;
@@ -792,7 +793,7 @@ int serialEvent(QueueHandle_t queue)
 
 void wifi_loop(QueueHandle_t queue)
 {
-#if WIFI_LOGGER
+#if WIFI_LOGGER && !WIFI_UPDATER
   if (0 <= serialEvent(queue))
   {
     WEBSOCKET_BROADCASET(inputString);
@@ -803,7 +804,7 @@ void wifi_loop(QueueHandle_t queue)
 #endif // WIFI_LOGGER
 
   server.handleClient();
-#if WIFI_LOGGER
+#if WIFI_LOGGER && !WIFI_UPDATER
   webSocket.loop();
 #endif // WIFI_LOGGER
 }
@@ -820,7 +821,7 @@ void httpsTask(void *pvParameters)
     wifi_loop(queue);
   }
 
-#if WIFI_LOGGER
+#if WIFI_LOGGER && !WIFI_UPDATER
   /* delete the input queue */
   receive_queue = NULL;
   vQueueDelete(queue);
@@ -849,7 +850,7 @@ void wifi_start(void)
     return;
   }
 
-#if WIFI_LOGGER
+#if WIFI_LOGGER && !WIFI_UPDATER
   receive_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
   send_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
 
@@ -858,7 +859,7 @@ void wifi_start(void)
 
   ctrl_msp_receive.set_queue_rx(receive_queue);
   ctrl_msp_receive.set_queue_tx(send_queue);
-#else
+#else // WIFI_LOGGER
 #define receive_queue NULL
   Serial.println("Logger disabled!");
 #endif // WIFI_LOGGER
@@ -876,7 +877,7 @@ void wifi_start(void)
 
 /*************************************************************************/
 
-#if WIFI_LOGGER
+#if WIFI_LOGGER && !WIFI_UPDATER
 int DebugSerial::available(void)
 {
   if (receive_queue == NULL)
