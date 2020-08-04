@@ -280,9 +280,14 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
         rc_ch.get_packed_data(tx_buffer);
     }
 
+#if OTA_PACKET_10B
+    tx_buffer[index++] = FHSSgetCurrIndex();
+    tx_buffer[index++] = _rf_rxtx_counter;
+#endif // OTA_PACKET_10B
+
     // Calculate the CRC
     uint16_t crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
-    tx_buffer[index++] += (crc >> 8);
+    tx_buffer[index++] = (crc >> 8);
     tx_buffer[index++] = (crc & 0xFF);
     // Enable PA
     PowerMgmt.pa_on();

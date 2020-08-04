@@ -6,9 +6,14 @@
 #include "msp.h"
 #include <stdint.h>
 
+#ifndef OTA_PACKET_10B
+#define OTA_PACKET_10B      0
+#endif
+
 #define OTA_PACKET_DATA     6
 #define OTA_PACKET_CRC      2
-#define OTA_PACKET_SIZE     (OTA_PACKET_DATA+OTA_PACKET_CRC)
+#define OTA_PACKET_PAYLOAD  (OTA_PACKET_DATA + (OTA_PACKET_10B * 2))
+#define OTA_PACKET_SIZE     (OTA_PACKET_PAYLOAD + OTA_PACKET_CRC)
 
 // current and sent switch values
 #define N_CONTROLS 4
