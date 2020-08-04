@@ -4,11 +4,13 @@
 #include "FHSS.h"
 #include "debug_elrs.h"
 
-#if (N_SWITCHES > (N_CHANNELS - N_CONTROLS))
+#if (16 < N_CHANNELS)
 #error "CRSF Channels Config is not OK"
 #endif
 
-#define USE_3b_SWITCH 0
+/*************************************************************************************
+ * RC OTA PACKET
+ *************************************************************************************/
 
 typedef struct
 {
@@ -20,16 +22,20 @@ typedef struct
     // Packet type
     unsigned pkt_type : 2;
     // The round-robin switch
+#if N_SWITCHES <= 8
     unsigned aux_n_idx : 3;
     unsigned aux_n : 3;
+#else
+    unsigned aux_n_idx : 4;
+    unsigned aux_n : 2;
+#endif
 } PACKED RcDataPacket_s;
 
 /**
  * Sequential switches packet
- * Replaces Generate4ChannelData_11bit
- * Channel 3 is reduced to 10 bits to allow a 3 bit switch index and 2 bit value
- * We cycle through 8 switches on successive packets. If any switches have changed
- * we take the lowest indexed one and send that, hence lower indexed switches have
+ *
+ * Cycle through N_SWITCHES switches on successive packets. If any switches have
+ * changed takes the lowest indexed one and send that, hence lower indexed switches have
  * higher priority in the event that several are changed at once.
  */
 void RcChannels::channels_pack()
@@ -51,30 +57,29 @@ void RcChannels::channels_pack()
 }
 
 /**
- * Seq switches uses 10 bits for ch3, 3 bits for the switch index and 2 bits for the switch value
+ * Convert received OTA packet data to CRSF packet for FC
  */
 void ICACHE_RAM_ATTR RcChannels::channels_extract(uint8_t const *const input,
-                                                  crsf_channels_t &PackedRCdataOut)
+                                                  EXTRACT_VOLATILE crsf_channels_t &PackedRCdataOut)
 {
     uint16_t switchValue;
     uint8_t switchIndex;
 
     RcDataPacket_s *rcdata = (RcDataPacket_s *)&input[0];
-    // The analog channels
+    // The analog channels, scale packet to 11bit
     PackedRCdataOut.ch0 = ((uint16_t)rcdata->rc1 << 1);
     PackedRCdataOut.ch1 = ((uint16_t)rcdata->rc2 << 1);
     PackedRCdataOut.ch2 = ((uint16_t)rcdata->rc3 << 1);
     PackedRCdataOut.ch3 = ((uint16_t)rcdata->rc4 << 1);
     // The round-robin switch
     switchIndex = rcdata->aux_n_idx;
-#if USE_3b_SWITCH
+#if N_SWITCHES <= 8
     switchValue = SWITCH3b_to_CRSF(rcdata->aux_n);
 #else
     switchValue = SWITCH2b_to_CRSF(rcdata->aux_n);
 #endif
 
-    switch (switchIndex)
-    {
+    switch (switchIndex) {
         case 0:
             PackedRCdataOut.ch4 = switchValue;
             break;
@@ -99,14 +104,37 @@ void ICACHE_RAM_ATTR RcChannels::channels_extract(uint8_t const *const input,
         case 7:
             PackedRCdataOut.ch11 = switchValue;
             break;
+#if 8 < N_SWITCHES
+        case 8:
+            PackedRCdataOut.ch12 = switchValue;
+            break;
+#if 9 < N_SWITCHES
+        case 9:
+            PackedRCdataOut.ch13 = switchValue;
+            break;
+#if 10 < N_SWITCHES
+        case 10:
+            PackedRCdataOut.ch14 = switchValue;
+            break;
+#if 11 < N_SWITCHES
+        case 11:
+            PackedRCdataOut.ch15 = switchValue;
+            break;
+#endif // 11 < N_SWITCHES
+#endif // 10 < N_SWITCHES
+#endif // 9 < N_SWITCHES
+#endif // 8 < N_SWITCHES
     }
 }
 
+/**
+ * Convert received CRSF serial packet from handset and
+ * store it to local buffers for OTA packet
+ */
 void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
 {
     uint8_t switch_state;
 
-    // TODO: loop N_CHANNELS times
     ChannelDataIn[0] = (rcChannels->ch0);
     ChannelDataIn[1] = (rcChannels->ch1);
     ChannelDataIn[2] = (rcChannels->ch2);
@@ -119,18 +147,18 @@ void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
     ChannelDataIn[9] = (rcChannels->ch9);
     ChannelDataIn[10] = (rcChannels->ch10);
     ChannelDataIn[11] = (rcChannels->ch11);
-#if 12 < N_CHANNELS
+#if 8 < N_SWITCHES
     ChannelDataIn[12] = (rcChannels->ch12);
-#if 13 < N_CHANNELS
+#if 9 < N_SWITCHES
     ChannelDataIn[13] = (rcChannels->ch13);
-#if 14 < N_CHANNELS
+#if 10 < N_SWITCHES
     ChannelDataIn[14] = (rcChannels->ch14);
-#if 15 < N_CHANNELS
+#if 11 < N_SWITCHES
     ChannelDataIn[15] = (rcChannels->ch15);
-#endif
-#endif
-#endif
-#endif
+#endif // 11 < N_SWITCHES
+#endif // 10 < N_SWITCHES
+#endif // 9 < N_SWITCHES
+#endif // 8 < N_SWITCHES
 
     /**
      * Convert the rc data corresponding to switches to 2 bit values.
@@ -140,12 +168,12 @@ void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
      * (not 0-3 because most people use 3 way switches and expect the middle
      *  position to be represented by a middle numeric value)
      */
-    for (uint8_t idx = 0; idx < N_SWITCHES; idx++)
-    {
-        // input is 0 - 2048, output is 0 - 2
-#if USE_3b_SWITCH
+    for (uint8_t idx = 0; idx < N_SWITCHES; idx++) {
+#if N_SWITCHES <= 8
+        // input is 0 - 2048, output is 0 - 7
         switch_state = CRSF_to_SWITCH3b(ChannelDataIn[idx + N_CONTROLS]) & 0b111;
 #else
+        // input is 0 - 2048, output is 0 - 2
         switch_state = CRSF_to_SWITCH2b(ChannelDataIn[idx + N_CONTROLS]) & 0b11;
 #endif
         // Check if state is changed
@@ -159,42 +187,27 @@ void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
 
 /**
  * Determine which switch to send next.
- * If any switch has changed since last sent, we send the lowest index changed switch
- * and set nextSwitchIndex to that value + 1.
- * If no switches have changed then we send nextSwitchIndex and increment the value.
- * For pure sequential switches, all 8 switches are part of the round-robin sequence.
- * For hybrid switches, switch 0 is sent with every packet and the rest of the switches
- * are in the round-robin.
+ *
+ * If any switch has changed since last sent, it sends the lowest index changed switch.
+ * If no switches have changed then this sends p_nextSwitchIndex and increment the value.
  */
 uint8_t RcChannels::getNextSwitchIndex()
 {
-    int8_t index;
-#ifdef HYBRID_SWITCHES_8
-    // for hydrid switches 0 is sent on every packet, so ignore it
-    p_auxChannelsChanged &= 0xfffe;
-#endif
     /* Check if channel is changed and send it immediately,
-     *  send next sequential switch if not changed */
-    index = __builtin_ffs(p_auxChannelsChanged) - 1;
-    if (index < 0)
-    {
+     * otherwise send next sequential switch */
+    int8_t index = __builtin_ffs(p_auxChannelsChanged) - 1;
+    if (index < 0) {
         index = p_nextSwitchIndex++;
         p_nextSwitchIndex %= N_SWITCHES;
-    }
-    else
-    {
+    } else {
         p_auxChannelsChanged &= ~(0x1 << index);
     }
-
-#ifdef HYBRID_SWITCHES_8
-    // for hydrid switches 0 is sent on every packet, so we can skip
-    // that value for the round-robin
-    if (p_nextSwitchIndex == 0)
-        p_nextSwitchIndex++;
-#endif
-
     return index;
 }
+
+/*************************************************************************************
+ * TELEMETRY OTA PACKET
+ *************************************************************************************/
 
 typedef union {
     struct

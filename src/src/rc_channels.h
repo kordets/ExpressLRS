@@ -59,6 +59,12 @@ typedef struct ElrsSyncPacket_s {
 #error "Min OTA size is 6 bytes!"
 #endif
 
+#if SERVO_OUTPUTS_ENABLED
+#define EXTRACT_VOLATILE volatile
+#else
+#define EXTRACT_VOLATILE
+#endif
+
 class RcChannels
 {
 public:
@@ -83,7 +89,7 @@ public:
 
     // RX related
     void ICACHE_RAM_ATTR channels_extract(uint8_t const *const input,
-                                          crsf_channels_t &output);
+                                          EXTRACT_VOLATILE crsf_channels_t &output);
 
     // TLM pkt
     uint8_t ICACHE_RAM_ATTR tlm_send(uint8_t *const output,
