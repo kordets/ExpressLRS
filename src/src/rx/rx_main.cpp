@@ -16,6 +16,7 @@
 #include "debug_elrs.h"
 #include "helpers.h"
 #include "rc_channels.h"
+#include "rx_servo_out.h"
 
 static void SetRFLinkRate(uint8_t rate);
 void ICACHE_RAM_ATTR LostConnection();
@@ -47,6 +48,11 @@ static volatile uint32_t rx_lost_packages = 0;
 static volatile int32_t rx_hw_isr_running = 0;
 
 static uint16_t DRAM_ATTR CRCCaesarCipher = 0;
+
+#if SERVO_OUTPUTS_ENABLED
+static volatile uint8_t update_servos = 0;
+static volatile crsf_channels_t channels_servos = {0};
+#endif
 
 ///////////////////////////////////////////////
 ////////////////  Filters  ////////////////////
@@ -117,8 +123,6 @@ void ICACHE_RAM_ATTR FillLinkStats()
         rssiDBM = 0;
     crsf.LinkStatistics.uplink_RSSI_1 = -1 * rssiDBM; // to match BF
     crsf.LinkStatistics.uplink_SNR = Radio.LastPacketSNR * 10;
-
-
 }
 
 uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
@@ -431,7 +435,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
                         LostConnection();
                     }
                 }
-#if 1
+#if !SERVO_OUTPUTS_ENABLED && 1
                 else
                 {
                     // Send last command to FC if connected to keep it running
@@ -456,6 +460,10 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             DEBUG_PRINT(" R");
             if (STATE_lost < _conn_state)
             {
+#if SERVO_OUTPUTS_ENABLED
+                rc_ch.channels_extract(rx_buffer, channels_servos);
+                update_servos = 1;
+#else // !SERVO_OUTPUTS_ENABLED
                 rc_ch.channels_extract(rx_buffer, crsf.ChannelsPacked);
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
                 digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
@@ -464,6 +472,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
                 digitalWriteFast(DBG_PIN_RX_ISR_FAST, 1);
 #endif
+#endif // SERVO_OUTPUTS_ENABLED
             }
             break;
 
@@ -558,14 +567,16 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     TxTimer.updateInterval(config->interval);
     LPF_FreqError.init(0);
     LPF_UplinkRSSI.init(0);
+#if !SERVO_OUTPUTS_ENABLED
     crsf.LinkStatistics.uplink_RSSI_2 = 0;
     crsf.LinkStatistics.rf_Mode = config->rate_osd_num;
+#endif
     Radio.RXnb();
     TxTimer.init();
 }
 
 /* FC sends v1 MSPs */
-static void msp_data_cb(uint8_t const *const input)
+void msp_data_cb(uint8_t const *const input)
 {
     if ((tlm_msp_send != 0) || (tlm_check_ratio == 0))
         return;
@@ -605,7 +616,9 @@ void setup()
 
     CRCCaesarCipher = CalcCRC16(UID, sizeof(UID), 0);
 
+#if !SERVO_OUTPUTS_ENABLED
     CrsfSerial.Begin(CRSF_RX_BAUDRATE);
+#endif
 
     msp_packet_rx.reset();
     msp_packet_tx.reset();
@@ -633,9 +646,13 @@ void setup()
     TxTimer.callbackTock = &HWtimerCallback;
     // Init first scan index
     scanIndex = RATE_DEFAULT;
+#if SERVO_OUTPUTS_ENABLED
+    servo_out_init();
+#else
     // Initialize CRSF protocol handler
     crsf.MspCallback = msp_data_cb;
     crsf.Begin();
+#endif
 }
 
 static uint32_t led_toggle_ms = 0;
@@ -692,6 +709,10 @@ void loop()
         }
         else if (connectionState == STATE_connected)
         {
+#if SERVO_OUTPUTS_ENABLED
+            if (update_servos)
+                servo_out_write(channels_servos);
+#else
             if (SEND_LINK_STATS_TO_FC_INTERVAL <= (uint32_t)(now - SendLinkStatstoFCintervalNextSend))
             {
                 crsf.LinkStatistics.uplink_Link_quality = uplink_Link_quality;
@@ -708,10 +729,13 @@ void loop()
                 }
                 msp_packet_rx.reset();
             }
+#endif
         }
     }
 
+#if !SERVO_OUTPUTS_ENABLED
     crsf.handleUartIn(rx_buffer_handle);
+#endif
 
     platform_loop(connectionState);
 

@@ -13,7 +13,7 @@
 /*                                     ESP TX CONFIGS                                     */
 /******************************************************************************************/
 
-#ifdef TARGET_TTGO_LORA_V1_AS_TX
+#if defined(TARGET_TTGO_LORA_V1_AS_TX)
 #define GPIO_PIN_NSS         18
 #define GPIO_PIN_DIO0        26
 #define GPIO_PIN_DIO1        -1
@@ -31,7 +31,6 @@
 #define CTRL_SERIAL
 #endif
 
-#elif defined(TARGET_TTGO_LORA_V1_AS_RX)
 
 #elif defined(TARGET_TTGO_LORA_V2_AS_TX)
 #define GPIO_PIN_NSS         18
@@ -46,7 +45,6 @@
 #define GPIO_PIN_RCSIGNAL_RX 13
 #define GPIO_PIN_RCSIGNAL_TX 13
 
-#elif defined(TARGET_TTGO_LORA_V2_AS_RX)
 
 #elif defined(TARGET_EXPRESSLRS_PCB_TX_V3)
 #define GPIO_PIN_NSS         5
@@ -58,6 +56,7 @@
 #define GPIO_PIN_RST         14
 #define GPIO_PIN_RCSIGNAL_RX 2
 #define GPIO_PIN_RCSIGNAL_TX 2 // so we don't have to solder the extra resistor, we switch rx/tx using gpio mux
+
 
 #elif defined(TARGET_ESP32_WROOM_RFM95)
 #define GPIO_PIN_NSS       5  // V_SPI_CS0
@@ -98,6 +97,7 @@
 #define CTRL_SERIAL
 #endif
 
+
 #elif defined(TARGET_SX1280_RX_STM32F1)
 #define GPIO_PIN_NSS         PA4
 #define GPIO_PIN_MOSI        PA7
@@ -120,7 +120,6 @@
 /******************************************************************************************/
 /*                                     ESP RX CONFIGS                                     */
 /******************************************************************************************/
-
 #elif defined(TARGET_EXPRESSLRS_PCB_RX_V3)
 #define GPIO_PIN_NSS         15
 #define GPIO_PIN_DIO0        4
@@ -133,13 +132,12 @@
 #define GPIO_PIN_RCSIGNAL_RX UNDEF_PIN //not relevant, can use only default for esp8266 or esp8285
 #define GPIO_PIN_RCSIGNAL_TX UNDEF_PIN
 #define GPIO_PIN_BUTTON      0
-#endif
 
 
 /******************************************************************************************/
 /*                                   STM32 RX CONFIGS                                     */
 /******************************************************************************************/
-#ifdef TARGET_RHF76_052
+#elif defined(TARGET_RHF76_052)
 /*
     Other pins:
     PA15        LOW to enable default bootloader
@@ -169,9 +167,9 @@
 // USART2: TX=PA2, RX=PA3 or TX=PA14, RX=PA15. Both AF4
 //#define GPIO_PIN_DEBUG_RX    PA3 // USART2, PIN??
 //#define GPIO_PIN_DEBUG_TX    PA2 // USART2, PIN??
-#endif // TARGET_RHF76_052
 
-#ifdef TARGET_RAK4200
+
+#elif defined(TARGET_RAK4200)
 
 /* https://downloads.rakwireless.com/LoRa/RAK4200/Hardware-Specification/RAK4200_Schematic.pdf */
 
@@ -210,7 +208,6 @@
 //#define DBG_PIN_TMR_ISR_FAST  PB_6 // SCL
 //#define DBG_PIN_RX_ISR        PB7  // SDA
 //#define DBG_PIN_RX_ISR_FAST   PB_7 // SDA
-#endif // TARGET_RAK4200
 
 
 /******************************************************************************************/
@@ -221,7 +218,7 @@
 Credit to Jacob Walser (jaxxzer) for the pinout!!!
 https://github.com/jaxxzer
 */
-#ifdef TARGET_R9M_RX
+#elif defined(TARGET_R9M_RX)
 
 #define GPIO_PIN_NSS         PB12
 #define GPIO_PIN_DIO0        PA15
@@ -248,9 +245,16 @@ https://github.com/jaxxzer
 // #define R9m_sbus   PA2
 // #define R9m_sport  PA5
 // #define R9m_isport PB11
+
+#if SERVO_OUTPUTS_ENABLED
+#define SERVO_PIN_CH1 PA8
+#define SERVO_PIN_CH2 PA11
+#define SERVO_PIN_CH3 PA9
+#define SERVO_PIN_CH4 PA10
 #endif
 
-#ifdef TARGET_R9M_TX
+
+#elif defined(TARGET_R9M_TX)
 #define GPIO_PIN_NSS         PB12
 #define GPIO_PIN_DIO0        PA15
 #define GPIO_PIN_MOSI        PB15
@@ -367,4 +371,17 @@ extern R9DAC r9dac;
 #define DBG_PIN_RX_ISR          UNDEF_PIN
 #undef DBG_PIN_RX_ISR_FAST
 #define DBG_PIN_RX_ISR_FAST     UNDEF_PIN
+#endif
+
+#ifndef SERVO_PIN_CH1
+#define SERVO_PIN_CH1 UNDEF_PIN
+#endif
+#ifndef SERVO_PIN_CH2
+#define SERVO_PIN_CH2 UNDEF_PIN
+#endif
+#ifndef SERVO_PIN_CH3
+#define SERVO_PIN_CH3 UNDEF_PIN
+#endif
+#ifndef SERVO_PIN_CH4
+#define SERVO_PIN_CH4 UNDEF_PIN
 #endif

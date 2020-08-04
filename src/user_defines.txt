@@ -81,6 +81,11 @@
 # Default value is 320ms
 # -DTLM_REPORT_INTERVAL=320U
 
+######################################
+### Servo control output enabled
+# NOTE! This disables CRSF UART to FC!
+# -DSERVO_OUTPUTS_ENABLED=1
+
 ################################
 ### Set your UID or PHRASE.
 # Only one of these is allowed!
