@@ -15,7 +15,6 @@
 #define CRSF_CHANNEL_VALUE_MIN 172
 #define CRSF_CHANNEL_VALUE_MID 992
 #define CRSF_CHANNEL_VALUE_MAX 1811
-#define CRSF_MAX_PACKET_LEN 64
 
 #define CRSF_SYNC_BYTE 0xC8
 
@@ -237,7 +236,6 @@ private:
     uint8_t SerialInPacketStart = 0;
     uint8_t SerialInPacketLen = 0;               // length of the CRSF packet as measured
     uint8_t SerialInPacketPtr = 0;               // index where we are reading/writing
-    uint8_t SerialInBuffer[CRSF_MAX_PACKET_LEN]; // max 64 bytes for CRSF packet serial buffer
 };
 
 // CRSF frame TX buffer

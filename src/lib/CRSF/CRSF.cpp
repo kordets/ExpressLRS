@@ -12,6 +12,7 @@ void (*CRSF::disconnected)() = &nullCallback; // called when CRSF stream is lost
 void (*CRSF::connected)() = &nullCallback;    // called when CRSF stream is regained
 
 uint8_t DMA_ATTR outBuffer[CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX)];
+uint8_t DMA_ATTR SerialInBuffer[CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX)];
 
 //#define DBF_PIN_CRSF_PACKET 2
 
@@ -137,12 +138,9 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
         {
             if ((SerialInPacketPtr - SerialInPacketStart) >= (SerialInPacketLen))
             {
-                //uint8_t *payload = &SerialInBuffer[SerialInPacketStart];
-                //uint8_t CalculatedCRC = CalcCRC(payload, (SerialInPacketLen - 1));
-
-                if (/*CalculatedCRC*/ SerialInCrc == inChar)
+                /* Check packet CRC */
+                if (SerialInCrc == inChar)
                 {
-                    //packet_ptr = payload;
                     packet_ptr = &SerialInBuffer[SerialInPacketStart];
                     GoodPktsCount++;
                 }
