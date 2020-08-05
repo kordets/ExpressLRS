@@ -24,11 +24,6 @@ uint_fast16_t volatile DRAM_ATTR FHSSptr = 0;
 #endif
 int_fast32_t volatile DRAM_ATTR FreqCorrection = 0;
 
-void ICACHE_RAM_ATTR FHSSresetFreqCorrection()
-{
-    FreqCorrection = 0;
-}
-
 void ICACHE_RAM_ATTR FHSSsetCurrIndex(uint32_t value)
 { // set the current index of the FHSS pointer
     FHSSptr = value % sizeof(FHSSsequence);

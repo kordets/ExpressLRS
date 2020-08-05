@@ -9,7 +9,10 @@ extern int_fast32_t volatile DRAM_ATTR FreqCorrection;
 #define FreqCorrectionMin -100000
 #define FreqCorrectionStep 61 //min freq step is ~ 61hz
 
-void ICACHE_RAM_ATTR FHSSresetFreqCorrection();
+inline __attribute__((always_inline)) void ICACHE_RAM_ATTR FHSSresetFreqCorrection()
+{
+    FreqCorrection = 0;
+}
 
 void ICACHE_RAM_ATTR FHSSsetCurrIndex(uint32_t value);
 uint32_t ICACHE_RAM_ATTR FHSSgetCurrIndex();
