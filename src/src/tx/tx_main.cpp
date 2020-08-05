@@ -36,7 +36,6 @@ SX1280Driver Radio(RadioSpi, OTA_PACKET_SIZE);
 SX127xDriver Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
 CRSF_TX crsf(CrsfSerial);
-RcChannels DRAM_ATTR rc_ch;
 POWERMGNT PowerMgmt(Radio);
 
 volatile uint32_t DRAM_ATTR _rf_rxtx_counter = 0;
@@ -141,7 +140,7 @@ static void process_rx_buffer()
     uint32_t ms = millis();
     const uint16_t crc = CalcCRC16((uint8_t*)rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_DATA] << 8) + rx_buffer[OTA_PACKET_DATA+1];
-    uint8_t type = rc_ch.packetTypeGet(rx_buffer);
+    uint8_t type = RcChannels_packetTypeGet(rx_buffer);
 
     if (crc_in != crc)
     {
@@ -162,7 +161,7 @@ static void process_rx_buffer()
         case DL_PACKET_TLM_MSP:
         {
             //DEBUG_PRINTLN("DL MSP junk");
-            rc_ch.tlm_receive(rx_buffer, msp_packet_rx);
+            RcChannels_tlm_receive(rx_buffer, msp_packet_rx);
             break;
         }
         case DL_PACKET_TLM_LINK:
@@ -268,7 +267,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     else if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
         /* send tlm packet if needed */
-        if (rc_ch.tlm_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error)
+        if (RcChannels_tlm_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error)
         {
             msp_packet_tx.reset();
             tlm_msp_send = 0;
@@ -277,7 +276,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     }
     else
     {
-        rc_ch.get_packed_data(tx_buffer);
+        RcChannels_get_packed_data(tx_buffer);
     }
 
 #if OTA_PACKET_10B
@@ -493,7 +492,7 @@ static void hw_timer_stop(void)
 
 static void rc_data_cb(crsf_channels_t const *const channels)
 {
-    rc_ch.processChannels(channels);
+    RcChannels_processChannels(channels);
 }
 
 /* OpenTX sends v1 MSPs */

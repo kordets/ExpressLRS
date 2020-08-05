@@ -4,13 +4,15 @@
 #include "FHSS.h"
 #include "debug_elrs.h"
 
-#if (16 < N_CHANNELS)
-#error "CRSF Channels Config is not OK"
-#endif
+#include <assert.h>
 
 /*************************************************************************************
  * RC OTA PACKET
  *************************************************************************************/
+
+#if (16 < N_CHANNELS)
+#error "CRSF Channels Config is not OK"
+#endif
 
 typedef struct
 {
@@ -31,6 +33,48 @@ typedef struct
 #endif
 } PACKED RcDataPacket_s;
 
+//#if (OTA_PACKET_DATA < sizeof(RcDataPacket_s))
+//#error "Min OTA size is 6 bytes!"
+//#endif
+
+static_assert(sizeof(RcDataPacket_s) <= OTA_PACKET_DATA,
+              "OTA pkt size is not correct");
+
+
+// Holds last state of the switches
+uint8_t DRAM_ATTR currentSwitches[N_SWITCHES] = {0};
+
+// Packed OTA packet buffer
+// NOTE! ESP32 requires aligned buffer
+volatile uint8_t WORD_ALIGNED_ATTR DRAM_ATTR packed_buffer[OTA_PACKET_SIZE];
+
+// bitmap of changed switches
+uint16_t DRAM_ATTR p_auxChannelsChanged = 0;
+// which switch should be sent in the next rc packet
+uint8_t DRAM_ATTR p_nextSwitchIndex = 0;
+
+
+/**
+ * Determine which switch to send next.
+ *
+ * If any switch has changed since last sent, it sends the lowest index changed switch.
+ * If no switches have changed then this sends p_nextSwitchIndex and increment the value.
+ */
+inline __attribute__((always_inline)) uint8_t
+getNextSwitchIndex(void)
+{
+    /* Check if channel is changed and send it immediately,
+     * otherwise send next sequential switch */
+    int8_t index = __builtin_ffs(p_auxChannelsChanged) - 1;
+    if (index < 0) {
+        index = p_nextSwitchIndex++;
+        p_nextSwitchIndex %= N_SWITCHES;
+    } else {
+        p_auxChannelsChanged &= ~(0x1 << index);
+    }
+    return index;
+}
+
 /**
  * Sequential switches packet
  *
@@ -38,17 +82,18 @@ typedef struct
  * changed takes the lowest indexed one and send that, hence lower indexed switches have
  * higher priority in the event that several are changed at once.
  */
-void RcChannels::channels_pack()
+inline __attribute__((always_inline)) void
+channels_pack(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4)
 {
     // find the next switch to send
     uint8_t ch_idx = getNextSwitchIndex() & 0b111;
 
     RcDataPacket_s *rcdata = (RcDataPacket_s *)&packed_buffer[0];
     // The analog channels, scale down to 10bits
-    rcdata->rc1 = (ChannelDataIn[0] >> 1);
-    rcdata->rc2 = (ChannelDataIn[1] >> 1);
-    rcdata->rc3 = (ChannelDataIn[2] >> 1);
-    rcdata->rc4 = (ChannelDataIn[3] >> 1);
+    rcdata->rc1 = (ch1 >> 1);
+    rcdata->rc2 = (ch2 >> 1);
+    rcdata->rc3 = (ch3 >> 1);
+    rcdata->rc4 = (ch4 >> 1);
     // The round-robin switch
     rcdata->aux_n_idx = ch_idx;
     rcdata->aux_n = currentSwitches[ch_idx] & 0b111;
@@ -59,7 +104,7 @@ void RcChannels::channels_pack()
 /**
  * Convert received OTA packet data to CRSF packet for FC
  */
-void ICACHE_RAM_ATTR RcChannels::channels_extract(uint8_t const *const input,
+void ICACHE_RAM_ATTR RcChannels_channels_extract(uint8_t const *const input,
                                                   EXTRACT_VOLATILE crsf_channels_t &PackedRCdataOut)
 {
     uint16_t switchValue;
@@ -131,34 +176,28 @@ void ICACHE_RAM_ATTR RcChannels::channels_extract(uint8_t const *const input,
  * Convert received CRSF serial packet from handset and
  * store it to local buffers for OTA packet
  */
-void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
+void RcChannels_processChannels(crsf_channels_t const *const rcChannels)
 {
-    uint8_t switch_state;
-
-    ChannelDataIn[0] = (rcChannels->ch0);
-    ChannelDataIn[1] = (rcChannels->ch1);
-    ChannelDataIn[2] = (rcChannels->ch2);
-    ChannelDataIn[3] = (rcChannels->ch3);
-    ChannelDataIn[4] = (rcChannels->ch4);
-    ChannelDataIn[5] = (rcChannels->ch5);
-    ChannelDataIn[6] = (rcChannels->ch6);
-    ChannelDataIn[7] = (rcChannels->ch7);
-    ChannelDataIn[8] = (rcChannels->ch8);
-    ChannelDataIn[9] = (rcChannels->ch9);
-    ChannelDataIn[10] = (rcChannels->ch10);
-    ChannelDataIn[11] = (rcChannels->ch11);
+    // channels input range: 0...2048
+    uint16_t ChannelDataIn[N_SWITCHES] = {
+        (uint16_t)rcChannels->ch4, (uint16_t)rcChannels->ch5,
+        (uint16_t)rcChannels->ch6, (uint16_t)rcChannels->ch7,
+        (uint16_t)rcChannels->ch8, (uint16_t)rcChannels->ch9,
+        (uint16_t)rcChannels->ch10, (uint16_t)rcChannels->ch11
 #if 8 < N_SWITCHES
-    ChannelDataIn[12] = (rcChannels->ch12);
+    , (uint16_t)rcChannels->ch12
 #if 9 < N_SWITCHES
-    ChannelDataIn[13] = (rcChannels->ch13);
+    , (uint16_t)rcChannels->ch13
 #if 10 < N_SWITCHES
-    ChannelDataIn[14] = (rcChannels->ch14);
+    , (uint16_t)rcChannels->ch14
 #if 11 < N_SWITCHES
-    ChannelDataIn[15] = (rcChannels->ch15);
+    , (uint16_t)rcChannels->ch15
 #endif // 11 < N_SWITCHES
 #endif // 10 < N_SWITCHES
 #endif // 9 < N_SWITCHES
 #endif // 8 < N_SWITCHES
+    };
+    uint8_t switch_state;
 
     /**
      * Convert the rc data corresponding to switches to 2 bit values.
@@ -171,10 +210,10 @@ void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
     for (uint8_t idx = 0; idx < N_SWITCHES; idx++) {
 #if N_SWITCHES <= 8
         // input is 0 - 2048, output is 0 - 7
-        switch_state = CRSF_to_SWITCH3b(ChannelDataIn[idx + N_CONTROLS]) & 0b111;
+        switch_state = CRSF_to_SWITCH3b(ChannelDataIn[idx]) & 0b111;
 #else
         // input is 0 - 2048, output is 0 - 2
-        switch_state = CRSF_to_SWITCH2b(ChannelDataIn[idx + N_CONTROLS]) & 0b11;
+        switch_state = CRSF_to_SWITCH2b(ChannelDataIn[idx]) & 0b11;
 #endif
         // Check if state is changed
         if (switch_state != currentSwitches[idx])
@@ -182,27 +221,14 @@ void RcChannels::processChannels(crsf_channels_t const *const rcChannels)
         currentSwitches[idx] = switch_state;
     }
 
-    channels_pack();
+    channels_pack(rcChannels->ch0, rcChannels->ch1, rcChannels->ch2, rcChannels->ch3);
 }
 
-/**
- * Determine which switch to send next.
- *
- * If any switch has changed since last sent, it sends the lowest index changed switch.
- * If no switches have changed then this sends p_nextSwitchIndex and increment the value.
- */
-uint8_t RcChannels::getNextSwitchIndex()
+void ICACHE_RAM_ATTR RcChannels_get_packed_data(uint8_t *const output)
 {
-    /* Check if channel is changed and send it immediately,
-     * otherwise send next sequential switch */
-    int8_t index = __builtin_ffs(p_auxChannelsChanged) - 1;
-    if (index < 0) {
-        index = p_nextSwitchIndex++;
-        p_nextSwitchIndex %= N_SWITCHES;
-    } else {
-        p_auxChannelsChanged &= ~(0x1 << index);
-    }
-    return index;
+    uint8_t iter = sizeof(RcDataPacket_s);
+    while (iter--)
+        output[iter] = packed_buffer[iter];
 }
 
 /*************************************************************************************
@@ -223,7 +249,11 @@ typedef union {
     uint8_t pkt_type;
 } PACKED TlmDataPacket_s;
 
-uint8_t ICACHE_RAM_ATTR RcChannels::tlm_send(uint8_t *const output,
+static_assert(sizeof(TlmDataPacket_s) <= OTA_PACKET_DATA,
+              "OTA pkt size is not correct");
+
+
+uint8_t ICACHE_RAM_ATTR RcChannels_tlm_send(uint8_t *const output,
                                              mspPacket_t &packet,
                                              uint8_t tx)
 {
@@ -251,7 +281,7 @@ uint8_t ICACHE_RAM_ATTR RcChannels::tlm_send(uint8_t *const output,
     return packet.iterated();
 }
 
-uint8_t ICACHE_RAM_ATTR RcChannels::tlm_receive(volatile uint8_t const *const input,
+uint8_t ICACHE_RAM_ATTR RcChannels_tlm_receive(volatile uint8_t const *const input,
                                                 mspPacket_t &packet)
 {
     if (packet.iterated())

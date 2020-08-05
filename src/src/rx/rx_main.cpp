@@ -34,7 +34,6 @@ SX1280Driver Radio(RadioSpi, OTA_PACKET_SIZE);
 SX127xDriver Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
 CRSF_RX crsf(CrsfSerial); //pass a serial port object to the class for it to use
-RcChannels rc_ch;
 
 volatile connectionState_e connectionState = STATE_disconnected;
 static volatile uint8_t NonceRXlocal = 0; // nonce that we THINK we are up to.
@@ -190,7 +189,7 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
 
     if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
-        if (rc_ch.tlm_send(tx_buffer, msp_packet_tx, 0) || msp_packet_tx.error)
+        if (RcChannels_tlm_send(tx_buffer, msp_packet_tx, 0) || msp_packet_tx.error)
         {
             msp_packet_tx.reset();
             tlm_msp_send = 0;
@@ -200,7 +199,7 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
     {
         crsf.LinkStatistics.uplink_Link_quality = uplink_Link_quality;
         crsf.LinkStatisticsPack(tx_buffer);
-        rc_ch.packetTypeSet(tx_buffer, DL_PACKET_TLM_LINK);
+        RcChannels_packetTypeSet(tx_buffer, DL_PACKET_TLM_LINK);
     }
 
 #if OTA_PACKET_10B
@@ -388,7 +387,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
     const uint32_t current_us = Radio.LastPacketIsrMicros;
     const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_PAYLOAD, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_PAYLOAD] << 8) + rx_buffer[OTA_PACKET_PAYLOAD+1];
-    const uint8_t type = rc_ch.packetTypeGet(rx_buffer);
+    const uint8_t type = RcChannels_packetTypeGet(rx_buffer);
 
 #if PRINT_TIMER && PRINT_RX_ISR
     DEBUG_PRINT("RX us ");
@@ -461,10 +460,10 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             if (STATE_lost < _conn_state)
             {
 #if SERVO_OUTPUTS_ENABLED
-                rc_ch.channels_extract(rx_buffer, channels_servos);
+                RcChannels_channels_extract(rx_buffer, channels_servos);
                 update_servos = 1;
 #else // !SERVO_OUTPUTS_ENABLED
-                rc_ch.channels_extract(rx_buffer, crsf.ChannelsPacked);
+                RcChannels_channels_extract(rx_buffer, crsf.ChannelsPacked);
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
                 digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
 #endif
@@ -478,7 +477,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
 
         case UL_PACKET_MSP:
             DEBUG_PRINT(" M");
-            rc_ch.tlm_receive(rx_buffer, msp_packet_rx);
+            RcChannels_tlm_receive(rx_buffer, msp_packet_rx);
             break;
 
         case UL_PACKET_UNKNOWN:

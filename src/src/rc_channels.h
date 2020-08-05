@@ -55,66 +55,46 @@ typedef struct ElrsSyncPacket_s {
     uint8_t pkt_type;
 } ElrsSyncPacket_s;
 
-#if (OTA_PACKET_DATA < 6)
-#error "Min OTA size is 6 bytes!"
-#endif
-
 #if SERVO_OUTPUTS_ENABLED
 #define EXTRACT_VOLATILE volatile
 #else
 #define EXTRACT_VOLATILE
 #endif
 
-class RcChannels
+
+inline __attribute__((always_inline)) uint8_t
+RcChannels_packetTypeGet(volatile uint8_t const *const input)
 {
-public:
-    RcChannels() {}
+    return input[OTA_PACKET_DATA-1] & 0b11;
+}
 
-    uint8_t packetTypeGet(volatile uint8_t const *const input) {
-        return input[OTA_PACKET_DATA-1] & 0b11;
-    }
-    void packetTypeSet(uint8_t *const output, uint8_t type) {
-        uint8_t val = output[OTA_PACKET_DATA-1];
-        val = (val & 0xFC) + (type & 0b11);
-        output[OTA_PACKET_DATA-1] = val;
-    }
+inline __attribute__((always_inline)) void
+RcChannels_packetTypeSet(uint8_t *const output, uint8_t type)
+{
+    uint8_t val = output[OTA_PACKET_DATA-1];
+    val = (val & 0xFC) + (type & 0b11);
+    output[OTA_PACKET_DATA-1] = val;
+}
 
-    // TX related
-    void processChannels(crsf_channels_t const *const channels);
-    void ICACHE_RAM_ATTR get_packed_data(uint8_t *const output)
-    {
-        for (uint8_t i = 0; i < sizeof(packed_buffer); i++)
-            output[i] = packed_buffer[i];
-    }
 
-    // RX related
-    void ICACHE_RAM_ATTR channels_extract(uint8_t const *const input,
-                                          EXTRACT_VOLATILE crsf_channels_t &output);
+// TX related
+void
+RcChannels_processChannels(crsf_channels_t const *const channels);
+void ICACHE_RAM_ATTR
+RcChannels_get_packed_data(uint8_t *const output);
 
-    // TLM pkt
-    uint8_t ICACHE_RAM_ATTR tlm_send(uint8_t *const output,
-                                     mspPacket_t &packet,
-                                     uint8_t tx=1);
-    uint8_t ICACHE_RAM_ATTR tlm_receive(volatile uint8_t const *const input,
-                                        mspPacket_t &packet);
+// RX related
+void ICACHE_RAM_ATTR
+RcChannels_channels_extract(uint8_t const *const input,
+                            EXTRACT_VOLATILE crsf_channels_t &output);
 
-private:
-    // Pack channels into OTA TX buffer
-    void channels_pack(void);
-    // Switches / AUX channel handling
-    uint8_t getNextSwitchIndex(void);
-
-    // Channel processing data
-    volatile uint16_t ChannelDataIn[N_CHANNELS] = {0};  // range: 0...2048
-    volatile uint8_t currentSwitches[N_SWITCHES] = {0}; // range: 0,1,2
-
-    // esp requires aligned buffer
-    volatile uint8_t WORD_ALIGNED_ATTR packed_buffer[OTA_PACKET_SIZE];
-
-    // bitmap of changed switches
-    volatile uint16_t p_auxChannelsChanged = 0;
-    // which switch should be sent in the next rc packet
-    volatile uint8_t p_nextSwitchIndex = 0;
-};
+// TLM pkt
+uint8_t ICACHE_RAM_ATTR
+RcChannels_tlm_send(uint8_t *const output,
+                    mspPacket_t &packet,
+                    uint8_t tx=1);
+uint8_t ICACHE_RAM_ATTR
+RcChannels_tlm_receive(volatile uint8_t const *const input,
+                       mspPacket_t &packet);
 
 #endif /* __RC_CHANNELS_H */
