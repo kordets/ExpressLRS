@@ -8,7 +8,7 @@
 #ifndef DEBUG_SERIAL
 
 #if defined(PLATFORM_ESP32)
-#if defined(WIFI_LOGGER) && !defined(WIFI_UPDATER)
+#if WIFI_LOGGER && !WIFI_UPDATER
 #define DEBUG_SERIAL wifi_logger_serial
 #else
 #define DEBUG_SERIAL Serial

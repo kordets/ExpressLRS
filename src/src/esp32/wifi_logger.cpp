@@ -1,4 +1,4 @@
-#if WIFI_LOGGER || WIFI_UPDATER
+#if WIFI_LOGGER || WIFI_UPDATER || ESP_NOW
 
 #include "wifi_logger.h"
 
@@ -15,6 +15,7 @@
 #include "msp.h"
 #include "platform.h"
 #include "targets.h"
+#include "debug_elrs.h"
 
 #define QUEUE_SIZE 256
 
@@ -31,16 +32,30 @@
 
 MDNSResponder mdns;
 WebServer server(80);
+#if WIFI_LOGGER && !WIFI_UPDATER
 WebSocketsServer webSocket = WebSocketsServer(81);
 #define WEBSOCKET_BROADCASET(text) webSocket.broadcastTXT(text)
 #define WEBSOCKET_SEND(sock, text) webSocket.sendTXT(sock, text)
+#else
+#define WEBSOCKET_BROADCASET(text) Serial.println(text)
+#define WEBSOCKET_SEND(sock, text) Serial.println(text)
+#endif
 
 /*************************************************************************/
 
-#if WIFI_LOGGER && !WIFI_UPDATER
+static uint8_t DRAM_ATTR settings_rate = 1;
+static uint8_t DRAM_ATTR settings_power = 4;
+static uint8_t DRAM_ATTR settings_power_max = 8;
+static uint8_t DRAM_ATTR settings_tlm = 7;
+static uint8_t DRAM_ATTR settings_region = 0;
+
+MSP DRAM_ATTR msp_handler;
+mspPacket_t DRAM_ATTR msp_out;
+
+/*************************************************************************/
+
 static QueueHandle_t DRAM_ATTR receive_queue = NULL;
 static QueueHandle_t DRAM_ATTR send_queue = NULL;
-#endif // WIFI_LOGGER
 
 class CtrlSerialPrivate: public CtrlSerial
 {
@@ -77,14 +92,72 @@ private:
   QueueHandle_t p_queue_tx = NULL;
 };
 
-CtrlSerialPrivate ctrl_msp_send;
-CtrlSerialPrivate ctrl_msp_receive;
+CtrlSerialPrivate DRAM_ATTR ctrl_msp_send;
+CtrlSerialPrivate DRAM_ATTR ctrl_msp_receive;
 CtrlSerial& ctrl_serial = ctrl_msp_send;
+
+/******************* ESP-NOW *********************/
+#if ESP_NOW
+
+#include <esp_now.h>
+
+void esp_now_recv_cb(const uint8_t *mac_addr, const uint8_t *data, int data_len)
+{
+  Serial.println("ESP NOW CB called!");
+
+  // Push data into ctrl queue, ERLS task will process it
+  // Note: accept only correctly formatted MSP packets
+  ctrl_msp_receive.write((uint8_t*)data, data_len);
+
+  char hello[] = "ELRS_ACK\n";
+  esp_now_send(mac_addr, (uint8_t*)hello, strlen(hello)); // send to all registered peers
+}
+
+void init_esp_now(void)
+{
+  Serial.print("Initialize ESP-NOW... ");
+
+  wifi_mode_t mode = WiFi.getMode();
+  if (mode == WIFI_MODE_NULL) {
+    Serial.println("  WiFi not enabled, set STA mode");
+    WiFi.mode(WIFI_STA); // Start wifi
+  }
+
+  esp_now_init();
+  esp_now_register_recv_cb(esp_now_recv_cb);
+
+#ifdef ESP_NOW_PEERS
+  wifi_interface_t ifidx =
+    (mode == WIFI_MODE_AP) ? ESP_IF_WIFI_AP : ESP_IF_WIFI_STA;
+  esp_now_peer_info_t peer_info = {
+    .peer_addr = {0},
+    .lmk = {0},
+    .channel = 0,
+    .ifidx = ifidx,
+    .encrypt = false,
+    .priv = NULL
+  };
+  uint8_t peers[][ESP_NOW_ETH_ALEN] = ESP_NOW_PEERS;
+  uint8_t num_peers = sizeof(peers) / ESP_NOW_ETH_ALEN;
+  for (uint8_t iter = 0; iter < num_peers; iter++) {
+    memcpy(peer_info.peer_addr, peers[iter], ESP_NOW_ETH_ALEN);
+    esp_now_del_peer(peers[iter]);
+    esp_now_add_peer(&peer_info);
+  }
+#endif // ESP_NOW_PEERS
+
+  Serial.println("DONE");
+
+  // Notify clients
+  char hello[] = "ELRS\n";
+  esp_now_send(NULL, (uint8_t*)hello, strlen(hello)); // send to all registered peers
+}
+#endif // ESP_NOW
 
 /*************************************************************************/
 
-String inputString = "";
-String my_ipaddress_info_str = "NA";
+String DRAM_ATTR inputString = "";
+//String my_ipaddress_info_str = "NA";
 
 static const char PROGMEM GO_BACK[] = R"rawliteral(
 <!DOCTYPE html>
@@ -401,14 +474,7 @@ curl --include \
 </html>
 )rawliteral";
 
-static uint8_t settings_rate = 1;
-static uint8_t settings_power = 4, settings_power_max = 8;
-static uint8_t settings_tlm = 7;
-static uint8_t settings_region = 0;
-String settings_out;
-
-MSP msp_handler;
-mspPacket_t msp_out;
+String DRAM_ATTR settings_out;
 
 void SettingsWrite(uint8_t * buff, uint8_t len)
 {
@@ -564,7 +630,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     //IPAddress ip = webSocket.remoteIP(num);
     //Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", num, ip[0], ip[1], ip[2], ip[3], payload);
 
-    WEBSOCKET_SEND(num, my_ipaddress_info_str);
+    //WEBSOCKET_SEND(num, my_ipaddress_info_str);
     // Send settings
     SettingsSendWS(num);
   }
@@ -633,72 +699,22 @@ void handleNotFound()
   server.send(404, "text/plain", message);
 }
 
-void wifi_setup(void)
+uint32_t wifi_setup_ok = false;
+uint32_t servers_started = false;
+
+void web_services_start(void)
 {
-  IPAddress my_ip;
-#if defined(WIFI_SSID) && defined(WIFI_PSK)
-  uint32_t iter, jter, timeout;
-#endif
-  //wifi_station_set_hostname("elrs_tx");
+  /* Check if WiFi is set up and server are not started */
+  if (servers_started || !wifi_setup_ok)
+    return;
 
-#if defined(WIFI_SSID) && defined(WIFI_PSK)
-  //Serial.begin(115200);
-  Serial.print("Connecting to wifi ");
-
-  timeout = WIFI_TIMEOUT * 2;
-  timeout /= 10;
-
-  for (iter = 0; (iter < timeout) && (WiFi.status() != WL_CONNECTED); iter++) {
-    if (WiFi.status() != WL_CONNECTED) {
-      WiFi.persistent(false);
-      WiFi.disconnect(true);
-      WiFi.mode(WIFI_OFF);
-      WiFi.mode(WIFI_STA);
-      WiFi.begin(WIFI_SSID, WIFI_PSK);
-
-      jter = 0;
-      while (++jter <= 50) {
-        vTaskDelay(100);
-        if (WiFi.status() == WL_CONNECTED) {
-          break;
-        } else if ((jter % 10) == 0) {
-          Serial.print(".");
-        }
-      }
-    }
-  }
-  if (WiFi.status() == WL_CONNECTED) {
-    my_ip = WiFi.localIP();
-    Serial.println(" CONNECTED!");
-  } else
-#elif WIFI_MANAGER
-  WiFiManager wifiManager;
-  wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
-  if (wifiManager.autoConnect(WIFI_AP_SSID" ESP32 TX")) {
-    // AP found, connected
-    my_ip = WiFi.localIP();
-  }
-  else
-#endif // WIFI_MANAGER
-  {
-    Serial.println(" FAILED! Starting AP...");
-    // No WiFi found, start access point
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(WIFI_AP_SSID" ESP32 TX", WIFI_AP_PSK);
-    my_ip = WiFi.softAPIP();
-  }
+  servers_started = true;
 
   if (mdns.begin("elrs_tx"))
   {
     mdns.addService("http", "tcp", 80);
     mdns.addService("ws", "tcp", 81);
   }
-
-  my_ipaddress_info_str = "[L] My IP address = ";
-  my_ipaddress_info_str += my_ip.toString();
-
-  Serial.print("Connect to http://elrs_tx.local or http://");
-  Serial.println(my_ip);
 
   server.on("/", handleRoot);
   server.on("/return", sendReturn);
@@ -745,7 +761,72 @@ void wifi_setup(void)
 #endif // WIFI_LOGGER
 }
 
-#if WIFI_LOGGER && !WIFI_UPDATER
+void wifi_setup(void)
+{
+  IPAddress my_ip;
+#if defined(WIFI_SSID) && defined(WIFI_PSK)
+  uint32_t iter, jter, timeout;
+#endif
+
+  /* Check if WiFi already set up */
+  if (wifi_setup_ok)
+    return;
+
+  wifi_setup_ok = true;
+
+#if defined(WIFI_SSID) && defined(WIFI_PSK)
+  Serial.print("Connecting to wifi ");
+
+  timeout = WIFI_TIMEOUT * 2;
+  timeout /= 10;
+
+  for (iter = 0; (iter < timeout) && (WiFi.status() != WL_CONNECTED); iter++) {
+    if (WiFi.status() != WL_CONNECTED) {
+      WiFi.persistent(false);
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
+      WiFi.mode(WIFI_STA);
+      WiFi.begin(WIFI_SSID, WIFI_PSK);
+
+      jter = 0;
+      while (++jter <= 50) {
+        vTaskDelay(100);
+        if (WiFi.status() == WL_CONNECTED) {
+          break;
+        } else if ((jter % 10) == 0) {
+          Serial.print(".");
+        }
+      }
+    }
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    my_ip = WiFi.localIP();
+    Serial.println(" CONNECTED!");
+  } else
+#elif WIFI_MANAGER
+  WiFiManager wifiManager;
+  wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
+  if (wifiManager.autoConnect(WIFI_AP_SSID" ESP32 TX")) {
+    // AP found, connected
+    my_ip = WiFi.localIP();
+  }
+  else
+#endif // WIFI_MANAGER
+  {
+    Serial.println(" FAILED! Starting AP...");
+    // No WiFi found, start access point
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(WIFI_AP_SSID" ESP32 TX", WIFI_AP_PSK);
+    my_ip = WiFi.softAPIP();
+  }
+
+  //my_ipaddress_info_str = "[L] My IP address = ";
+  //my_ipaddress_info_str += my_ip.toString();
+
+  Serial.print("Connect to http://elrs_tx.local or http://");
+  Serial.println(my_ip);
+}
+
 int serialEvent(QueueHandle_t queue)
 {
   char inChar;
@@ -768,7 +849,12 @@ int serialEvent(QueueHandle_t queue)
               settings_power = payload[2];
               settings_power_max = payload[3];
               settings_region = payload[4];
+#if WIFI_LOGGER && !WIFI_UPDATER
               SettingsSendWS(-1); // send to all clients
+#endif // WIFI_LOGGER && !WIFI_UPDATER
+#if ESP_NOW
+              esp_now_send(NULL, (uint8_t*)msp_in.payload, msp_in.payloadSize);
+#endif
               break;
             }
           };
@@ -789,19 +875,14 @@ int serialEvent(QueueHandle_t queue)
   }
   return -1;
 }
-#endif // WIFI_LOGGER
 
 void wifi_loop(QueueHandle_t queue)
 {
-#if WIFI_LOGGER && !WIFI_UPDATER
   if (0 <= serialEvent(queue))
   {
     WEBSOCKET_BROADCASET(inputString);
     inputString = "";
   }
-#else
-  (void)queue;
-#endif // WIFI_LOGGER
 
   server.handleClient();
 #if WIFI_LOGGER && !WIFI_UPDATER
@@ -815,13 +896,11 @@ void httpsTask(void *pvParameters)
 {
   QueueHandle_t queue = (QueueHandle_t)pvParameters;
 
-  Serial.println("HTTP task about to start...");
-  wifi_setup();
+  Serial.println("HTTP task started...");
   for(;;) {
     wifi_loop(queue);
   }
 
-#if WIFI_LOGGER && !WIFI_UPDATER
   /* delete the input queue */
   receive_queue = NULL;
   vQueueDelete(queue);
@@ -830,7 +909,6 @@ void httpsTask(void *pvParameters)
   queue = send_queue;
   send_queue = NULL;
   vQueueDelete(queue);
-#endif // WIFI_LOGGER
 
   /* remove task */
   vTaskDelete( NULL );
@@ -838,31 +916,31 @@ void httpsTask(void *pvParameters)
   Serial.println("HTTP task exit");
 }
 
-void wifi_stop(void)
-{
-
-}
-
-void wifi_start(void)
+void wifi_init(void)
 {
   if (wifiTask != NULL) {
     Serial.println("HTTP task already started");
     return;
   }
 
-#if WIFI_LOGGER && !WIFI_UPDATER
-  receive_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
-  send_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
+  if (!receive_queue)
+    receive_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
+  if (!send_queue)
+    send_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
 
   ctrl_msp_send.set_queue_rx(send_queue);
   ctrl_msp_send.set_queue_tx(receive_queue);
 
   ctrl_msp_receive.set_queue_rx(receive_queue);
   ctrl_msp_receive.set_queue_tx(send_queue);
-#else // WIFI_LOGGER
-#define receive_queue NULL
-  Serial.println("Logger disabled!");
-#endif // WIFI_LOGGER
+
+#if WIFI_LOGGER && WIFI_LOGGER_AUTO_START && !WIFI_UPDATER
+  wifi_setup();
+  web_services_start();
+#endif
+#if ESP_NOW
+  init_esp_now();
+#endif
 
   uint8_t taskPriority = 10;
   xTaskCreatePinnedToCore(
@@ -873,6 +951,26 @@ void wifi_start(void)
     taskPriority,           //Priority of the task
     &wifiTask, 0);
   Serial.println("HTTP task started");
+}
+
+void wifi_start(void)
+{
+  if (wifiTask != NULL) {
+    Serial.println("WiFi init is not called!");
+    return;
+  }
+
+  wifi_setup();
+  web_services_start();
+#if ESP_NOW
+  init_esp_now();
+#endif
+
+  Serial.println("WiFi services started");
+}
+
+void wifi_stop(void)
+{
 }
 
 /*************************************************************************/

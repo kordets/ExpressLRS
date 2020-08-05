@@ -93,7 +93,7 @@
 #define GPIO_PIN_RCSIGNAL_RX 13
 #define GPIO_PIN_RCSIGNAL_TX 13
 
-#if defined(WIFI_LOGGER) && !defined(WIFI_UPDATER)
+#if (WIFI_LOGGER && !WIFI_UPDATER) || ESP_NOW
 #define CTRL_SERIAL
 #endif
 

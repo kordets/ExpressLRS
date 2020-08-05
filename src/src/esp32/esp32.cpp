@@ -75,11 +75,15 @@ int8_t platform_config_save(struct platform_config &config)
 #endif
 }
 
+
 /******************* SETUP *********************/
 void platform_setup(void)
 {
     disableCore0WDT();
     disableCore1WDT();
+
+    Serial.print("EpressLRS on core ");
+    Serial.println(xPortGetCoreID());
 
     EEPROM.begin(sizeof(struct platform_config));
 
@@ -88,8 +92,8 @@ void platform_setup(void)
     platform_set_led(0);
 #endif
 
-#if WIFI_LOGGER && WIFI_LOGGER_AUTO_START && !defined(WIFI_UPDATER)
-    wifi_start();
+#if WIFI_LOGGER || WIFI_UPDATER || ESP_NOW
+    wifi_init();
 #endif
 
 #ifdef DEBUG_SERIAL

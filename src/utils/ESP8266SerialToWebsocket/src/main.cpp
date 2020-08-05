@@ -671,6 +671,52 @@ void handleNotFound()
   server.send(404, "text/plain", message);
 }
 
+/******************* ESP-NOW *********************/
+#if ESP_NOW
+
+#include <espnow.h>
+
+void esp_now_recv_cb(uint8_t *mac_addr, uint8_t *data, uint8_t data_len)
+{
+  webSocket.broadcastTXT("ESP NOW CB called!");
+
+  // Push data into ctrl queue, ERLS task will process it
+  // Note: accept only correctly formatted MSP packets
+  Serial.write((uint8_t*)data, data_len);
+
+  char hello[] = "ELRS_ACK\n";
+  esp_now_send(mac_addr, (uint8_t*)hello, strlen(hello)); // send to all registered peers
+}
+
+void init_esp_now(void)
+{
+  WiFiMode_t mode = WiFi.getMode();
+  if (mode == WIFI_OFF) {
+    WiFi.mode(WIFI_STA); // Start wifi
+  }
+
+  esp_now_init();
+  esp_now_register_recv_cb(esp_now_recv_cb);
+
+#ifdef ESP_NOW_PEERS
+#define ESP_NOW_ETH_ALEN 6
+  uint8_t peers[][ESP_NOW_ETH_ALEN] = ESP_NOW_PEERS;
+  uint8_t num_peers = sizeof(peers) / ESP_NOW_ETH_ALEN;
+  for (uint8_t iter = 0; iter < num_peers; iter++) {
+    esp_now_del_peer(peers[iter]);
+    esp_now_add_peer(peers[iter], ESP_NOW_ROLE_COMBO, 0, NULL, 0);
+  }
+#endif // ESP_NOW_PEERS
+
+  Serial.println("DONE");
+
+  // Notify clients
+  char hello[] = "ELRS\n";
+  esp_now_send(NULL, (uint8_t*)hello, strlen(hello)); // send to all registered peers
+}
+#endif // ESP_NOW
+/*************************************************/
+
 void setup()
 {
   IPAddress my_ip;
@@ -717,6 +763,10 @@ void setup()
     WiFi.softAP(STASSID " R9M", STAPSK);
     my_ip = WiFi.softAPIP();
   }
+
+#if ESP_NOW
+  init_esp_now();
+#endif
 
   if (mdns.begin("elrs_tx", my_ip))
   {
@@ -772,6 +822,10 @@ int serialEvent()
             handleSettingRate(NULL);
             handleSettingPower(NULL);
             handleSettingTlm(NULL);
+#if ESP_NOW
+            // Send current settings to all clients
+            esp_now_send(NULL, (uint8_t*)msp_in.payload, msp_in.payloadSize);
+#endif
             break;
           }
         };
