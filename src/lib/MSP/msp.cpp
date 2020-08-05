@@ -213,11 +213,6 @@ bool MSP::processReceivedByte(uint8_t c)
     return (m_inputState == MSP_COMMAND_RECEIVED);
 }
 
-mspPacket_t &MSP::getPacket()
-{
-    return m_packet;
-}
-
 void MSP::markPacketFree()
 {
     // Set input state to idle, ready to receive the next packet

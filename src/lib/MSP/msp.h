@@ -184,7 +184,12 @@ public:
     bool mspReceived() {
         return (m_inputState == MSP_COMMAND_RECEIVED);
     }
-    mspPacket_t &getPacket();
+    mspPacket_t &getPacket() {
+        return m_packet;
+    }
+    mspPacket_t *getPacketPtr() {
+        return &m_packet;
+    }
     void markPacketFree();
     bool sendPacket(mspPacket_t *packet, CtrlSerial *port);
     bool sendPacket(CtrlSerial *port, mspPacketType_e type,
