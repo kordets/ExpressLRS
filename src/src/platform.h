@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifndef __section
+#define __section(S)
+#endif
+
 /** EEPROM storage key
 * v0 - initial
 * v1 - tlm added
