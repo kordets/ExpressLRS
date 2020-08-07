@@ -14,7 +14,11 @@ HwTimer TxTimer;
 
 static HardwareTimer timer_tx(TIMER_BASE);
 
+#ifdef TARGET_R9MX
+static void TimerCallback(void)
+#else
 static void TimerCallback(HardwareTimer *)
+#endif
 {
     TxTimer.callback();
 }
