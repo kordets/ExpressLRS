@@ -107,6 +107,42 @@ void CRSF_RX::processPacket(uint8_t const *data)
             break;
         }
 
+        case CRSF_FRAMETYPE_GPS:
+        {
+            TLMGPSsensor.latitude = data[1];
+            TLMGPSsensor.latitude <<= 8;
+            TLMGPSsensor.latitude += data[2];
+            TLMGPSsensor.latitude <<= 8;
+            TLMGPSsensor.latitude += data[3];
+            TLMGPSsensor.latitude <<= 8;
+            TLMGPSsensor.latitude += data[4];
+
+            TLMGPSsensor.longitude = data[5];
+            TLMGPSsensor.longitude <<= 8;
+            TLMGPSsensor.longitude += data[6];
+            TLMGPSsensor.longitude <<= 8;
+            TLMGPSsensor.longitude += data[7];
+            TLMGPSsensor.longitude <<= 8;
+            TLMGPSsensor.longitude += data[8];
+
+            TLMGPSsensor.speed = data[9];
+            TLMGPSsensor.speed <<= 8;
+            TLMGPSsensor.speed += data[10];
+
+            TLMGPSsensor.heading = data[11];
+            TLMGPSsensor.heading <<= 8;
+            TLMGPSsensor.heading += data[12];
+
+            TLMGPSsensor.altitude = data[13];
+            TLMGPSsensor.altitude <<= 8;
+            TLMGPSsensor.altitude += data[14];
+
+            TLMGPSsensor.satellites = data[15];
+
+            TLMGPSsensor.valid = 3; // Slipt into 3 tlm pkts
+            break;
+        }
+
         case CRSF_FRAMETYPE_MSP_RESP:
         {
             if (data[1] == CRSF_ADDRESS_RADIO_TRANSMITTER &&

@@ -17,6 +17,7 @@ public:
     // Send to RADIO
     void LinkStatisticsSend(void);
     void BatterySensorSend(void);
+    void GpsSensorSend(void);
     void sendLUAresponseToRadio(uint8_t *data, uint8_t len);
     void sendMspPacketToRadio(mspPacket_t &msp);
 
@@ -49,6 +50,7 @@ private:
     void ICACHE_RAM_ATTR CrsfFramePushToFifo(uint8_t *buff, uint8_t size);
     void LinkStatisticsProcess(void);
     void BatteryStatisticsProcess(void);
+    void GpsSensorProcess(void);
     void LuaResponseProcess(void);
 
 #if (FEATURE_OPENTX_SYNC)

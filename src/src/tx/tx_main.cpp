@@ -182,8 +182,12 @@ static void process_rx_buffer()
             }
             break;
         }
+        case DL_PACKET_GPS:
+        {
+            crsf.GpsStatsExtract(rx_buffer);
+            break;
+        }
         case DL_PACKET_FREE1:
-        case DL_PACKET_FREE2:
         default:
             break;
     }
@@ -642,6 +646,7 @@ void loop()
             crsf.LinkStatistics.uplink_TX_Power = PowerMgmt.power_to_radio_enum();
             crsf.LinkStatisticsSend();
             crsf.BatterySensorSend();
+            crsf.GpsSensorSend();
         }
     }
 

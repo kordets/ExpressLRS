@@ -38,7 +38,7 @@ enum
 {
     DL_PACKET_FREE1 = 0b00,
     DL_PACKET_TLM_MSP = 0b01,
-    DL_PACKET_FREE2 = 0b10,
+    DL_PACKET_GPS = 0b10,
     DL_PACKET_TLM_LINK = 0b11,
 };
 

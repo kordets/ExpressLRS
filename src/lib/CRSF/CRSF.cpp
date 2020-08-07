@@ -79,6 +79,79 @@ void ICACHE_RAM_ATTR CRSF::LinkStatisticsPack(uint8_t *const output)
     output[5] = CRSF_FRAMETYPE_LINK_STATISTICS << 2;
 }
 
+void ICACHE_RAM_ATTR CRSF::GpsStatsExtract(volatile uint8_t const *const input)
+{
+    uint8_t type = input[5] >> 2;
+    if ((type & 0xf) != CRSF_FRAMETYPE_GPS)
+        return;
+    switch (type >> 4) {
+        case 3:
+            TLMGPSsensor.latitude = input[0];
+            TLMGPSsensor.latitude <<= 8;
+            TLMGPSsensor.latitude += input[1];
+            TLMGPSsensor.latitude <<= 8;
+            TLMGPSsensor.latitude += input[2];
+            TLMGPSsensor.latitude <<= 8;
+            TLMGPSsensor.latitude += input[3];
+            TLMGPSsensor.speed = input[4];
+            TLMGPSsensor.speed <<= 8;
+            break;
+        case 2:
+            TLMGPSsensor.longitude = input[0];
+            TLMGPSsensor.longitude <<= 8;
+            TLMGPSsensor.longitude += input[1];
+            TLMGPSsensor.longitude <<= 8;
+            TLMGPSsensor.longitude += input[2];
+            TLMGPSsensor.longitude <<= 8;
+            TLMGPSsensor.longitude += input[3];
+            TLMGPSsensor.speed += input[4];
+            break;
+        case 1:
+            TLMGPSsensor.heading = input[0];
+            TLMGPSsensor.heading <<= 8;
+            TLMGPSsensor.heading += input[1];
+            TLMGPSsensor.altitude = input[2];
+            TLMGPSsensor.altitude <<= 8;
+            TLMGPSsensor.altitude += input[3];
+            TLMGPSsensor.satellites = input[4];
+            TLMGPSsensor.valid = true;
+            break;
+    }
+}
+
+uint8_t ICACHE_RAM_ATTR CRSF::GpsStatsPack(uint8_t *const output)
+{
+    uint8_t type = (TLMGPSsensor.valid << 4) + CRSF_FRAMETYPE_GPS;
+    if (!TLMGPSsensor.valid)
+        return 0;
+    // GPS block is split into pieces
+    switch (TLMGPSsensor.valid--) {
+        case 3:
+            output[0] = (uint8_t)(TLMGPSsensor.latitude >> 24);
+            output[1] = (uint8_t)(TLMGPSsensor.latitude >> 16);
+            output[2] = (uint8_t)(TLMGPSsensor.latitude >> 8);
+            output[3] = (uint8_t)TLMGPSsensor.latitude;
+            output[4] = (uint8_t)(TLMGPSsensor.speed >> 8);
+            break;
+        case 2:
+            output[0] = (uint8_t)(TLMGPSsensor.longitude >> 24);
+            output[1] = (uint8_t)(TLMGPSsensor.longitude >> 16);
+            output[2] = (uint8_t)(TLMGPSsensor.longitude >> 8);
+            output[3] = (uint8_t)TLMGPSsensor.longitude;
+            output[4] = (uint8_t)(TLMGPSsensor.speed);
+            break;
+        case 1:
+            output[0] = (uint8_t)(TLMGPSsensor.heading >> 8);
+            output[1] = (uint8_t)(TLMGPSsensor.heading);
+            output[2] = (uint8_t)(TLMGPSsensor.altitude >> 8);
+            output[3] = (uint8_t)(TLMGPSsensor.altitude);
+            output[4] = TLMGPSsensor.satellites;
+            break;
+    }
+    output[5] = type << 2;
+    return 1;
+}
+
 void CRSF::BatterySensorSend(void)
 {
 }

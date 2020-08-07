@@ -176,6 +176,17 @@ typedef struct crsfPayloadLinkstatistics_s
     int8_t downlink_SNR;
 } crsfLinkStatistics_t;
 
+typedef struct crsf_sensor_gps_s
+{
+    int32_t latitude;
+    int32_t longitude;
+    uint16_t speed;
+    uint16_t heading;
+    uint16_t altitude;
+    uint8_t satellites;
+    uint8_t valid; // available to send (1)
+} PACKED crsf_sensor_gps_t;
+
 /////inline and utility functions//////
 
 #define CRSF_to_US(val) MAP_U16((val), CRSF_CHANNEL_VALUE_MIN, CRSF_CHANNEL_VALUE_MAX, 988, 2012)
@@ -216,8 +227,12 @@ public:
                                uint8_t rssi);
     void ICACHE_RAM_ATTR LinkStatisticsPack(uint8_t *const output);
 
+    void ICACHE_RAM_ATTR GpsStatsExtract(volatile uint8_t const *const data);
+    uint8_t ICACHE_RAM_ATTR GpsStatsPack(uint8_t *const output);
+
     volatile crsfPayloadLinkstatistics_s LinkStatistics = {0}; // Link Statisitics Stored as Struct
     volatile crsf_sensor_battery_s TLMbattSensor = {0};
+    volatile crsf_sensor_gps_s TLMGPSsensor = {0};
 
 protected:
     uint8_t *ParseInByte(uint8_t inChar);

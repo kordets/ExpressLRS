@@ -14,6 +14,7 @@ enum {
     SEND_LUA = 1 << 2,
     SEND_MSP = 1 << 3,
     SEND_SYNC = 1 << 4,
+    SEND_GPS = 1 << 5,
 };
 static volatile uint_fast8_t DMA_ATTR send_buffers = SEND_NA;
 
@@ -51,6 +52,30 @@ void CRSF_TX::LinkStatisticsProcess(void)
 
     // this is nok with volatile
     memcpy(&outBuffer[3], (void *)&LinkStatistics, LinkStatisticsFrameLength);
+
+    CrsfFramePushToFifo(outBuffer, len);
+}
+
+void CRSF_TX::GpsSensorSend(void)
+{
+    if (TLMGPSsensor.valid)
+        send_buffers |= SEND_GPS;
+}
+void CRSF_TX::GpsSensorProcess(void)
+{
+    send_buffers &= ~SEND_GPS;
+
+    uint8_t frame_len = sizeof(crsf_sensor_gps_t) - 1;
+    uint8_t len = CRSF_EXT_FRAME_SIZE(frame_len);
+
+    outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    outBuffer[1] = CRSF_FRAME_SIZE(frame_len);
+    outBuffer[2] = CRSF_FRAMETYPE_GPS;
+
+    // this is nok with volatile
+    memcpy(&outBuffer[3], (void *)&TLMGPSsensor, frame_len);
+
+    TLMGPSsensor.valid = false;
 
     CrsfFramePushToFifo(outBuffer, len);
 }
@@ -272,6 +297,8 @@ uint8_t CRSF_TX::handleUartIn(volatile uint8_t &rx_data_rcvd) // Merge with RX v
                         BatteryStatisticsProcess();
                     else if (send_buffers & SEND_LUA)
                         LuaResponseProcess();
+                    else if (send_buffers & SEND_GPS)
+                        GpsSensorProcess();
                     else
                         can_send = 1;
                 }

@@ -195,6 +195,10 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
             tlm_msp_send = 0;
         }
     }
+    else if (crsf.GpsStatsPack(tx_buffer))
+    {
+        RcChannels_packetTypeSet(tx_buffer, DL_PACKET_GPS);
+    }
     else
     {
         crsf.LinkStatistics.uplink_Link_quality = uplink_Link_quality;
