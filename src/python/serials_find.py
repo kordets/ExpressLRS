@@ -30,7 +30,7 @@ def serial_ports():
             s.close()
             result.append(port)
         except (OSError, serial.SerialException) as error:
-            if "permission denied" in error.lower():
+            if "permission denied" in str(error).lower():
                 raise EnvironmentError("You don't have persmission to use serial port!")
             pass
     return result
