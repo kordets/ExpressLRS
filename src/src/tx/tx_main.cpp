@@ -70,8 +70,8 @@ static mspPacket_t msp_packet_rx;
 static MSP msp_packet_parser;
 static volatile uint_fast8_t DRAM_ATTR tlm_msp_send = 0;
 static uint32_t DRAM_ATTR TlmSentToRadioTime = 0;
-static LPF LPF_dyn_tx_power(3);
-static uint32_t dyn_tx_updated = 0;
+static LPF DRAM_ATTR LPF_dyn_tx_power(3);
+static uint32_t DRAM_ATTR dyn_tx_updated = 0;
 //////////// LUA /////////
 
 ///////////////////////////////////////
