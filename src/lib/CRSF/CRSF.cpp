@@ -35,6 +35,8 @@ void CRSF::Begin()
     TLMbattSensor.voltage = 0;
     //TLMbattSensor.remaining = 100;
 
+    TLMGPSsensor.valid = 0;
+
     _dev->flush_read();
 }
 
