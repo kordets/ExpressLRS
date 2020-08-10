@@ -69,7 +69,7 @@ public:
 
     uint32_t getCurrBandwidth() const;
     void SetSyncWord(uint8_t syncWord);
-    void SetOutputPower(uint8_t Power);
+    void SetOutputPower(uint8_t Power, uint8_t init=0);
     void ICACHE_RAM_ATTR SetFrequency(uint32_t freq, uint8_t mode);
     int32_t ICACHE_RAM_ATTR GetFrequencyError();
     void ICACHE_RAM_ATTR setPPMoffsetReg(int32_t error_hz, uint32_t frf = 0);

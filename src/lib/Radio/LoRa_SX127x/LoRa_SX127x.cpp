@@ -56,7 +56,7 @@ SX127xDriver::SX127xDriver(HwSpi &spi, uint8_t payload_len):
     currCR = CR_4_5;
     _syncWord = SX127X_SYNC_WORD;
     current_freq = 0;
-    current_power = 0xF; // define to max for forced init.
+    current_power = 0xF; // outside range to make sure the power is initialized
 
     LastPacketRSSI = LastPacketRssiRaw = 0;
     LastPacketSNR = 0;
@@ -105,10 +105,10 @@ void SX127xDriver::SetSyncWord(uint8_t syncWord)
     _syncWord = syncWord;
 }
 
-void SX127xDriver::SetOutputPower(uint8_t Power)
+void SX127xDriver::SetOutputPower(uint8_t Power, uint8_t init)
 {
     Power &= 0xF; // 4bits
-    if (current_power == Power)
+    if (current_power == Power && !init)
         return;
 
     writeRegister(SX127X_REG_PA_CONFIG, SX127X_PA_SELECT_BOOST | SX127X_MAX_OUTPUT_POWER | Power);
@@ -563,7 +563,7 @@ void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t fre
     SetFrequency(freq, 0xff); // 0xff = skip mode set calls
 
     // output power configuration
-    SetOutputPower(current_power);
+    SetOutputPower(current_power, 1);
     //if (RFmodule == RFMOD_SX1276)
     //    // Increase max current limit
     //    writeRegister(SX127X_REG_OCP, SX127X_OCP_ON | 18); // 15 (120mA) -> 18 (150mA)
