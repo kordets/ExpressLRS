@@ -127,8 +127,9 @@ void platform_setup(void)
 #endif
 }
 
-void platform_mode_notify(void)
+void platform_mode_notify(uint8_t mode)
 {
+    (void)mode;
 }
 
 void platform_loop(int state)

@@ -568,7 +568,7 @@ void setup()
     current_rate_config = pl_config.mode % get_elrs_airRateMax();
     power = (PowerLevels_e)(pl_config.power % PWR_UNKNOWN);
     TLMinterval = pl_config.tlm;
-    platform_mode_notify();
+    platform_mode_notify(current_rate_config);
 
     crsf.connected = hw_timer_init; // it will auto init when it detects UART connection
     crsf.disconnected = hw_timer_stop;
@@ -637,6 +637,7 @@ void loop()
             uint8_t rx_cnt = expected_tlm_counter;
             uint32_t tlm_cnt = recv_tlm_counter;
             expected_tlm_counter = recv_tlm_counter = 0; // Clear RX counter
+
             if (rx_cnt)
                 crsf.LinkStatistics.downlink_Link_quality = (tlm_cnt * 100u) / rx_cnt;
             else

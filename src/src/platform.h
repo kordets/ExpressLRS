@@ -27,7 +27,7 @@ struct platform_config
 int8_t platform_config_load(struct platform_config &config);
 int8_t platform_config_save(struct platform_config &config);
 void platform_setup(void);
-void platform_mode_notify(void);
+void platform_mode_notify(uint8_t mode);
 void platform_loop(int state);
 void platform_connection_state(int state);
 void platform_set_led(bool state);

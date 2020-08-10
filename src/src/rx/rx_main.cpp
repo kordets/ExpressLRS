@@ -438,13 +438,6 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
                         LostConnection();
                     }
                 }
-#if !SERVO_OUTPUTS_ENABLED && 1
-                else
-                {
-                    // Send last command to FC if connected to keep it running
-                    crsf.sendRCFrameToFC();
-                }
-#endif
 
 #if RX_UPDATE_AIR_RATE
                 if (current_rate_config != sync->air_rate)

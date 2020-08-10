@@ -267,10 +267,10 @@ void platform_setup(void)
 #endif /* RFIO HIGH / LOW */
 }
 
-void platform_mode_notify(void)
+void platform_mode_notify(uint8_t mode)
 {
 #if (GPIO_PIN_BUZZER != UNDEF_PIN) || (GPIO_PIN_LED_GREEN != UNDEF_PIN)
-    for (int i = 0; i < get_elrs_airRateOsd(); i++)
+    for (int i = 0; i < mode; i++)
     {
         delay(300);
         LED_STATE_GREEN(HIGH);
