@@ -54,6 +54,10 @@ uint8_t socketNumber;
 String inputString = "";
 String my_ipaddress_info_str = "NA";
 
+#if ESP_NOW
+String espnow_init_info = "";
+#endif
+
 static const char PROGMEM GO_BACK[] = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -509,6 +513,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     socketNumber = num;
 
     webSocket.sendTXT(num, my_ipaddress_info_str);
+    webSocket.sendTXT(num, espnow_init_info);
 
     // Send settings
     SettingsGet();
@@ -671,6 +676,14 @@ void handleNotFound()
   server.send(404, "text/plain", message);
 }
 
+void handleMacAddress()
+{
+  String message = "My MAC address: ";
+  message += WiFi.macAddress();
+  message += "\n";
+  server.send(200, "text/plain", message);
+}
+
 /******************* ESP-NOW *********************/
 #if ESP_NOW
 
@@ -695,20 +708,31 @@ void init_esp_now(void)
     WiFi.mode(WIFI_STA); // Start wifi
   }
 
-  esp_now_init();
+  espnow_init_info = "ESP NOW init...\n";
+
+  if (esp_now_init() != 0) {
+    espnow_init_info += "ESP NOW init failed!";
+    return;
+  }
+  esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
   esp_now_register_recv_cb(esp_now_recv_cb);
 
 #ifdef ESP_NOW_PEERS
 #define ESP_NOW_ETH_ALEN 6
   uint8_t peers[][ESP_NOW_ETH_ALEN] = ESP_NOW_PEERS;
   uint8_t num_peers = sizeof(peers) / ESP_NOW_ETH_ALEN;
+  espnow_init_info += "add peers... ";
   for (uint8_t iter = 0; iter < num_peers; iter++) {
     esp_now_del_peer(peers[iter]);
-    esp_now_add_peer(peers[iter], ESP_NOW_ROLE_COMBO, 0, NULL, 0);
+    if (esp_now_add_peer(peers[iter], ESP_NOW_ROLE_COMBO, 0, NULL, 0) != 0) {
+      espnow_init_info += "FAIL:";
+      espnow_init_info += iter;
+      espnow_init_info += ", ";
+    }
   }
 #endif // ESP_NOW_PEERS
 
-  Serial.println("DONE");
+  espnow_init_info += "\n Init DONE!";
 
   // Notify clients
   char hello[] = "ELRS\n";
@@ -781,6 +805,7 @@ void setup()
 
   server.on("/", handleRoot);
   server.on("/return", sendReturn);
+  server.on("/mac", handleMacAddress);
 
   server.on(
       "/upload", HTTP_POST,       // if the client posts to the upload page
