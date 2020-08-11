@@ -753,10 +753,19 @@ void esp_now_recv_cb(uint8_t *mac_addr, uint8_t *data, uint8_t data_len)
 
   // Pass data to ERLS
   // Note: accepts only correctly formatted MSP packets
-  Serial.write((uint8_t*)data, data_len);
+  //Serial.write((uint8_t*)data, data_len);
 
   char hello[] = "ELRS_ACK\n";
   esp_now_send(mac_addr, (uint8_t*)hello, strlen(hello));
+}
+
+void esp_now_send_cb(uint8_t *mac_addr, u8 status) {
+#if 1
+  String temp = "ESPNOW Sent: ";
+  temp += status;
+  temp += "\n";
+  webSocket.broadcastTXT(temp);
+#endif
 }
 
 void init_esp_now(void)
@@ -768,6 +777,7 @@ void init_esp_now(void)
     return;
   }
   esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
+  esp_now_register_send_cb(esp_now_send_cb);
   esp_now_register_recv_cb(esp_now_recv_cb);
 
 #ifdef ESP_NOW_PEERS
@@ -776,8 +786,8 @@ void init_esp_now(void)
   uint8_t num_peers = sizeof(peers) / ESP_NOW_ETH_ALEN;
   espnow_init_info += "add peers... ";
   for (uint8_t iter = 0; iter < num_peers; iter++) {
-    esp_now_del_peer(peers[iter]);
-    if (esp_now_add_peer(peers[iter], ESP_NOW_ROLE_COMBO, ESP_NOW_CHANNEL, NULL, 0) != 0) {
+    //esp_now_del_peer(peers[iter]);
+    if (esp_now_add_peer(peers[iter], ESP_NOW_ROLE_SLAVE, ESP_NOW_CHANNEL, NULL, 0) != 0) {
       espnow_init_info += "FAIL:";
       espnow_init_info += iter;
       espnow_init_info += ", ";
@@ -841,16 +851,15 @@ void setup()
   }
   else
 #endif /* WIFI_MANAGER */
-#if !ESP_NOW
   if (!sta_up)
   {
     // WiFi not connected, Start access point
     WiFi.mode(WIFI_AP);
     WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK);
   }
-#else // ESP_NOW
+#if ESP_NOW
   // Start also access point
-  WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
+  //WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
   init_esp_now();
 #endif // ESP_NOW
 
