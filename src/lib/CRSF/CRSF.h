@@ -12,9 +12,14 @@
 #define CRSF_TX_BAUDRATE_FAST 400000
 #define CRSF_TX_BAUDRATE_SLOW 115200 // Used for QX7 not supporting 400kbps
 #define CRSF_NUM_CHANNELS 16         // Number of input channels
-#define CRSF_CHANNEL_VALUE_MIN 172
-#define CRSF_CHANNEL_VALUE_MID 992
-#define CRSF_CHANNEL_VALUE_MAX 1811
+// OUT to flight controller
+#define CRSF_CHANNEL_OUT_VALUE_MIN 172
+#define CRSF_CHANNEL_OUT_VALUE_MID 992
+#define CRSF_CHANNEL_OUT_VALUE_MAX 1811
+// IN comming from handset
+#define CRSF_CHANNEL_IN_VALUE_MIN 0
+#define CRSF_CHANNEL_IN_VALUE_MID 992
+#define CRSF_CHANNEL_IN_VALUE_MAX 1984
 
 #define CRSF_SYNC_BYTE 0xC8
 
@@ -189,22 +194,31 @@ typedef struct crsf_sensor_gps_s
 
 /////inline and utility functions//////
 
-#define CRSF_to_US(val) MAP_U16((val), CRSF_CHANNEL_VALUE_MIN, CRSF_CHANNEL_VALUE_MAX, 988, 2012)
+/** NOTE
+ * CRSF input range is [0...992...1984]
+ * CRSF output range is [172...992...1811]
+ **/
 
-#define UINT10_to_CRSF(val) MAP_U16((val), 0, 1024, CRSF_CHANNEL_VALUE_MIN, CRSF_CHANNEL_VALUE_MAX)
-#define CRSF_to_UINT10(val) MAP_U16((val), CRSF_CHANNEL_VALUE_MIN, CRSF_CHANNEL_VALUE_MAX, 0, 1023)
+#define CRSF_OUT_to_US(val) MAP_U16((val), CRSF_CHANNEL_OUT_VALUE_MIN, CRSF_CHANNEL_OUT_VALUE_MAX, 1000, 2000)
+#define CRSF_IN_to_US(val) MAP_U16((val), CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX, 1000, 2000)
+#define CRSF_IN_to_DEG(val) MAP_U16((val), CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX, 0, 180)
 
-// 234 = (1811-172) / 7
-#define CRSF_to_SWITCH3b(val) ((val) / 234)
-#define SWITCH3b_to_CRSF(val) ((val)*234 + CRSF_CHANNEL_VALUE_MIN)
+#define UINT10_to_CRSF(val) MAP_U16((val), 0, 1024, CRSF_CHANNEL_OUT_VALUE_MIN, CRSF_CHANNEL_OUT_VALUE_MAX)
+#define CRSF_to_UINT10(val) MAP_U16((val), CRSF_CHANNEL_OUT_VALUE_MIN, CRSF_CHANNEL_OUT_VALUE_MAX, 0, 1023)
+
+// 7 state aka 3b switches use 0...6 as values to represent 7 different values
+// 1984 / 6 = 330 => taken down a bit to align result more evenly
+// (1811-172) / 6 = 273
+#define CRSF_to_SWITCH3b(val) ((val) / 300)
+#define SWITCH3b_to_CRSF(val) ((val) * 273 + CRSF_CHANNEL_OUT_VALUE_MIN)
 
 // 3 state aka 2b switches use 0, 1 and 2 as values to represent low, middle and high
 // 819 = (1811-172) / 2
 #define CRSF_to_SWITCH2b(val) ((val) / 819)
-#define SWITCH2b_to_CRSF(val) ((val)*819 + CRSF_CHANNEL_VALUE_MIN)
+#define SWITCH2b_to_CRSF(val) ((val)*819 + CRSF_CHANNEL_OUT_VALUE_MIN)
 
 #define CRSF_to_BIT(val) (((val) > 1000) ? 1 : 0)
-#define BIT_to_CRSF(val) ((val) ? CRSF_CHANNEL_VALUE_MAX : CRSF_CHANNEL_VALUE_MIN)
+#define BIT_to_CRSF(val) ((val) ? CRSF_CHANNEL_OUT_VALUE_MAX : CRSF_CHANNEL_OUT_VALUE_MIN)
 
 class CRSF
 {
