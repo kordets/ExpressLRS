@@ -21,20 +21,34 @@
 
 //#define INVERTED_SERIAL // Comment this out for non-inverted serial
 
-#ifdef WIFI_AP_SSID
-#define STASSID WIFI_AP_SSID
-#else
-#define STASSID "ExpressLRS AP"
+#ifndef WIFI_AP_SSID
+#define WIFI_AP_SSID "ExpressLRS AP"
 #endif
-#ifdef WIFI_AP_PSK
-#define STAPSK WIFI_AP_PSK
-#else
-#define STAPSK "expresslrs"
+#ifndef WIFI_AP_PSK
+#define WIFI_AP_PSK "expresslrs"
 #endif
 
 #ifndef WIFI_TIMEOUT
 #define WIFI_TIMEOUT 60 // default to 1min
 #endif
+
+#if !ESP_NOW
+#define WIFI_CHANNEL 0 // Not defined
+#if defined(ESP_NOW_CHANNEL)
+#undef ESP_NOW_CHANNEL
+#endif
+#define ESP_NOW_CHANNEL 0
+
+#else // ESP_NOW
+#define WIFI_CHANNEL 2
+#ifndef ESP_NOW_CHANNEL
+#define ESP_NOW_CHANNEL 1
+#endif
+#if (ESP_NOW_CHANNEL == WIFI_CHANNEL)
+#error "WiFi Channel config error! ESPNOW and WiFi must be on different channels"
+#endif
+#endif // ESP_NOW
+
 
 MDNSResponder mdns;
 
@@ -57,6 +71,7 @@ String my_ipaddress_info_str = "NA";
 #if ESP_NOW
 String espnow_init_info = "";
 #endif
+String bootlog = "";
 
 static const char PROGMEM GO_BACK[] = R"rawliteral(
 <!DOCTYPE html>
@@ -678,8 +693,16 @@ void handleNotFound()
 
 void handleMacAddress()
 {
-  String message = "My MAC address: ";
+  String message = "WiFi STA MAC: ";
   message += WiFi.macAddress();
+  message += "\n  - channel in use: ";
+  message += wifi_get_channel();
+  message += "\n  - mode: ";
+  message += (uint8_t)WiFi.getMode();
+  message += "\n\nWiFi SoftAP MAC: ";
+  message += WiFi.softAPmacAddress();
+  message += "\n  - IP: ";
+  message += WiFi.softAPIP().toString();
   message += "\n";
   server.send(200, "text/plain", message);
 }
@@ -689,25 +712,55 @@ void handleMacAddress()
 
 #include <espnow.h>
 
+class CtrlSerialEspNow: public CtrlSerial
+{
+public:
+  size_t available(void) {
+    return 0; // not used
+  }
+  uint8_t read(void) {
+    return 0; // not used
+  }
+
+  void write(uint8_t * buffer, size_t size) {
+    while (size-- && p_iterator < sizeof(p_buffer)) {
+      p_buffer[p_iterator++] = *buffer++;
+    }
+    if (size)
+      p_iterator = UINT8_MAX; // error, not enough space
+  }
+
+  void reset(void) {
+    p_iterator = 0;
+  }
+  void send_now(mspPacket_t *msp_in) {
+    reset();
+    msp_handler.sendPacket(msp_in, this);
+    if (p_iterator <= sizeof(p_buffer)) // check overflow
+      esp_now_send(NULL, (uint8_t*)p_buffer, p_iterator);
+  }
+
+private:
+  uint8_t p_buffer[64];
+  uint8_t p_iterator = 0;
+};
+
+CtrlSerialEspNow esp_now_sender;
+
 void esp_now_recv_cb(uint8_t *mac_addr, uint8_t *data, uint8_t data_len)
 {
   webSocket.broadcastTXT("ESP NOW CB called!");
 
-  // Push data into ctrl queue, ERLS task will process it
-  // Note: accept only correctly formatted MSP packets
+  // Pass data to ERLS
+  // Note: accepts only correctly formatted MSP packets
   Serial.write((uint8_t*)data, data_len);
 
   char hello[] = "ELRS_ACK\n";
-  esp_now_send(mac_addr, (uint8_t*)hello, strlen(hello)); // send to all registered peers
+  esp_now_send(mac_addr, (uint8_t*)hello, strlen(hello));
 }
 
 void init_esp_now(void)
 {
-  WiFiMode_t mode = WiFi.getMode();
-  if (mode == WIFI_OFF) {
-    WiFi.mode(WIFI_STA); // Start wifi
-  }
-
   espnow_init_info = "ESP NOW init...\n";
 
   if (esp_now_init() != 0) {
@@ -724,7 +777,7 @@ void init_esp_now(void)
   espnow_init_info += "add peers... ";
   for (uint8_t iter = 0; iter < num_peers; iter++) {
     esp_now_del_peer(peers[iter]);
-    if (esp_now_add_peer(peers[iter], ESP_NOW_ROLE_COMBO, 0, NULL, 0) != 0) {
+    if (esp_now_add_peer(peers[iter], ESP_NOW_ROLE_COMBO, ESP_NOW_CHANNEL, NULL, 0) != 0) {
       espnow_init_info += "FAIL:";
       espnow_init_info += iter;
       espnow_init_info += ", ";
@@ -744,6 +797,7 @@ void init_esp_now(void)
 void setup()
 {
   IPAddress my_ip;
+  uint8_t sta_up = 0;
 
 #ifdef INVERTED_SERIAL
   Serial.begin(460800, SERIAL_8N1, SERIAL_FULL, 1, true); // inverted serial
@@ -755,10 +809,17 @@ void setup()
 
   wifi_station_set_hostname("elrs_tx");
 
+#if ESP_NOW
+  // Set WiFi mode to support both STA and AP modes
+  WiFi.mode(WIFI_AP_STA);
+#endif
+
 #if defined(WIFI_SSID) && defined(WIFI_PSK)
   if (WiFi.status() != WL_CONNECTED) {
+#if !ESP_NOW
     WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PSK);
+#endif
+    WiFi.begin(WIFI_SSID, WIFI_PSK, WIFI_CHANNEL); // Force STA on channel 2
   }
   uint32_t i = 0;
 #define TIMEOUT (WIFI_TIMEOUT * 10)
@@ -769,28 +830,31 @@ void setup()
       break;
     }
   }
-  if (i < TIMEOUT) {
-    my_ip = WiFi.localIP();
-  } else
+  sta_up = (WiFi.status() == WL_CONNECTED);
+
 #elif WIFI_MANAGER
   WiFiManager wifiManager;
   wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
-  if (wifiManager.autoConnect(STASSID " R9M")) {
+  if (wifiManager.autoConnect(WIFI_AP_SSID " R9M")) {
     // AP found, connected
     my_ip = WiFi.localIP();
   }
   else
 #endif /* WIFI_MANAGER */
+#if !ESP_NOW
+  if (!sta_up)
   {
-    // No WiFi found, start access point
+    // WiFi not connected, Start access point
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(STASSID " R9M", STAPSK);
-    my_ip = WiFi.softAPIP();
+    WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK);
   }
-
-#if ESP_NOW
+#else // ESP_NOW
+  // Start also access point
+  WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
   init_esp_now();
-#endif
+#endif // ESP_NOW
+
+  my_ip = (sta_up) ? WiFi.localIP() : WiFi.softAPIP();
 
   if (mdns.begin("elrs_tx", my_ip))
   {
@@ -847,14 +911,16 @@ int serialEvent()
             handleSettingRate(NULL);
             handleSettingPower(NULL);
             handleSettingTlm(NULL);
-#if ESP_NOW
-            // Send current settings to all clients
-            esp_now_send(NULL, (uint8_t*)msp_in.payload, msp_in.payloadSize);
-#endif
             break;
           }
         };
       }
+
+#if ESP_NOW
+      // Send received MSP packet to clients
+      esp_now_sender.send_now(&msp_in);
+#endif
+
       msp_handler.markPacketFree();
     } else if (!msp_handler.mspOngoing())
     {
