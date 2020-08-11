@@ -38,41 +38,49 @@ SX127xDriver Radio(RadioSpi, OTA_PACKET_SIZE);
 CRSF_TX crsf(CrsfSerial);
 POWERMGNT PowerMgmt(Radio);
 
-volatile uint32_t DRAM_ATTR _rf_rxtx_counter = 0;
+volatile uint32_t DRAM_ATTR _rf_rxtx_counter;
 static volatile uint8_t DMA_ATTR rx_buffer[OTA_PACKET_SIZE];
-static volatile uint8_t DRAM_ATTR rx_buffer_handle = 0;
-static volatile uint8_t red_led_state = 0;
+static volatile uint8_t DRAM_ATTR rx_buffer_handle;
+static volatile uint8_t red_led_state;
 
-static uint16_t DRAM_ATTR CRCCaesarCipher = 0;
+static uint16_t DRAM_ATTR CRCCaesarCipher;
 
-struct platform_config pl_config = {
-    .key = 0,
-    .mode = RATE_DEFAULT,
-    .power = TX_POWER_DEFAULT,
-    .tlm = TLM_RATIO_DEFAULT,
-};
+struct platform_config pl_config;
 
 /////////// SYNC PACKET ////////
-static uint32_t DRAM_ATTR SyncPacketNextSend = 0;
-static volatile uint32_t DRAM_ATTR sync_send_interval = 0; // Default is send always
+static uint32_t DRAM_ATTR SyncPacketNextSend;
+static volatile uint32_t DRAM_ATTR sync_send_interval; // Default is send always
 
 /////////// CONNECTION /////////
-static uint32_t DRAM_ATTR LastPacketRecvMillis = 0;
+static uint32_t DRAM_ATTR LastPacketRecvMillis;
 volatile connectionState_e DRAM_ATTR connectionState = STATE_disconnected;
 
 //////////// TELEMETRY /////////
-static volatile uint32_t DMA_ATTR expected_tlm_counter = 0;
-static uint32_t DMA_ATTR recv_tlm_counter = 0;
-static volatile uint32_t DRAM_ATTR tlm_check_ratio = 0;
-static volatile uint_fast8_t DRAM_ATTR TLMinterval = 0;
+static volatile uint32_t DMA_ATTR expected_tlm_counter;
+static uint32_t DMA_ATTR recv_tlm_counter;
+static volatile uint32_t DRAM_ATTR tlm_check_ratio;
+static volatile uint_fast8_t DRAM_ATTR TLMinterval;
 static mspPacket_t msp_packet_tx;
 static mspPacket_t msp_packet_rx;
 static MSP msp_packet_parser;
-static volatile uint_fast8_t DRAM_ATTR tlm_msp_send = 0;
-static uint32_t DRAM_ATTR TlmSentToRadioTime = 0;
+static volatile uint_fast8_t DRAM_ATTR tlm_msp_send;
+static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static LPF DRAM_ATTR LPF_dyn_tx_power(3);
-static uint32_t DRAM_ATTR dyn_tx_updated = 0;
+static uint32_t DRAM_ATTR dyn_tx_updated;
 //////////// LUA /////////
+
+///////////////////////////////////////
+
+void init_globals(void) {
+    current_rate_config = RATE_DEFAULT;
+
+    pl_config.key = 0;
+    pl_config.mode = RATE_DEFAULT;
+    pl_config.power = TX_POWER_DEFAULT;
+    pl_config.tlm = TLM_RATIO_DEFAULT;
+
+    connectionState = STATE_disconnected;
+}
 
 ///////////////////////////////////////
 
@@ -555,6 +563,9 @@ void platform_radio_force_stop(void)
 void setup()
 {
     PowerLevels_e power;
+
+    init_globals();
+
     msp_packet_tx.reset();
     msp_packet_rx.reset();
 

@@ -96,7 +96,7 @@ channels_pack(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4)
     rcdata->rc4 = (ch4 >> 1);
     // The round-robin switch
     rcdata->aux_n_idx = ch_idx;
-    rcdata->aux_n = currentSwitches[ch_idx] & 0b111;
+    rcdata->aux_n = currentSwitches[ch_idx];
     // Set type
     rcdata->pkt_type = UL_PACKET_RC_DATA;
 }

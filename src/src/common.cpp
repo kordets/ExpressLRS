@@ -5,7 +5,7 @@
 #include "crc.h"
 #include <Arduino.h>
 
-volatile uint8_t current_rate_config = RATE_DEFAULT;
+volatile uint8_t current_rate_config;
 
 //
 // https://semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R000000HUhK/6T9Vdb3_ldnElA8drIbPYjs1wBbhlWUXej8ZMXtZXOM
@@ -63,7 +63,7 @@ uint8_t get_elrs_airRateMax(void)
     return sizeof(ExpressLRS_AirRateConfig) / sizeof(expresslrs_mod_settings_t);
 }
 
-volatile const expresslrs_mod_settings_t *ExpressLRS_currAirRate = NULL;
+volatile const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
 
 #ifndef MY_UID
 #error "UID is mandatory!"

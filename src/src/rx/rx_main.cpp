@@ -29,58 +29,58 @@ void ICACHE_RAM_ATTR LostConnection();
 ///////////////////
 
 #if RADIO_SX128x
-SX1280Driver Radio(RadioSpi, OTA_PACKET_SIZE);
+SX1280Driver DRAM_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 #else
-SX127xDriver Radio(RadioSpi, OTA_PACKET_SIZE);
+SX127xDriver DRAM_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
-CRSF_RX crsf(CrsfSerial); //pass a serial port object to the class for it to use
+CRSF_RX DRAM_ATTR crsf(CrsfSerial); //pass a serial port object to the class for it to use
 
-volatile connectionState_e connectionState = STATE_disconnected;
-static volatile uint8_t NonceRXlocal = 0; // nonce that we THINK we are up to.
-static volatile uint8_t TLMinterval = 0;
-static volatile uint32_t tlm_check_ratio = 0;
-static volatile uint32_t rx_last_valid_us = 0; //Time the last valid packet was recv
-static volatile int32_t rx_freqerror = 0;
+volatile connectionState_e DRAM_ATTR connectionState = STATE_disconnected;
+static volatile uint8_t DRAM_ATTR NonceRXlocal = 0; // nonce that we THINK we are up to.
+static volatile uint8_t DRAM_ATTR TLMinterval = 0;
+static volatile uint32_t DRAM_ATTR tlm_check_ratio = 0;
+static volatile uint32_t DRAM_ATTR rx_last_valid_us = 0; //Time the last valid packet was recv
+static volatile int32_t DRAM_ATTR rx_freqerror = 0;
 #if NUM_FAILS_TO_RESYNC
 static volatile uint32_t rx_lost_packages = 0;
 #endif
-static volatile int32_t rx_hw_isr_running = 0;
+static volatile int32_t DRAM_ATTR rx_hw_isr_running = 0;
 
 static uint16_t DRAM_ATTR CRCCaesarCipher = 0;
 
 #if SERVO_OUTPUTS_ENABLED
-static volatile uint8_t update_servos = 0;
-static volatile crsf_channels_t channels_servos = {0};
+static volatile uint8_t DRAM_ATTR update_servos = 0;
 #endif
+static EXTRACT_VOLATILE crsf_channels_t DRAM_ATTR CrsfChannels = {0};
 
 ///////////////////////////////////////////////
 ////////////////  Filters  ////////////////////
-static LPF LPF_FreqError(5);
-static LPF LPF_UplinkRSSI(5);
+static LPF DRAM_ATTR LPF_FreqError(5);
+static LPF DRAM_ATTR LPF_UplinkRSSI(5);
 
 //////////////////////////////////////////////////////////////
 ////// Variables for Telemetry and Link Quality //////////////
 
-static volatile uint32_t LastValidPacket = 0; //Time the last valid packet was recv
-static uint32_t SendLinkStatstoFCintervalNextSend = SEND_LINK_STATS_TO_FC_INTERVAL;
-static mspPacket_t msp_packet_rx;
-static mspPacket_t msp_packet_tx;
-static volatile uint_fast8_t tlm_msp_send = 0;
-static volatile uint_fast8_t uplink_Link_quality = 0;
+static volatile uint32_t DRAM_ATTR LastValidPacket = 0; //Time the last valid packet was recv
+static uint32_t DRAM_ATTR SendLinkStatstoFCintervalNextSend = SEND_LINK_STATS_TO_FC_INTERVAL;
+static mspPacket_t DRAM_ATTR msp_packet_rx;
+static mspPacket_t DRAM_ATTR msp_packet_tx;
+static volatile uint_fast8_t DRAM_ATTR tlm_msp_send = 0;
+static volatile uint_fast8_t DRAM_ATTR uplink_Link_quality = 0;
 
 ///////////////////////////////////////////////////////////////
 ///////////// Variables for Sync Behaviour ////////////////////
-static volatile uint32_t RFmodeNextCycle = 0; // set from isr
-static uint32_t RFmodeCycleDelay = 0;
-static uint8_t scanIndex = 0;
-static uint8_t tentative_cnt = 0;
+static volatile uint32_t DRAM_ATTR RFmodeNextCycle = 0; // set from isr
+static uint32_t DRAM_ATTR RFmodeCycleDelay = 0;
+static uint8_t DRAM_ATTR scanIndex = 0;
+static uint8_t DRAM_ATTR tentative_cnt = 0;
 #if RX_UPDATE_AIR_RATE
-static volatile uint32_t updatedAirRate = 0xff;
+static volatile uint32_t DRAM_ATTR updatedAirRate = 0xff;
 #endif
 
 ///////////////////////////////////////
 
-static bool ledState = false;
+static bool DRAM_ATTR ledState = false;
 inline void led_set_state(bool state)
 {
     ledState = state;
@@ -113,8 +113,8 @@ static void ICACHE_RAM_ATTR handle_tlm_ratio(uint8_t interval)
 void ICACHE_RAM_ATTR FillLinkStats()
 {
     int8_t LastRSSI = Radio.LastPacketRSSI;
-    //crsf.ChannelsPacked.ch15 = UINT10_to_CRSF(MAP(LastRSSI, -100, -50, 0, 1023));
-    //crsf.ChannelsPacked.ch14 = UINT10_to_CRSF(MAP_U16(crsf.LinkStatistics.uplink_Link_quality, 0, 100, 0, 1023));
+    //CrsfChannels.ch15 = UINT10_to_CRSF(MAP(LastRSSI, -100, -50, 0, 1023));
+    //CrsfChannels.ch14 = UINT10_to_CRSF(MAP_U16(crsf.LinkStatistics.uplink_Link_quality, 0, 100, 0, 1023));
     int32_t rssiDBM = LPF_UplinkRSSI.update(LastRSSI);
     // our rssiDBM is currently in the range -128 to 98, but BF wants a value in the range
     // 0 to 255 that maps to -1 * the negative part of the rssiDBM, so cap at 0.
@@ -456,15 +456,14 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             DEBUG_PRINT(" R");
             if (STATE_lost < _conn_state)
             {
+                RcChannels_channels_extract(rx_buffer, CrsfChannels);
 #if SERVO_OUTPUTS_ENABLED
-                RcChannels_channels_extract(rx_buffer, channels_servos);
                 update_servos = 1;
 #else // !SERVO_OUTPUTS_ENABLED
-                RcChannels_channels_extract(rx_buffer, crsf.ChannelsPacked);
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
                 digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
 #endif
-                crsf.sendRCFrameToFC();
+                crsf.sendRCFrameToFC(&CrsfChannels);
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
                 digitalWriteFast(DBG_PIN_RX_ISR_FAST, 1);
 #endif
@@ -669,36 +668,9 @@ void loop()
     }
 #endif /* RX_UPDATE_AIR_RATE */
 
-    /* Cycle only if initial connection search */
-    if (connectionState == STATE_disconnected)
+    if (STATE_lost < connectionState)
     {
-        if (RFmodeCycleDelay < (uint32_t)(now - RFmodeNextCycle))
-        {
-            uint8_t max_rate = get_elrs_airRateMax();
-            SetRFLinkRate((scanIndex % max_rate)); //switch between rates
-            scanIndex++;
-            if (max_rate <= scanIndex)
-                platform_connection_state(STATE_search_iteration_done);
-
-            RFmodeNextCycle = now;
-        }
-        else if (150 <= (uint32_t)(now - led_toggle_ms))
-        {
-            led_toggle();
-            led_toggle_ms = now;
-        }
-    }
-    else if (connectionState == STATE_lost)
-    {
-        if (300 <= (uint32_t)(now - led_toggle_ms))
-        {
-            led_toggle();
-            led_toggle_ms = now;
-        }
-    }
-    else if (STATE_lost < connectionState)
-    {
-        // check if we lost conn.
+        // check if connection is lost
         if (ExpressLRS_currAirRate->connectionLostTimeout <= (int32_t)(now - LastValidPacket))
         {
             LostConnection();
@@ -707,7 +679,7 @@ void loop()
         {
 #if SERVO_OUTPUTS_ENABLED
             if (update_servos)
-                servo_out_write(channels_servos);
+                servo_out_write(CrsfChannels);
 #else
             if (SEND_LINK_STATS_TO_FC_INTERVAL <= (uint32_t)(now - SendLinkStatstoFCintervalNextSend))
             {
@@ -726,6 +698,33 @@ void loop()
                 msp_packet_rx.reset();
             }
 #endif
+        }
+    }
+    else if (connectionState == STATE_disconnected)
+    { /* Cycle only if initial connection search */
+
+        if (RFmodeCycleDelay < (uint32_t)(now - RFmodeNextCycle))
+        {
+            uint8_t max_rate = get_elrs_airRateMax();
+            SetRFLinkRate((scanIndex % max_rate)); //switch between rates
+            scanIndex++;
+            if (max_rate <= scanIndex)
+                platform_connection_state(STATE_search_iteration_done);
+
+            RFmodeNextCycle = now;
+        }
+        else if (150 <= (uint32_t)(now - led_toggle_ms))
+        {
+            led_toggle();
+            led_toggle_ms = now;
+        }
+    }
+    else if (connectionState == STATE_lost)
+    { /* Just blink a led if connections is lost */
+        if (300 <= (uint32_t)(now - led_toggle_ms))
+        {
+            led_toggle();
+            led_toggle_ms = now;
         }
     }
 

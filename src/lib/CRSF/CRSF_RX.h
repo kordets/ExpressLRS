@@ -11,12 +11,9 @@ public:
 
     void handleUartIn(volatile uint8_t &rx_data_rcvd);
 
-    void ICACHE_RAM_ATTR sendRCFrameToFC();
+    void ICACHE_RAM_ATTR sendRCFrameToFC(crsf_channels_t * channels);
     void LinkStatisticsSend();
     void ICACHE_RAM_ATTR sendMSPFrameToFC(mspPacket_t& packet);
-
-    // Received channel data
-    crsf_channels_t ChannelsPacked = {0};
 
 private:
     void ICACHE_RAM_ATTR sendFrameToFC(uint8_t *buff, uint8_t size);
