@@ -726,7 +726,7 @@ public:
     while (size-- && p_iterator < sizeof(p_buffer)) {
       p_buffer[p_iterator++] = *buffer++;
     }
-    if (size)
+    if (p_iterator >= sizeof(p_buffer))
       p_iterator = UINT8_MAX; // error, not enough space
   }
 
@@ -735,13 +735,16 @@ public:
   }
   void send_now(mspPacket_t *msp_in) {
     reset();
-    msp_handler.sendPacket(msp_in, this);
-    if (p_iterator <= sizeof(p_buffer)) // check overflow
+    if (msp_handler.sendPacket(msp_in, this) && p_iterator <= sizeof(p_buffer)) // check overflow
+    {
+      msp_handler.sendPacket(msp_in, this);
       esp_now_send(NULL, (uint8_t*)p_buffer, p_iterator);
+      //webSocket.broadcastTXT("MSP sent!");
+    }
   }
 
 private:
-  uint8_t p_buffer[64];
+  uint8_t p_buffer[128];
   uint8_t p_iterator = 0;
 };
 
@@ -749,27 +752,28 @@ CtrlSerialEspNow esp_now_sender;
 
 void esp_now_recv_cb(uint8_t *mac_addr, uint8_t *data, uint8_t data_len)
 {
-  webSocket.broadcastTXT("ESP NOW CB called!");
+  webSocket.broadcastTXT("ESP NOW message received!");
 
   // Pass data to ERLS
   // Note: accepts only correctly formatted MSP packets
-  //Serial.write((uint8_t*)data, data_len);
-
+  Serial.write((uint8_t*)data, data_len);
+#if 0
   char hello[] = "ELRS_ACK\n";
   esp_now_send(mac_addr, (uint8_t*)hello, strlen(hello));
+#endif
 }
 
 void esp_now_send_cb(uint8_t *mac_addr, u8 status) {
-#if 1
+#if 0
   String temp = "ESPNOW Sent: ";
-  temp += (status ? "FAIL\n" : "SUCCESS\n");
+  temp += (status ? "FAIL" : "SUCCESS");
   webSocket.broadcastTXT(temp);
 #endif
 }
 
 void init_esp_now(void)
 {
-  espnow_init_info = "ESP NOW init...\n";
+  espnow_init_info = "ESP NOW init... ";
 
   if (esp_now_init() != 0) {
     espnow_init_info += "ESP NOW init failed!";
@@ -783,22 +787,23 @@ void init_esp_now(void)
 #define ESP_NOW_ETH_ALEN 6
   uint8_t peers[][ESP_NOW_ETH_ALEN] = ESP_NOW_PEERS;
   uint8_t num_peers = sizeof(peers) / ESP_NOW_ETH_ALEN;
-  espnow_init_info += "add peers... ";
   for (uint8_t iter = 0; iter < num_peers; iter++) {
     //esp_now_del_peer(peers[iter]);
     if (esp_now_add_peer(peers[iter], ESP_NOW_ROLE_COMBO, ESP_NOW_CHANNEL, NULL, 0) != 0) {
-      espnow_init_info += "FAIL:";
+      espnow_init_info += ", PEER ";
       espnow_init_info += iter;
-      espnow_init_info += ", ";
+      espnow_init_info += " FAIL";
     }
   }
 #endif // ESP_NOW_PEERS
 
-  espnow_init_info += "\n Init DONE!";
+  espnow_init_info += " - Init DONE!";
 
+#if 0
   // Notify clients
   char hello[] = "ELRS\n";
-  esp_now_send(NULL, (uint8_t*)hello, strlen(hello)); // send to all registered peers
+  esp_now_send(NULL, (uint8_t*)hello, strlen(hello)+1); // send to all registered peers
+#endif
 }
 #endif // ESP_NOW
 /*************************************************/
@@ -818,18 +823,9 @@ void setup()
 
   wifi_station_set_hostname("elrs_tx");
 
-#define USE_AP_STA_MODE 1
-
-#if ESP_NOW && USE_AP_STA_MODE
-  // Set WiFi mode to support both STA and AP modes
-  WiFi.mode(WIFI_AP_STA);
-#endif
-
 #if defined(WIFI_SSID) && defined(WIFI_PSK)
   if (WiFi.status() != WL_CONNECTED) {
-#if !ESP_NOW || !USE_AP_STA_MODE
     WiFi.mode(WIFI_STA);
-#endif
     WiFi.begin(WIFI_SSID, WIFI_PSK, WIFI_CHANNEL);
   }
   uint32_t i = 0;
@@ -848,23 +844,18 @@ void setup()
   wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
   if (wifiManager.autoConnect(WIFI_AP_SSID " R9M")) {
     // AP found, connected
-    my_ip = WiFi.localIP();
+    sta_up = 1;
   }
-  else
 #endif /* WIFI_MANAGER */
+
   if (!sta_up)
   {
     // WiFi not connected, Start access point
-#if !ESP_NOW || !USE_AP_STA_MODE
     WiFi.mode(WIFI_AP);
-#endif
     WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
   }
+
 #if ESP_NOW
-  else {
-    // Start also access point with correct channel for ESP-NOW
-    WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
-  }
   init_esp_now();
 #endif // ESP_NOW
 
