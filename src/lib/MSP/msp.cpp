@@ -153,14 +153,14 @@ bool MSP::processReceivedByte(uint8_t c)
 
         case MSP_HEADER_V2_NATIVE:
             // Read bytes until we have a full header
-            m_inputBuffer[m_offset++] = c;
+            m_packet.payload[m_offset++] = c;
             m_crc = crc8_dvb_s2(m_crc, c);
 
             // If we've received the correct amount of bytes for a full header
             if (m_offset == sizeof(mspHeaderV2_t))
             {
                 // Copy header values into packet
-                mspHeaderV2_t *header = (mspHeaderV2_t *)&m_inputBuffer[0];
+                mspHeaderV2_t *header = (mspHeaderV2_t *)&m_packet.payload[0];
                 m_packet.payloadSize = header->payloadSize;
                 m_packet.function = header->function;
                 m_packet.flags = header->flags;

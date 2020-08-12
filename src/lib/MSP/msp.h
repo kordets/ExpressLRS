@@ -200,6 +200,5 @@ private:
     mspPacket_t m_packet;
     mspState_e m_inputState = MSP_IDLE;
     uint16_t m_offset = 0;
-    uint8_t WORD_ALIGNED_ATTR m_inputBuffer[MSP_PORT_INBUF_SIZE];
     uint8_t m_crc = 0, m_crc_v1 = 0;
 };
