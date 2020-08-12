@@ -37,7 +37,7 @@
 #if defined(ESP_NOW_CHANNEL)
 #undef ESP_NOW_CHANNEL
 #endif
-#define ESP_NOW_CHANNEL 0
+#define ESP_NOW_CHANNEL 1
 
 #else // ESP_NOW
 #define WIFI_CHANNEL 2
@@ -762,8 +762,7 @@ void esp_now_recv_cb(uint8_t *mac_addr, uint8_t *data, uint8_t data_len)
 void esp_now_send_cb(uint8_t *mac_addr, u8 status) {
 #if 1
   String temp = "ESPNOW Sent: ";
-  temp += status;
-  temp += "\n";
+  temp += (status ? "FAIL\n" : "SUCCESS\n");
   webSocket.broadcastTXT(temp);
 #endif
 }
@@ -787,7 +786,7 @@ void init_esp_now(void)
   espnow_init_info += "add peers... ";
   for (uint8_t iter = 0; iter < num_peers; iter++) {
     //esp_now_del_peer(peers[iter]);
-    if (esp_now_add_peer(peers[iter], ESP_NOW_ROLE_SLAVE, ESP_NOW_CHANNEL, NULL, 0) != 0) {
+    if (esp_now_add_peer(peers[iter], ESP_NOW_ROLE_COMBO, ESP_NOW_CHANNEL, NULL, 0) != 0) {
       espnow_init_info += "FAIL:";
       espnow_init_info += iter;
       espnow_init_info += ", ";
@@ -819,17 +818,19 @@ void setup()
 
   wifi_station_set_hostname("elrs_tx");
 
-#if ESP_NOW
+#define USE_AP_STA_MODE 1
+
+#if ESP_NOW && USE_AP_STA_MODE
   // Set WiFi mode to support both STA and AP modes
   WiFi.mode(WIFI_AP_STA);
 #endif
 
 #if defined(WIFI_SSID) && defined(WIFI_PSK)
   if (WiFi.status() != WL_CONNECTED) {
-#if !ESP_NOW
+#if !ESP_NOW || !USE_AP_STA_MODE
     WiFi.mode(WIFI_STA);
 #endif
-    WiFi.begin(WIFI_SSID, WIFI_PSK, WIFI_CHANNEL); // Force STA on channel 2
+    WiFi.begin(WIFI_SSID, WIFI_PSK, WIFI_CHANNEL);
   }
   uint32_t i = 0;
 #define TIMEOUT (WIFI_TIMEOUT * 10)
@@ -854,12 +855,16 @@ void setup()
   if (!sta_up)
   {
     // WiFi not connected, Start access point
+#if !ESP_NOW || !USE_AP_STA_MODE
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK);
+#endif
+    WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
   }
 #if ESP_NOW
-  // Start also access point
-  //WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
+  else {
+    // Start also access point with correct channel for ESP-NOW
+    WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
+  }
   init_esp_now();
 #endif // ESP_NOW
 
