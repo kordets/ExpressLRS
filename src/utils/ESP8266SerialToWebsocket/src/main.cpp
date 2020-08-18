@@ -528,7 +528,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     socketNumber = num;
 
     webSocket.sendTXT(num, my_ipaddress_info_str);
+#if ESP_NOW
     webSocket.sendTXT(num, espnow_init_info);
+#endif
 
     // Send settings
     SettingsGet();
