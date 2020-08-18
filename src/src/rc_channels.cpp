@@ -246,12 +246,41 @@ typedef union {
     {
         uint8_t data[5];
     } payload;
-    uint8_t pkt_type;
+    uint8_t pkt_type : 2, seq : 4, ver : 2;
 } PACKED TlmDataPacket_s;
 
 static_assert(sizeof(TlmDataPacket_s) <= OTA_PACKET_DATA,
               "OTA pkt size is not correct");
 
+uint8_t ICACHE_RAM_ATTR
+RcChannels_tlm_uplink_send(uint8_t *const output,
+                           mspPacket_t &packet,
+                           uint8_t tx)
+{
+    TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)output;
+    uint8_t iter = 0;
+    tlm_ptr->pkt_type = tx ? (uint8_t)UL_PACKET_MSP : (uint8_t)DL_PACKET_TLM_MSP;
+    tlm_ptr->seq = packet.header_sent_or_rcvd++;
+    tlm_ptr->ver = (MSP_VERSION >> 4);
+
+    if (!tlm_ptr->seq) {
+        /* Start MSP packet */
+        tlm_ptr->ver |= (MSP_STARTFLAG >> 4);
+    }
+
+    for (iter = 0; iter < sizeof(tlm_ptr->payload.data); iter++)
+        tlm_ptr->payload.data[iter] = packet.readByte();
+
+    return packet.iterated();
+}
+
+uint8_t ICACHE_RAM_ATTR
+RcChannels_tlm_uplink_receive(volatile uint8_t *const input)
+{
+    TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)input;
+    input[5] >>= 2; // remove pkt_type
+    return (tlm_ptr->ver & (MSP_VERSION >> 4)) ? sizeof(TlmDataPacket_s) : 0; // return data len
+}
 
 uint8_t ICACHE_RAM_ATTR RcChannels_tlm_send(uint8_t *const output,
                                              mspPacket_t &packet,
@@ -288,24 +317,24 @@ uint8_t ICACHE_RAM_ATTR RcChannels_tlm_receive(volatile uint8_t const *const inp
         return 1;
 
     TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)input;
-    if (packet.header_sent_or_rcvd && packet.type == MSP_PACKET_TLM_OTA)
-    {
+    if (tlm_ptr->ver & (MSP_VERSION >> 4)) {
+        if (tlm_ptr->ver & (MSP_STARTFLAG >> 4)) {
+            // first junk, reset packet and start reception
+            packet.reset();
+            packet.type = MSP_PACKET_TLM_OTA;
+            packet.payloadSize = input[0];
+            packet.function = input[1];
+        } else if (tlm_ptr->seq == packet.header_sent_or_rcvd) {
+            // next junk...
+        } else {
+            // error...
+        }
+
+        packet.header_sent_or_rcvd++;
+
         for (uint8_t iter = 0; iter < sizeof(tlm_ptr->payload.data); iter++)
             packet.addByte(tlm_ptr->payload.data[iter]);
     }
-    else if (packet.type == MSP_PACKET_UNKNOWN && !packet.header_sent_or_rcvd)
-    {
-        // buffer free, fill header
-        packet.type = MSP_PACKET_TLM_OTA;
-        packet.flags = tlm_ptr->hdr.flags;
-        packet.function = tlm_ptr->hdr.func;
-        packet.payloadSize = tlm_ptr->hdr.payloadSize;
-        packet.header_sent_or_rcvd = true;
-    }
-    else
-    {
-        packet.error = true;
-        return 0;
-    }
+
     return packet.iterated();
 }

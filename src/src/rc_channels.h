@@ -90,6 +90,13 @@ RcChannels_channels_extract(uint8_t const *const input,
 
 // TLM pkt
 uint8_t ICACHE_RAM_ATTR
+RcChannels_tlm_uplink_send(uint8_t *const output,
+                           mspPacket_t &packet,
+                           uint8_t tx=1);
+uint8_t ICACHE_RAM_ATTR
+RcChannels_tlm_uplink_receive(volatile uint8_t *const input);
+
+uint8_t ICACHE_RAM_ATTR
 RcChannels_tlm_send(uint8_t *const output,
                     mspPacket_t &packet,
                     uint8_t tx=1);

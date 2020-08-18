@@ -63,7 +63,6 @@ static LPF DRAM_ATTR LPF_UplinkRSSI(5);
 
 static volatile uint32_t DRAM_ATTR LastValidPacket = 0; //Time the last valid packet was recv
 static uint32_t DRAM_ATTR SendLinkStatstoFCintervalNextSend = SEND_LINK_STATS_TO_FC_INTERVAL;
-static mspPacket_t DRAM_ATTR msp_packet_rx;
 static mspPacket_t DRAM_ATTR msp_packet_tx;
 static volatile uint_fast8_t DRAM_ATTR tlm_msp_send = 0;
 static volatile uint_fast8_t DRAM_ATTR uplink_Link_quality = 0;
@@ -189,7 +188,7 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
 
     if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
-        if (RcChannels_tlm_send(tx_buffer, msp_packet_tx, 0) || msp_packet_tx.error)
+        if (RcChannels_tlm_uplink_send(tx_buffer, msp_packet_tx, 0) || msp_packet_tx.error)
         {
             msp_packet_tx.reset();
             tlm_msp_send = 0;
@@ -471,10 +470,12 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             }
             break;
 
-        case UL_PACKET_MSP:
+        case UL_PACKET_MSP: {
             DEBUG_PRINT(" M");
-            RcChannels_tlm_receive(rx_buffer, msp_packet_rx);
+            uint8_t len = RcChannels_tlm_uplink_receive(rx_buffer);
+            crsf.sendMSPFrameToFC(rx_buffer, len);
             break;
+        }
 
         case UL_PACKET_UNKNOWN:
         default:
@@ -584,16 +585,17 @@ void msp_data_cb(uint8_t const *const input)
      */
     mspHeaderV1_t *hdr = (mspHeaderV1_t *)input;
 
-    if (sizeof(msp_packet_tx.payload) < hdr->payloadSize)
+    if (sizeof(msp_packet_tx.payload) < (hdr->payloadSize + 3U))
         /* too big, ignore */
         return;
 
     msp_packet_tx.reset(hdr);
     msp_packet_tx.type = MSP_PACKET_TLM_OTA;
-    if (0 < hdr->payloadSize)
-        volatile_memcpy(msp_packet_tx.payload,
-                        hdr->payload,
-                        hdr->payloadSize);
+    msp_packet_tx.payloadSize = hdr->payloadSize + 3;
+
+    volatile_memcpy(msp_packet_tx.payload,
+                    (void*)&input[1],       // skip flags
+                    hdr->payloadSize + 3);  // include size, func and crc
 
     tlm_msp_send = 1; // rdy for sending
 }
@@ -615,7 +617,6 @@ void setup()
     CrsfSerial.Begin(CRSF_RX_BAUDRATE);
 #endif
 
-    msp_packet_rx.reset();
     msp_packet_tx.reset();
 
     DEBUG_PRINTLN("ExpressLRS RX Module...");
@@ -686,16 +687,6 @@ void loop()
                 crsf.LinkStatistics.uplink_Link_quality = uplink_Link_quality;
                 crsf.LinkStatisticsSend();
                 SendLinkStatstoFCintervalNextSend = now;
-            }
-            else if (msp_packet_rx.iterated() || msp_packet_rx.error)
-            {
-                // MPS packet received, handle it
-                if (!msp_packet_rx.error)
-                {
-                    // TODO: Check if packet is for receiver
-                    crsf.sendMSPFrameToFC(msp_packet_rx);
-                }
-                msp_packet_rx.reset();
             }
 #endif
         }

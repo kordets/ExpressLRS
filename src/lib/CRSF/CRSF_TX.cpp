@@ -90,12 +90,14 @@ void CRSF_TX::LuaResponseProcess(void)
 {
     send_buffers &= ~SEND_LUA;
 
-    uint8_t len = CRSF_EXT_FRAME_SIZE(2 + sizeof(lua_buff));
+    uint8_t const msp_len = CRSF_FRAME_NOT_COUNTED_BYTES + sizeof(lua_buff); // dest, orig
+    uint8_t const len = CRSF_EXT_FRAME_SIZE(msp_len);
 
     outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    outBuffer[1] = CRSF_FRAME_SIZE(2 + sizeof(lua_buff));
+    outBuffer[1] = CRSF_FRAME_SIZE(msp_len);
     outBuffer[2] = CRSF_FRAMETYPE_PARAMETER_WRITE;
 
+    // Encapsulated MSP payload
     outBuffer[3] = CRSF_ADDRESS_RADIO_TRANSMITTER;
     outBuffer[4] = CRSF_ADDRESS_CRSF_TRANSMITTER;
 
@@ -110,29 +112,26 @@ void CRSF_TX::sendMspPacketToRadio(mspPacket_t &msp)
     if (!p_RadioConnected)
         return;
 
-    uint8_t msp_len = CRSF_MSP_FRAME_SIZE(msp.payloadSize);
-    uint8_t len = CRSF_EXT_FRAME_SIZE(msp_len);
+    // CRC included in payloadSize
+    uint8_t const msp_len = 3 + msp.payloadSize; // dest, orig, flags
+    uint8_t const len = CRSF_EXT_FRAME_SIZE(msp_len);
 
     if (CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX) < len)
+        /* TODO: split into junks... */
         // just ignore if too big
         return;
 
-    // CRSF MSP packet
+    // CRSF packet
     outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;
     outBuffer[1] = CRSF_FRAME_SIZE(msp_len);
     outBuffer[2] = CRSF_FRAMETYPE_MSP_RESP;
 
+    // Encapsulated MSP payload
     outBuffer[3] = CRSF_ADDRESS_RADIO_TRANSMITTER;
     outBuffer[4] = CRSF_ADDRESS_FLIGHT_CONTROLLER;
-
-    // Encapsulated MSP payload
-    outBuffer[5] = msp.flags;       // 0x30, header
-    outBuffer[6] = msp.payloadSize; // mspPayloadSize
-    outBuffer[7] = msp.function;
-    for (uint16_t i = 8; i < (msp.payloadSize + 8); i++)
-    {
-        // copy packet payload into outBuffer and pad with zeros where required
-        outBuffer[i] = msp.payload[i];
+    outBuffer[5] = MSP_VERSION | MSP_STARTFLAG; // 0x30, header
+    for (uint8_t i = 0; i < msp.payloadSize; i++) {
+        outBuffer[6 + i] = msp.payload[i];
     }
 
     CrsfFramePushToFifo(outBuffer, len);

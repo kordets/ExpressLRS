@@ -1,6 +1,6 @@
 #include "msp.h"
-#include "crc.h"
-#include "platform.h"
+//#include "crc.h"
+//#include "platform.h"
 #include "debug_elrs.h"
 
 /* ==========================================

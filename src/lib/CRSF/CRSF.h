@@ -32,11 +32,17 @@
 
 #define CRSF_PAYLOAD_SIZE_MAX 62
 #define CRSF_FRAME_NOT_COUNTED_BYTES 2
-#define CRSF_MSP_FRAME_NOT_COUNTED_BYTES 6                                            // dest, orig, hdr, size, cmd, crc
+#define CRSF_MSP_FRAME_NOT_COUNTED_BYTES 4 // type, dest, orig, crc
 #define CRSF_FRAME_SIZE(payload_size) ((payload_size) + CRSF_FRAME_NOT_COUNTED_BYTES) // See crsf_header_t.frame_size
 #define CRSF_EXT_FRAME_SIZE(payload_size) (CRSF_FRAME_SIZE(payload_size) + CRSF_FRAME_NOT_COUNTED_BYTES)
 #define CRSF_MSP_FRAME_SIZE(payload_size) ((payload_size) + CRSF_MSP_FRAME_NOT_COUNTED_BYTES)
 #define CRSF_FRAME_SIZE_MAX (CRSF_PAYLOAD_SIZE_MAX + CRSF_FRAME_NOT_COUNTED_BYTES)
+
+#define CRSF_FRAME_LENGTH_EXT_TYPE_CRC 4 // length of Extended Dest/Origin, TYPE and CRC fields combined
+
+#define CRSF_MSP_REQ_PAYLOAD_SIZE 8
+#define CRSF_MSP_RESP_PAYLOAD_SIZE 58
+#define CRSF_MSP_MAX_PAYLOAD_SIZE (CRSF_MSP_REQ_PAYLOAD_SIZE > CRSF_MSP_RESP_PAYLOAD_SIZE ? CRSF_MSP_REQ_PAYLOAD_SIZE : CRSF_MSP_RESP_PAYLOAD_SIZE)
 
 //////////////////////////////////////////////////////////////
 

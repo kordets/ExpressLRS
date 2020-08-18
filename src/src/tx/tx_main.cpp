@@ -279,7 +279,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     else if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
         /* send tlm packet if needed */
-        if (RcChannels_tlm_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error)
+        if (RcChannels_tlm_uplink_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error)
         {
             msp_packet_tx.reset();
             tlm_msp_send = 0;
@@ -440,12 +440,15 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
     msp_packet_tx.reset();
     msp_packet_tx.type = MSP_PACKET_TLM_OTA;
     msp_packet_tx.flags = packet.flags;
-    msp_packet_tx.payloadSize = packet.payloadSize + 1; // include CRC
     msp_packet_tx.function = packet.function;
-    for (iter = 0; iter < msp_packet_tx.payloadSize; iter++)
-    {
+    // Convert to CRSF encapsulated MSP message
+    msp_packet_tx.addByte(packet.payloadSize);
+    msp_packet_tx.addByte(packet.function);
+    for (iter = 0; iter < packet.payloadSize; iter++) {
         msp_packet_tx.addByte(packet.payload[iter]);
     }
+    msp_packet_tx.addByte(msp_packet_tx.crc);
+    msp_packet_tx.setIteratorToSize();
     tlm_msp_send = 1; // rdy for sending
 }
 #endif
@@ -525,7 +528,7 @@ static void msp_data_cb(uint8_t const *const input)
      */
     mspHeaderV1_t *hdr = (mspHeaderV1_t *)input;
 
-    if (sizeof(msp_packet_tx.payload) < hdr->payloadSize) {
+    if (sizeof(msp_packet_tx.payload) < (hdr->payloadSize + 3U)) {
         /* too big, ignore */
         DEBUG_PRINTLN(" too big, ignore!");
         return;
@@ -539,17 +542,15 @@ static void msp_data_cb(uint8_t const *const input)
     DEBUG_PRINT(hdr->flags);
     DEBUG_PRINT(" func: ");
     DEBUG_PRINT(hdr->function);
+    DEBUG_PRINTLN(" >>");
 
     msp_packet_tx.reset(hdr);
     msp_packet_tx.type = MSP_PACKET_TLM_OTA;
-    if (0 < hdr->payloadSize)
-        volatile_memcpy(msp_packet_tx.payload,
-                        hdr->payload,
-                        hdr->payloadSize);
-    // include CRC into payload!!
-    msp_packet_tx.payload[hdr->payloadSize] = hdr->payload[hdr->payloadSize];
+    msp_packet_tx.payloadSize = hdr->payloadSize + 3;
 
-    DEBUG_PRINTLN(" >>");
+    volatile_memcpy(msp_packet_tx.payload,
+                    (void*)&input[1],       // skip flags
+                    hdr->payloadSize + 3);  // include size, func and crc
 
     tlm_msp_send = 1; // rdy for sending
 }
@@ -701,7 +702,6 @@ void loop()
                             break;
                     };
                 } else {
-                    packet.flags = MSP_VERSION | MSP_STARTFLAG;
                     MspOtaCommandsSend(packet);
                 }
                 msp_packet_parser.markPacketFree();

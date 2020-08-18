@@ -14,6 +14,7 @@ public:
     void ICACHE_RAM_ATTR sendRCFrameToFC(crsf_channels_t * channels);
     void LinkStatisticsSend();
     void ICACHE_RAM_ATTR sendMSPFrameToFC(mspPacket_t& packet);
+    void ICACHE_RAM_ATTR sendMSPFrameToFC(uint8_t const *const packet, uint8_t len);
 
 private:
     void ICACHE_RAM_ATTR sendFrameToFC(uint8_t *buff, uint8_t size);

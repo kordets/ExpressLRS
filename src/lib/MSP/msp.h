@@ -2,6 +2,9 @@
 
 #include "platform.h"
 #include "helpers.h"
+#include "msptypes.h"
+#include "crc.h"
+
 #include <HardwareSerial.h>
 #include <Arduino.h>
 
@@ -9,8 +12,6 @@ enum {
     ELRS_INT_MSP_PARAMS = 1,
 };
 
-// TODO: MSP_PORT_INBUF_SIZE should be changed to
-// dynamically allocate array length based on the payload size
 // Hardcoding payload size to 8 bytes for now, since MSP is
 // limited to a 4 byte payload on the BF side
 //#define MSP_PORT_INBUF_SIZE 16 // was 8
@@ -87,8 +88,9 @@ typedef struct
     uint16_t volatile payloadSize;
     uint16_t volatile payloadIterator;
     uint8_t volatile flags;
+    uint8_t volatile header_sent_or_rcvd;
+    uint8_t volatile crc;
     bool volatile error;
-    bool volatile header_sent_or_rcvd;
 
     inline uint8_t iterated()
     {
@@ -104,33 +106,22 @@ typedef struct
         payloadSize = 0;
         payloadIterator = 0;
         error = false;
-        header_sent_or_rcvd = false;
+        header_sent_or_rcvd = 0;
+        crc = 0;
     }
     void ICACHE_RAM_ATTR reset(mspHeaderV1_t *hdr)
     {
-        type = MSP_PACKET_UNKNOWN;
+        reset();
         flags = hdr->flags;
         function = hdr->function;
         payloadSize = hdr->payloadSize;
-        payloadIterator = 0;
-        error = false;
-        header_sent_or_rcvd = false;
     }
     void ICACHE_RAM_ATTR reset(mspHeaderV2_t *hdr)
     {
-        type = MSP_PACKET_UNKNOWN;
+        reset();
         flags = hdr->flags;
         function = hdr->function;
         payloadSize = hdr->payloadSize;
-        payloadIterator = 0;
-        error = false;
-        header_sent_or_rcvd = false;
-    }
-
-    void ICACHE_RAM_ATTR setPayloadSize(uint8_t len)
-    {
-        // func + payload
-        payloadSize = len + 1;
     }
 
     void ICACHE_RAM_ATTR addByte(uint8_t b)
@@ -140,6 +131,7 @@ typedef struct
             error = true;
             return;
         }
+        crc = CalcCRCxor(&b, 1, crc);
         payload[payloadIterator++] = b;
     }
 
@@ -147,16 +139,6 @@ typedef struct
     {
         payloadSize = payloadIterator;
         payloadIterator = 0;
-    }
-
-    inline void ICACHE_RAM_ATTR makeResponse()
-    {
-        type = MSP_PACKET_V2_RESPONSE;
-    }
-
-    inline void ICACHE_RAM_ATTR makeCommand()
-    {
-        type = MSP_PACKET_V2_COMMAND;
     }
 
     uint8_t ICACHE_RAM_ATTR readByte()
