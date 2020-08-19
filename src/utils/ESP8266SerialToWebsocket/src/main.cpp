@@ -490,13 +490,14 @@ void handleSettingDomain(const char * input, int num = -1)
     webSocket.broadcastTXT(settings_out);
 }
 
-void MspVtxWrite(void)
+void MspVtxWrite(const char * input, int num = -1)
 {
-  // TODO, FIXME: VTX power & freq
+  (void)num;
+  (void)input;
   uint8_t power = 1;
-  uint16_t freq = 5880; //(uint16_t)msg[0] * 8 + msg[1]; // band * 8 + channel
+  uint16_t freq = 5840; //(uint16_t)msg[0] * 8 + msg[1]; // band * 8 + channel
   uint8_t vtx_cmd[] = {
-    (uint8_t)(freq >> 8), (uint8_t)freq,
+    (uint8_t)freq, (uint8_t)(freq >> 8),
     power,
     (power == 0), // pit mode
   };
@@ -563,6 +564,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
       temp = strstr((char*)payload, "S_telemetry");
       if (temp) {
         handleSettingTlm(&temp[11], num);
+      }
+      temp = strstr((char*)payload, "S_vtx_freq");
+      if (temp) {
+        MspVtxWrite(&temp[10], num);
       }
     }
     break;
