@@ -235,18 +235,23 @@ void ICACHE_RAM_ATTR RcChannels_get_packed_data(uint8_t *const output)
  * TELEMETRY OTA PACKET
  *************************************************************************************/
 
-typedef union {
-    struct
-    {
-        uint16_t func;
-        uint16_t payloadSize;
+typedef struct {
+    union {
+        struct
+        {
+            uint16_t func;
+            uint16_t payloadSize;
+            uint8_t flags;
+        } PACKED hdr;
+        struct
+        {
+            uint8_t data[5];
+        } PACKED payload;
+    };
+    union {
+        uint8_t pkt_type : 2, seq : 4, ver : 2;
         uint8_t flags;
-    } hdr;
-    struct
-    {
-        uint8_t data[5];
-    } payload;
-    uint8_t pkt_type : 2, seq : 4, ver : 2;
+    };
 } PACKED TlmDataPacket_s;
 
 static_assert(sizeof(TlmDataPacket_s) <= OTA_PACKET_DATA,
@@ -278,8 +283,8 @@ uint8_t ICACHE_RAM_ATTR
 RcChannels_tlm_uplink_receive(volatile uint8_t *const input)
 {
     TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)input;
-    input[5] >>= 2; // remove pkt_type
-    return (tlm_ptr->ver & (MSP_VERSION >> 4)) ? sizeof(TlmDataPacket_s) : 0; // return data len
+    tlm_ptr->flags >>= 2; // remove pkt_type
+    return (tlm_ptr->flags & MSP_VERSION) ? sizeof(TlmDataPacket_s) : 0; // return data len
 }
 
 uint8_t ICACHE_RAM_ATTR RcChannels_tlm_send(uint8_t *const output,
@@ -317,14 +322,15 @@ uint8_t ICACHE_RAM_ATTR RcChannels_tlm_receive(volatile uint8_t const *const inp
         return 1;
 
     TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)input;
-    if (tlm_ptr->ver & (MSP_VERSION >> 4)) {
-        if (tlm_ptr->ver & (MSP_STARTFLAG >> 4)) {
+    tlm_ptr->flags >>= 2; // remove pkt_type
+    if (tlm_ptr->flags & MSP_VERSION) {
+        if (tlm_ptr->flags & MSP_STARTFLAG) {
             // first junk, reset packet and start reception
             packet.reset();
             packet.type = MSP_PACKET_TLM_OTA;
             packet.payloadSize = input[0];
             packet.function = input[1];
-        } else if (tlm_ptr->seq == packet.header_sent_or_rcvd) {
+        } else if ((tlm_ptr->flags & 0xf) == packet.header_sent_or_rcvd) {
             // next junk...
         } else {
             // error...

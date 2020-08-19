@@ -131,7 +131,7 @@ typedef struct
             error = true;
             return;
         }
-        crc = CalcCRCxor(&b, 1, crc);
+        crc = CalcCRCxor(b, crc);
         payload[payloadIterator++] = b;
     }
 

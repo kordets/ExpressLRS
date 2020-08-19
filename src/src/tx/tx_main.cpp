@@ -279,11 +279,13 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     else if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
         /* send tlm packet if needed */
-        if (RcChannels_tlm_uplink_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error)
-        {
+        if (RcChannels_tlm_uplink_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error) {
+            DEBUG_PRINT("<< MSP DONE ");
+            DEBUG_PRINTLN(msp_packet_tx.error);
             msp_packet_tx.reset();
             tlm_msp_send = 0;
-            //DEBUG_PRINTLN("<< MSP sent");
+        } else {
+            DEBUG_PRINTLN("<< MSP junk sent");
         }
     }
     else
@@ -437,6 +439,14 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
     if (tlm_msp_send)
         return;
 
+    DEBUG_PRINT("CTRL_SERIAL MSP: size: ");
+    DEBUG_PRINT(packet.payloadSize);
+    DEBUG_PRINT(" flags: ");
+    DEBUG_PRINT(packet.flags, HEX);
+    DEBUG_PRINT(" func: ");
+    DEBUG_PRINT(packet.function);
+    DEBUG_PRINTLN(" >>");
+
     msp_packet_tx.reset();
     msp_packet_tx.type = MSP_PACKET_TLM_OTA;
     msp_packet_tx.flags = packet.flags;
@@ -449,6 +459,7 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
     }
     msp_packet_tx.addByte(msp_packet_tx.crc);
     msp_packet_tx.setIteratorToSize();
+
     tlm_msp_send = 1; // rdy for sending
 }
 #endif
