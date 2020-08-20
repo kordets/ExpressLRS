@@ -258,14 +258,14 @@ static_assert(sizeof(TlmDataPacket_s) <= OTA_PACKET_DATA,
               "OTA pkt size is not correct");
 
 uint8_t ICACHE_RAM_ATTR
-RcChannels_tlm_uplink_send(uint8_t *const output,
-                           mspPacket_t &packet,
-                           uint8_t tx)
+RcChannels_tlm_ota_send(uint8_t *const output,
+                        mspPacket_t &packet,
+                        uint8_t tx)
 {
     TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)output;
     uint8_t iter = 0;
     tlm_ptr->pkt_type = tx ? (uint8_t)UL_PACKET_MSP : (uint8_t)DL_PACKET_TLM_MSP;
-    tlm_ptr->seq = packet.header_sent_or_rcvd++;
+    tlm_ptr->seq = packet.sequence_nbr++;
     tlm_ptr->ver = (MSP_VERSION >> 4);
 
     if (!tlm_ptr->seq) {
@@ -287,36 +287,9 @@ RcChannels_tlm_uplink_receive(volatile uint8_t *const input)
     return (tlm_ptr->flags & MSP_VERSION) ? sizeof(TlmDataPacket_s) : 0; // return data len
 }
 
-uint8_t ICACHE_RAM_ATTR RcChannels_tlm_send(uint8_t *const output,
-                                             mspPacket_t &packet,
-                                             uint8_t tx)
-{
-    TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)output;
-
-    /* Ignore invalid packets */
-    if (packet.type != MSP_PACKET_TLM_OTA)
-        return 0;
-
-    tlm_ptr->pkt_type = tx ? (uint8_t)UL_PACKET_MSP : (uint8_t)DL_PACKET_TLM_MSP;
-
-    if (!packet.header_sent_or_rcvd)
-    {
-        /* Send header and first byte */
-        tlm_ptr->hdr.flags = packet.flags;
-        tlm_ptr->hdr.func = packet.function;
-        tlm_ptr->hdr.payloadSize = packet.payloadSize;
-        packet.header_sent_or_rcvd = true;
-    }
-    else
-    {
-        for (uint8_t iter = 0; iter < sizeof(tlm_ptr->payload.data); iter++)
-            tlm_ptr->payload.data[iter] = packet.readByte();
-    }
-    return packet.iterated();
-}
-
-uint8_t ICACHE_RAM_ATTR RcChannels_tlm_receive(volatile uint8_t const *const input,
-                                                mspPacket_t &packet)
+uint8_t ICACHE_RAM_ATTR
+RcChannels_tlm_downlink_receive(volatile uint8_t const *const input,
+                                mspPacket_t &packet)
 {
     if (packet.iterated())
         return 1;
@@ -330,13 +303,13 @@ uint8_t ICACHE_RAM_ATTR RcChannels_tlm_receive(volatile uint8_t const *const inp
             packet.type = MSP_PACKET_TLM_OTA;
             packet.payloadSize = input[0];
             packet.function = input[1];
-        } else if ((tlm_ptr->flags & 0xf) == packet.header_sent_or_rcvd) {
+        } else if ((tlm_ptr->flags & 0xf) == packet.sequence_nbr) {
             // next junk...
         } else {
             // error...
         }
 
-        packet.header_sent_or_rcvd++;
+        packet.sequence_nbr++;
 
         for (uint8_t iter = 0; iter < sizeof(tlm_ptr->payload.data); iter++)
             packet.addByte(tlm_ptr->payload.data[iter]);

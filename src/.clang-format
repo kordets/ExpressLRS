@@ -15,7 +15,7 @@ IncludeBlocks: Preserve
 SortIncludes: false
 #IndentPPDirectives: AfterHash
 IndentCaseLabels: true
-AlignConsecutiveMacros: true
+#AlignConsecutiveMacros: true
 BinPackArguments: false
 BinPackParameters: false
 Cpp11BracedListStyle: true

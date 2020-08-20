@@ -90,7 +90,7 @@ void CRSF_TX::LuaResponseProcess(void)
 {
     send_buffers &= ~SEND_LUA;
 
-    uint8_t const msp_len = CRSF_FRAME_NOT_COUNTED_BYTES + sizeof(lua_buff); // dest, orig
+    uint8_t const msp_len = 2 + sizeof(lua_buff); // dest, orig + len
     uint8_t const len = CRSF_EXT_FRAME_SIZE(msp_len);
 
     outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;
@@ -129,7 +129,7 @@ void CRSF_TX::sendMspPacketToRadio(mspPacket_t &msp)
     // Encapsulated MSP payload
     outBuffer[3] = CRSF_ADDRESS_RADIO_TRANSMITTER;
     outBuffer[4] = CRSF_ADDRESS_FLIGHT_CONTROLLER;
-    outBuffer[5] = MSP_VERSION | MSP_STARTFLAG; // 0x30, header
+    outBuffer[5] = MSP_VERSION | MSP_STARTFLAG; // flags
     for (uint8_t i = 0; i < msp.payloadSize; i++) {
         outBuffer[6 + i] = msp.payload[i];
     }

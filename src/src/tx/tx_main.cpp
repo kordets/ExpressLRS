@@ -169,7 +169,7 @@ static void process_rx_buffer()
         case DL_PACKET_TLM_MSP:
         {
             //DEBUG_PRINTLN("DL MSP junk");
-            RcChannels_tlm_receive(rx_buffer, msp_packet_rx);
+            RcChannels_tlm_downlink_receive(rx_buffer, msp_packet_rx);
             break;
         }
         case DL_PACKET_TLM_LINK:
@@ -279,7 +279,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     else if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
         /* send tlm packet if needed */
-        if (RcChannels_tlm_uplink_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error) {
+        if (RcChannels_tlm_ota_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error) {
             DEBUG_PRINT("<< MSP DONE ");
             DEBUG_PRINTLN(msp_packet_tx.error);
             msp_packet_tx.reset();
@@ -431,45 +431,10 @@ static void ParamWriteHandler(uint8_t const *msg, uint16_t len)
 #endif /* CTRL_SERIAL */
 }
 
-#ifdef CTRL_SERIAL
-static void MspOtaCommandsSend(mspPacket_t &packet)
-{
-    uint8_t iter;
-    // ignore if reserved
-    if (tlm_msp_send)
-        return;
-
-    DEBUG_PRINT("CTRL_SERIAL MSP: size: ");
-    DEBUG_PRINT(packet.payloadSize);
-    DEBUG_PRINT(" flags: ");
-    DEBUG_PRINT(packet.flags, HEX);
-    DEBUG_PRINT(" func: ");
-    DEBUG_PRINT(packet.function);
-    DEBUG_PRINTLN(" >>");
-
-    msp_packet_tx.reset();
-    msp_packet_tx.type = MSP_PACKET_TLM_OTA;
-    msp_packet_tx.flags = packet.flags;
-    msp_packet_tx.function = packet.function;
-    // Convert to CRSF encapsulated MSP message
-    msp_packet_tx.addByte(packet.payloadSize);
-    msp_packet_tx.addByte(packet.function);
-    for (iter = 0; iter < packet.payloadSize; iter++) {
-        msp_packet_tx.addByte(packet.payload[iter]);
-    }
-    msp_packet_tx.addByte(msp_packet_tx.crc);
-    msp_packet_tx.setIteratorToSize();
-
-    tlm_msp_send = 1; // rdy for sending
-}
-#endif
-
 ///////////////////////////////////////
 
 static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link (hz)
 {
-    // TODO: Protect this by disabling timer/isr...
-
     const expresslrs_mod_settings_t *const config = get_elrs_airRateConfig(rate);
     if (config == NULL || config == ExpressLRS_currAirRate)
         return 0; // No need to modify, rate is same
@@ -524,22 +489,21 @@ static void rc_data_cb(crsf_channels_t const *const channels)
 /* OpenTX sends v1 MSPs */
 static void msp_data_cb(uint8_t const *const input)
 {
-    if (tlm_msp_send) {
-        DEBUG_PRINTLN("MSP ongoing, ignore");
-        return;
-    }
-
-    DEBUG_PRINT("MSP from radio: ");
-
-    /* process MSP packet from radio
+     /* process MSP packet from radio
      *  [0] header: seq&0xF,
      *  [1] payload size
      *  [2] function
      *  [3...] payload + crc
      */
     mspHeaderV1_t *hdr = (mspHeaderV1_t *)input;
+    uint8_t payloadSize = hdr->payloadSize + 1U; // include size
 
-    if (sizeof(msp_packet_tx.payload) < (hdr->payloadSize + 3U)) {
+   DEBUG_PRINT("MSP from radio: ");
+
+    if (tlm_msp_send) {
+        DEBUG_PRINTLN(" msp packet reserved, ignore");
+        return;
+    } else if (sizeof(msp_packet_tx.payload) < payloadSize) {
         /* too big, ignore */
         DEBUG_PRINTLN(" too big, ignore!");
         return;
@@ -557,14 +521,51 @@ static void msp_data_cb(uint8_t const *const input)
 
     msp_packet_tx.reset(hdr);
     msp_packet_tx.type = MSP_PACKET_TLM_OTA;
-    msp_packet_tx.payloadSize = hdr->payloadSize + 3;
+    msp_packet_tx.payloadSize = payloadSize;
 
     volatile_memcpy(msp_packet_tx.payload,
-                    (void*)&input[1],       // skip flags
-                    hdr->payloadSize + 3);  // include size, func and crc
+                    (void*)&input[1], // skip flags
+                    payloadSize);
 
     tlm_msp_send = 1; // rdy for sending
 }
+
+#ifdef CTRL_SERIAL
+static void MspOtaCommandsSend(mspPacket_t &packet)
+{
+    uint8_t iter;
+
+    DEBUG_PRINT("CTRL_SERIAL MSP: ");
+
+    if (tlm_msp_send) {
+        DEBUG_PRINTLN(" msp packet reserved, ignore");
+        return;
+    }
+
+    DEBUG_PRINT("size: ");
+    DEBUG_PRINT(packet.payloadSize);
+    DEBUG_PRINT(" flags: ");
+    DEBUG_PRINT(packet.flags, HEX);
+    DEBUG_PRINT(" func: ");
+    DEBUG_PRINT(packet.function);
+    DEBUG_PRINTLN(" >>");
+
+    msp_packet_tx.reset();
+    msp_packet_tx.type = MSP_PACKET_TLM_OTA;
+    msp_packet_tx.flags = packet.flags;
+    msp_packet_tx.function = packet.function;
+    // Convert to CRSF encapsulated MSP message
+    msp_packet_tx.addByte(packet.payloadSize);
+    msp_packet_tx.addByte(packet.function);
+    for (iter = 0; iter < packet.payloadSize; iter++) {
+        msp_packet_tx.addByte(packet.payload[iter]);
+    }
+    msp_packet_tx.addByte(msp_packet_tx.crc);
+    msp_packet_tx.setIteratorToSize();
+
+    tlm_msp_send = 1; // rdy for sending
+}
+#endif
 
 void platform_radio_force_stop(void)
 {
@@ -694,8 +695,8 @@ void loop()
                 //  MSP received, check content
                 mspPacket_t &packet = msp_packet_parser.getPacket();
 
-                DEBUG_PRINT("MSP rcvd, type:");
-                DEBUG_PRINTLN(packet.type);
+                //DEBUG_PRINT("MSP rcvd, type:");
+                //DEBUG_PRINTLN(packet.type);
 
                 /* Check if packet is ELRS internal */
                 if ((packet.type == MSP_PACKET_V1_ELRS) && (packet.flags & MSP_ELRS_INT)) {

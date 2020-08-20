@@ -188,7 +188,7 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
 
     if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
-        if (RcChannels_tlm_uplink_send(tx_buffer, msp_packet_tx, 0) || msp_packet_tx.error)
+        if (RcChannels_tlm_ota_send(tx_buffer, msp_packet_tx, 0) || msp_packet_tx.error)
         {
             msp_packet_tx.reset();
             tlm_msp_send = 0;

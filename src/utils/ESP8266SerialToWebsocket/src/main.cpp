@@ -292,7 +292,6 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
           </select>
         </td>
       </tr>
-      <!--
       <tr>
         <td style="padding: 1px 1px 1px 20px;">
         VTX Settings
@@ -310,6 +309,7 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
             <option value="5880">F8</option>
           </select>
         </td>
+        <!--
         <td style="padding: 1px 1px 1px 20px;">
           Power:
           <select name="vtx_pwr" onchange="setting_send('S_vtx_pwr', this)" id="vtx_p_input">
@@ -319,8 +319,8 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
             <option value="3">2</option>
           </select>
         </td>
+        -->
       </tr>
-      -->
     </table>
 
     <hr/>
@@ -494,12 +494,20 @@ void MspVtxWrite(const char * input, int num = -1)
 {
   (void)num;
   (void)input;
-  uint8_t power = 1;
+  //uint8_t power = 1;
   uint16_t freq = 5840; //(uint16_t)msg[0] * 8 + msg[1]; // band * 8 + channel
+
+  if (input[0] == '=') {
+    freq = (input[1] - '0');
+    freq = freq*10 + (input[2] - '0');
+    freq = freq*10 + (input[3] - '0');
+    freq = freq*10 + (input[4] - '0');
+  }
+
   uint8_t vtx_cmd[] = {
     (uint8_t)freq, (uint8_t)(freq >> 8),
-    power,
-    (power == 0), // pit mode
+    //power,
+    //(power == 0), // pit mode
   };
 
   // Fill MSP packet

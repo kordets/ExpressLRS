@@ -88,7 +88,7 @@ typedef struct
     uint16_t volatile payloadSize;
     uint16_t volatile payloadIterator;
     uint8_t volatile flags;
-    uint8_t volatile header_sent_or_rcvd;
+    uint8_t volatile sequence_nbr;
     uint8_t volatile crc;
     bool volatile error;
 
@@ -106,7 +106,7 @@ typedef struct
         payloadSize = 0;
         payloadIterator = 0;
         error = false;
-        header_sent_or_rcvd = 0;
+        sequence_nbr = 0;
         crc = 0;
     }
     void ICACHE_RAM_ATTR reset(mspHeaderV1_t *hdr)
@@ -124,7 +124,7 @@ typedef struct
         payloadSize = hdr->payloadSize;
     }
 
-    void ICACHE_RAM_ATTR addByte(uint8_t b)
+    inline void addByte(uint8_t b)
     {
         if (payloadIterator >= sizeof(payload))
         {
