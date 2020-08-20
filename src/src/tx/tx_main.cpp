@@ -287,6 +287,14 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
         } else {
             DEBUG_PRINTLN("<< MSP junk sent");
         }
+#if 0
+        DEBUG_PRINT(" MSP: >");
+        for (uint8_t iter = 0; iter < sizeof(__tx_buffer); iter++) {
+            DEBUG_PRINT(" 0x");
+            DEBUG_PRINT(tx_buffer[iter], HEX);
+        }
+        DEBUG_PRINTLN(" <");
+#endif
     }
     else
     {

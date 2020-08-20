@@ -248,10 +248,7 @@ typedef struct {
             uint8_t data[5];
         } PACKED payload;
     };
-    union {
-        uint8_t pkt_type : 2, seq : 4, ver : 2;
-        uint8_t flags;
-    };
+    uint8_t flags;
 } PACKED TlmDataPacket_s;
 
 static_assert(sizeof(TlmDataPacket_s) <= OTA_PACKET_DATA,
@@ -264,14 +261,16 @@ RcChannels_tlm_ota_send(uint8_t *const output,
 {
     TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)output;
     uint8_t iter = 0;
-    tlm_ptr->pkt_type = tx ? (uint8_t)UL_PACKET_MSP : (uint8_t)DL_PACKET_TLM_MSP;
-    tlm_ptr->seq = packet.sequence_nbr++;
-    tlm_ptr->ver = (MSP_VERSION >> 4);
+    tlm_ptr->flags = MSP_VERSION + packet.sequence_nbr++;
 
-    if (!tlm_ptr->seq) {
+    if (packet.sequence_nbr == 1) {
         /* Start MSP packet */
-        tlm_ptr->ver |= (MSP_STARTFLAG >> 4);
+        tlm_ptr->flags |= MSP_STARTFLAG;
     }
+
+    // add pkt_type
+    tlm_ptr->flags <<= 2;
+    tlm_ptr->flags += tx ? (uint8_t)UL_PACKET_MSP : (uint8_t)DL_PACKET_TLM_MSP;
 
     for (iter = 0; iter < sizeof(tlm_ptr->payload.data); iter++)
         tlm_ptr->payload.data[iter] = packet.readByte();

@@ -41,7 +41,6 @@ void ICACHE_RAM_ATTR CRSF_RX::sendRCFrameToFC(crsf_channels_t * channels)
 
 void ICACHE_RAM_ATTR CRSF_RX::sendMSPFrameToFC(uint8_t const *const packet, uint8_t len)
 {
-#if 0
     uint8_t i;
     uint8_t msp_len = 2 + len; // dest, orig + len
     uint8_t frame_len = CRSF_EXT_FRAME_SIZE(msp_len); // total len = msp_len + address & crc
@@ -59,30 +58,17 @@ void ICACHE_RAM_ATTR CRSF_RX::sendMSPFrameToFC(uint8_t const *const packet, uint
     for (i = 0; i < (len - 1); i++) {
         outBuffer[i + 6] = packet[i];              // payload
     }
-#else
-    uint8_t msp_len = 8 + 2;
-    uint8_t frame_len = CRSF_EXT_FRAME_SIZE(msp_len); // total len = msp_len + address & crc
-    uint16_t freq = 5840;
-    //uint16_t freq = (3 << 3) + 5;
-
-    // CRSF frame header
-    outBuffer[0] = CRSF_ADDRESS_BROADCAST;         // address
-    outBuffer[1] = CRSF_FRAME_SIZE(msp_len);       // CRSF frame len
-    outBuffer[2] = CRSF_FRAMETYPE_MSP_WRITE;       // packet type
-    // Encapsulated MSP
-    outBuffer[3] = CRSF_ADDRESS_FLIGHT_CONTROLLER; // destination
-    outBuffer[4] = CRSF_ADDRESS_RADIO_TRANSMITTER; // origin
-    outBuffer[5] = 0x30;                           // flags, last byte in packet buffer
-    outBuffer[6] = 4; // len
-    outBuffer[7] = 89; // write
-    outBuffer[8] = freq & 0xff;
-    outBuffer[9] = (freq >> 8) & 0xff;
-    outBuffer[10] = 1; // pwr
-    outBuffer[11] = 0; // pitmode
-    outBuffer[12 /*frame_len-2*/] = CalcCRCxor(&outBuffer[6], 6);
-#endif
 
     sendFrameToFC(outBuffer, frame_len);
+
+#if 0
+    DEBUG_PRINT(" MSP: >");
+    for (uint8_t iter = 0; iter < frame_len; iter++) {
+        DEBUG_PRINT(" 0x");
+        DEBUG_PRINT(_outBuffer[iter], HEX);
+    }
+    DEBUG_PRINTLN(" <");
+#endif
 }
 
 void CRSF_RX::processPacket(uint8_t const *data)
