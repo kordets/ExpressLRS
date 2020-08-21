@@ -682,6 +682,27 @@ void handleRoot()
   server.send_P(200, "text/html", INDEX_HTML);
 }
 
+void handleMacAddress()
+{
+  uint8_t primaryChan;
+  wifi_second_chan_t secondChan;
+  esp_wifi_get_channel(&primaryChan, &secondChan);
+  (void)secondChan;
+
+  String message = "WiFi STA MAC: ";
+  message += WiFi.macAddress();
+  message += "\n  - channel in use: ";
+  message += primaryChan;
+  message += "\n  - mode: ";
+  message += (uint8_t)WiFi.getMode();
+  message += "\n\nWiFi SoftAP MAC: ";
+  message += WiFi.softAPmacAddress();
+  message += "\n  - IP: ";
+  message += WiFi.softAPIP().toString();
+  message += "\n";
+  server.send(200, "text/plain", message);
+}
+
 void handleNotFound()
 {
   String message = "File Not Found\n\n";
@@ -718,6 +739,7 @@ void web_services_start(void)
 
   server.on("/", handleRoot);
   server.on("/return", sendReturn);
+  server.on("/mac", handleMacAddress);
 
   /* handling uploading firmware file (OTA update) */
   server.on("/update", HTTP_POST, []() {
