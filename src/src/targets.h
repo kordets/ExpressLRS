@@ -114,7 +114,24 @@
 #define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
 
 #define GPIO_PIN_LED_RED     PB15
-#define GPIO_PIN_LED         GPIO_PIN_LED_RED
+
+
+#elif defined(TARGET_SX1280_RX_NANO_v05)
+#define GPIO_PIN_NSS         PA4
+#define GPIO_PIN_MOSI        PA7
+#define GPIO_PIN_MISO        PA6
+#define GPIO_PIN_SCK         PA5
+
+#define GPIO_PIN_DIO0        PA10
+#define GPIO_PIN_DIO1        PA9
+#define GPIO_PIN_DIO2        PA8
+#define GPIO_PIN_RST         PB4
+#define GPIO_PIN_BUSY        PA11
+
+#define GPIO_PIN_RCSIGNAL_RX PB7  // USART1, AFAIO
+#define GPIO_PIN_RCSIGNAL_TX PB6  // USART1, AFAIO
+
+#define GPIO_PIN_LED_RED     PB5
 
 
 /******************************************************************************************/

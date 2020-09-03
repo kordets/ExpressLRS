@@ -14,7 +14,7 @@ HwTimer TxTimer;
 
 static HardwareTimer timer_tx(TIMER_BASE);
 
-#ifdef TARGET_R9MX
+#if defined(TARGET_R9MX) || defined(TARGET_SX1280_RX_NANO_v05)
 static void TimerCallback(void)
 #else
 static void TimerCallback(HardwareTimer *)
