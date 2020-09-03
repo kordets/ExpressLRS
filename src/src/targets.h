@@ -229,10 +229,16 @@ https://github.com/jaxxzer
 #define GPIO_PIN_RST         PC14
 #define GPIO_PIN_RCSIGNAL_RX PA10 // USART1
 #define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
-#define GPIO_PIN_LED_RED     PC1
-#define GPIO_PIN_LED_GREEN   PB3
+#if defined(TARGET_R9MX)
+#  define GPIO_PIN_LED_RED   PB2
+#  define GPIO_PIN_LED_GREEN PB3
+#  define GPIO_PIN_BUTTON    PB0  // pullup e.g. LOW when pressed
+#else
+#  define GPIO_PIN_LED_RED   PC1
+#  define GPIO_PIN_LED_GREEN PB3
+#  define GPIO_PIN_BUTTON    PC13 // pullup e.g. LOW when pressed
+#endif
 #define GPIO_PIN_LED         GPIO_PIN_LED_RED
-#define GPIO_PIN_BUTTON      PC13 // pullup e.g. LOW when pressed
 
 #define GPIO_PIN_DEBUG_RX    PA3 // confirmed, USART2
 #define GPIO_PIN_DEBUG_TX    PA2 // confirmed, USART2
@@ -294,6 +300,8 @@ extern R9DAC r9dac;
 // Serial1 is connected to internal ESP module if in use
 #define CTRL_SERIAL Serial1
 #endif
+
+
 
 
 /**********************************
