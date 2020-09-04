@@ -15,6 +15,8 @@
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
 
+SemaphoreHandle_t DRAM_ATTR irqMutex;
+
 void feedTheDog(void)
 {
     // feed dog 0
@@ -81,6 +83,8 @@ void platform_setup(void)
 {
     disableCore0WDT();
     disableCore1WDT();
+
+    irqMutex = xSemaphoreCreateMutex();
 
     Serial.print("EpressLRS on core ");
     Serial.println(xPortGetCoreID());

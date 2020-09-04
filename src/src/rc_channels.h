@@ -2,7 +2,7 @@
 #define __RC_CHANNELS_H
 
 #include "platform.h"
-#include "CRSF.h" // N_SWITCHES
+#include "CRSF.h" // crsf_channels_t
 #include "msp.h"
 #include <stdint.h>
 
@@ -17,8 +17,10 @@
 
 // current and sent switch values
 #define N_CONTROLS 4
-#define N_SWITCHES 8
-//#define N_CHANNELS 16
+#ifndef N_SWITCHES
+//#define N_SWITCHES 8
+#define N_SWITCHES 5
+#endif
 #define N_CHANNELS (N_CONTROLS + N_SWITCHES)
 
 // expresslrs packet header types

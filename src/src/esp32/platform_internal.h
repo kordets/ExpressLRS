@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 #include <esp_attr.h>
-
 #include <Stream.h>
-
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 #if !defined(ICACHE_RAM_ATTR)
 #define ICACHE_RAM_ATTR IRAM_ATTR
@@ -13,8 +13,10 @@
 
 #define _DISABLE_IRQ()
 #define _ENABLE_IRQ()
-#define _SAVE_IRQ() 0
-#define _RESTORE_IRQ(_x)
+#define _SAVE_IRQ() 0; xSemaphoreTake(irqMutex, portMAX_DELAY);
+#define _RESTORE_IRQ(_x) (void)_x; xSemaphoreGive(irqMutex);
+
+extern SemaphoreHandle_t irqMutex;
 
 class DebugSerial: public Stream
 {

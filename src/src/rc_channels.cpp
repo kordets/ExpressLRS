@@ -24,7 +24,11 @@ typedef struct
     // Packet type
     unsigned pkt_type : 2;
     // The round-robin switch
-#if N_SWITCHES <= 8
+#if N_SWITCHES <= 5
+    unsigned aux_n_idx : 2; // 4 other channels
+    unsigned aux_n : 2;
+    unsigned aux0 : 2; // aux0 is sent always
+#elif N_SWITCHES <= 8
     unsigned aux_n_idx : 3;
     unsigned aux_n : 3;
 #else
@@ -42,16 +46,16 @@ static_assert(sizeof(RcDataPacket_s) <= OTA_PACKET_DATA,
 
 
 // Holds last state of the switches
-uint8_t DRAM_ATTR currentSwitches[N_SWITCHES] = {0};
+uint8_t DRAM_ATTR currentSwitches[N_SWITCHES];
 
 // Packed OTA packet buffer
 // NOTE! ESP32 requires aligned buffer
-volatile uint8_t WORD_ALIGNED_ATTR DRAM_ATTR packed_buffer[OTA_PACKET_SIZE];
+volatile uint8_t DMA_ATTR packed_buffer[OTA_PACKET_SIZE];
 
 // bitmap of changed switches
-uint16_t DRAM_ATTR p_auxChannelsChanged = 0;
+uint16_t DRAM_ATTR p_auxChannelsChanged;
 // which switch should be sent in the next rc packet
-uint8_t DRAM_ATTR p_nextSwitchIndex = 0;
+uint8_t DRAM_ATTR p_nextSwitchIndex;
 
 
 /**
@@ -63,16 +67,28 @@ uint8_t DRAM_ATTR p_nextSwitchIndex = 0;
 inline __attribute__((always_inline)) uint8_t
 getNextSwitchIndex(void)
 {
+    uint16_t changed = p_auxChannelsChanged;
+#if (N_SWITCHES <= 5)
+    changed &= ~(0x1);
+#endif
+
     /* Check if channel is changed and send it immediately,
      * otherwise send next sequential switch */
-    int8_t index = __builtin_ffs(p_auxChannelsChanged) - 1;
-    if (index < 0) {
-        index = p_nextSwitchIndex++;
-        p_nextSwitchIndex %= N_SWITCHES;
+    int8_t index = __builtin_ffs(changed) - 1;
+    if ((index < 0) || (N_SWITCHES < index)) {
+        uint8_t s_index = p_nextSwitchIndex;
+        index = s_index++;
+        s_index %= N_SWITCHES;
+#if N_SWITCHES <= 5
+        if (!s_index) s_index++;
+#endif
+        p_nextSwitchIndex = s_index;
+        changed = 0;
     } else {
-        p_auxChannelsChanged &= ~(0x1 << index);
+        changed &= ~(0x1 << index);
     }
-    return index;
+    p_auxChannelsChanged = changed;
+    return index; // % N_SWITCHES;
 }
 
 /**
@@ -86,19 +102,25 @@ inline __attribute__((always_inline)) void
 channels_pack(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4)
 {
     // find the next switch to send
-    uint8_t ch_idx = getNextSwitchIndex() & 0b111;
+    uint8_t ch_idx = getNextSwitchIndex();
 
+    uint32_t irq = _SAVE_IRQ();
     RcDataPacket_s *rcdata = (RcDataPacket_s *)&packed_buffer[0];
     // The analog channels, scale down to 10bits
     rcdata->rc1 = (ch1 >> 1);
     rcdata->rc2 = (ch2 >> 1);
     rcdata->rc3 = (ch3 >> 1);
     rcdata->rc4 = (ch4 >> 1);
+#if N_SWITCHES <= 5
+    rcdata->aux0 = currentSwitches[0];
+    ch_idx--; // 1...4 => 0...3
+#endif
     // The round-robin switch
     rcdata->aux_n_idx = ch_idx;
     rcdata->aux_n = currentSwitches[ch_idx];
     // Set type
     rcdata->pkt_type = UL_PACKET_RC_DATA;
+    _RESTORE_IRQ(irq);
 }
 
 /**
@@ -118,16 +140,22 @@ void ICACHE_RAM_ATTR RcChannels_channels_extract(uint8_t const *const input,
     PackedRCdataOut.ch3 = ((uint16_t)rcdata->rc4 << 1);
     // The round-robin switch
     switchIndex = rcdata->aux_n_idx;
-#if N_SWITCHES <= 8
+#if N_SWITCHES <= 5
+    PackedRCdataOut.ch4 = SWITCH2b_to_CRSF(rcdata->aux0);
+    switchValue = SWITCH2b_to_CRSF(rcdata->aux_n);
+    switchIndex++; // values 1...4
+#elif N_SWITCHES <= 8
     switchValue = SWITCH3b_to_CRSF(rcdata->aux_n);
 #else
     switchValue = SWITCH2b_to_CRSF(rcdata->aux_n);
 #endif
 
     switch (switchIndex) {
+#if 5 < N_SWITCHES
         case 0:
             PackedRCdataOut.ch4 = switchValue;
             break;
+#endif
         case 1:
             PackedRCdataOut.ch5 = switchValue;
             break;
@@ -140,6 +168,7 @@ void ICACHE_RAM_ATTR RcChannels_channels_extract(uint8_t const *const input,
         case 4:
             PackedRCdataOut.ch8 = switchValue;
             break;
+#if 5 < N_SWITCHES
         case 5:
             PackedRCdataOut.ch9 = switchValue;
             break;
@@ -169,6 +198,9 @@ void ICACHE_RAM_ATTR RcChannels_channels_extract(uint8_t const *const input,
 #endif // 10 < N_SWITCHES
 #endif // 9 < N_SWITCHES
 #endif // 8 < N_SWITCHES
+#endif // 5 < N_SWITCHES
+        default:
+            break;
     }
 }
 
@@ -182,7 +214,9 @@ void RcChannels_processChannels(crsf_channels_t const *const rcChannels)
     uint16_t ChannelDataIn[N_SWITCHES] = {
         (uint16_t)rcChannels->ch4, (uint16_t)rcChannels->ch5,
         (uint16_t)rcChannels->ch6, (uint16_t)rcChannels->ch7,
-        (uint16_t)rcChannels->ch8, (uint16_t)rcChannels->ch9,
+        (uint16_t)rcChannels->ch8,
+#if 5 < N_SWITCHES
+        (uint16_t)rcChannels->ch9,
         (uint16_t)rcChannels->ch10, (uint16_t)rcChannels->ch11
 #if 8 < N_SWITCHES
     , (uint16_t)rcChannels->ch12
@@ -196,6 +230,7 @@ void RcChannels_processChannels(crsf_channels_t const *const rcChannels)
 #endif // 10 < N_SWITCHES
 #endif // 9 < N_SWITCHES
 #endif // 8 < N_SWITCHES
+#endif // 5 < N_SWITCHES
     };
     uint8_t switch_state;
 
@@ -208,17 +243,19 @@ void RcChannels_processChannels(crsf_channels_t const *const rcChannels)
      *  position to be represented by a middle numeric value)
      */
     for (uint8_t idx = 0; idx < N_SWITCHES; idx++) {
-#if N_SWITCHES <= 8
-        // input is 0 - 2048, output is 0 - 7
-        switch_state = CRSF_to_SWITCH3b(ChannelDataIn[idx]) & 0b111;
+#if N_SWITCHES <= 5 || 8 < N_SWITCHES
+        switch_state = CRSF_to_SWITCH2b(ChannelDataIn[idx]);
+        if (0b11 < switch_state) switch_state = 0b11;
 #else
-        // input is 0 - 2048, output is 0 - 2
-        switch_state = CRSF_to_SWITCH2b(ChannelDataIn[idx]) & 0b11;
+        // input is 0 - 2048, output is 0 - 7
+        switch_state = CRSF_to_SWITCH3b(ChannelDataIn[idx]);
+        if (0b111 < switch_state) switch_state = 0b111;
 #endif
         // Check if state is changed
-        if (switch_state != currentSwitches[idx])
+        if (switch_state != currentSwitches[idx]) {
             p_auxChannelsChanged |= (0x1 << idx);
-        currentSwitches[idx] = switch_state;
+            currentSwitches[idx] = switch_state;
+        }
     }
 
     channels_pack(rcChannels->ch0, rcChannels->ch1, rcChannels->ch2, rcChannels->ch3);
@@ -227,8 +264,10 @@ void RcChannels_processChannels(crsf_channels_t const *const rcChannels)
 void ICACHE_RAM_ATTR RcChannels_get_packed_data(uint8_t *const output)
 {
     uint8_t iter = sizeof(RcDataPacket_s);
+    uint32_t irq = _SAVE_IRQ();
     while (iter--)
         output[iter] = packed_buffer[iter];
+    _RESTORE_IRQ(irq);
 }
 
 /*************************************************************************************

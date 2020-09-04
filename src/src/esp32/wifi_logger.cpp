@@ -720,8 +720,8 @@ void handleNotFound()
   server.send(404, "text/plain", message);
 }
 
-uint32_t wifi_setup_ok = false;
-uint32_t servers_started = false;
+uint32_t DRAM_ATTR wifi_setup_ok = false;
+uint32_t DRAM_ATTR servers_started = false;
 
 void web_services_start(void)
 {
@@ -964,13 +964,12 @@ void wifi_init(void)
   init_esp_now();
 #endif
 
-  uint8_t taskPriority = 10;
   xTaskCreatePinnedToCore(
-    httpsTask,              //Function to implement the task
-    "wifiTask",             //Name of the task
-    4096,                   //Stack size in words
-    receive_queue,          //Task input parameter
-    taskPriority,           //Priority of the task
+    httpsTask,              // Function to implement the task
+    "wifiTask",             // Name of the task
+    4096,                   // Stack size in words
+    receive_queue,          // Task input parameter
+    1,                      // Priority of the task
     &wifiTask, 0);
   Serial.println("HTTP task started");
 }
