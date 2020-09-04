@@ -86,6 +86,13 @@
 # NOTE! This disables CRSF UART to FC!
 # -DSERVO_OUTPUTS_ENABLED=1
 
+######################################
+### Defines how many switches are handled
+# value <= 5 : AUX1 is sent always and AUX2...5 in round-robin
+# value > 5  : round-robin is used for all switches
+# Default is 5
+#-DN_SWITCHES=5
+
 ################################
 ### Set your UID or PHRASE.
 # Only one of these is allowed!
