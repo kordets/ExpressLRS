@@ -27,7 +27,7 @@ rand_version = 1
 # The 0 index is special - the 'sync' channel. The sync channel appears every
 # syncInterval hops. The other channels are randomly distributed between the
 # sync channels
-SYNC_INTERVAL = 24
+SYNC_INTERVAL = 37 #25
 
 # Size of the FHSS sequence entries
 #   TODO: modify bigger at some day (e.g 20 * SYNC_INTERVAL).
@@ -219,14 +219,14 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
     elif DOMAIN == "Regulatory_Domain_ISM_2400":
         # These are for 1625kHz band
         FHSSfreqs = [f for f in range(2400400000, 2480000000, 1650000)]
-        SYNC_INTERVAL = 48
+        SYNC_INTERVAL = 65 #49
 
     elif DOMAIN == "Regulatory_Domain_ISM_2400_800kHz":
         # These are for 812.5kHz band
         #FHSSfreqs = [f for f in range(2400400000, 2480000000, 1000000)]
         #FHSSfreqs = [f for f in range(2400400000, 2480000000, 900000)]
         FHSSfreqs = [f for f in range(2400400000, 2480000000, 850000)]
-        SYNC_INTERVAL = 64
+        SYNC_INTERVAL = 65
 
     else:
         raise Exception("[error] No regulatory domain defined, please define one in common.h")
