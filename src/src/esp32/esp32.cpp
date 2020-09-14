@@ -84,10 +84,17 @@ void platform_setup(void)
     disableCore0WDT();
     disableCore1WDT();
 
+    // Set higher task priority
+    vTaskPrioritySet(NULL, 10);
+
     irqMutex = xSemaphoreCreateMutex();
 
-    Serial.print("EpressLRS on core ");
-    Serial.println(xPortGetCoreID());
+#ifdef DEBUG_SERIAL
+    DEBUG_SERIAL.begin(115200);
+#endif // DEBUG_SERIAL
+
+    //Serial.print("EpressLRS on core ");
+    //Serial.println(xPortGetCoreID());
 
     EEPROM.begin(sizeof(struct platform_config));
 
@@ -100,11 +107,7 @@ void platform_setup(void)
     wifi_init();
 #endif
 
-#ifdef DEBUG_SERIAL
-    DEBUG_SERIAL.begin(115200);
-#endif // DEBUG_SERIAL
-
-#if 1
+#if 0
     //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
 
     //strip.Begin();
@@ -163,7 +166,7 @@ void platform_restart(void)
 void platform_wifi_start(void)
 {
 #if WIFI_LOGGER || WIFI_UPDATER
-    platform_radio_force_stop();
+    //platform_radio_force_stop();
     wifi_start();
 #endif
 }

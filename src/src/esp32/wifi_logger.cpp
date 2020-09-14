@@ -98,19 +98,19 @@ CtrlSerial& ctrl_serial = ctrl_msp_send;
 
 /******************* ESP-NOW *********************/
 #if ESP_NOW
-
 #include <esp_now.h>
 
 void esp_now_recv_cb(const uint8_t *mac_addr, const uint8_t *data, int data_len)
 {
+  /* No data or peer is unknown => ignore */
+  if (!data_len || !esp_now_is_peer_exist(mac_addr))
+    return;
+
   Serial.println("ESP NOW CB called!");
 
   // Push data into ctrl queue, ERLS task will process it
   // Note: accept only correctly formatted MSP packets
   ctrl_msp_receive.write((uint8_t*)data, data_len);
-
-  char hello[] = "ELRS_ACK\n";
-  esp_now_send(mac_addr, (uint8_t*)hello, strlen(hello)); // send to all registered peers
 }
 
 void init_esp_now(void)
@@ -119,21 +119,22 @@ void init_esp_now(void)
 
   wifi_mode_t mode = WiFi.getMode();
   if (mode == WIFI_MODE_NULL) {
-    Serial.println("  WiFi not enabled, set STA mode");
-    WiFi.mode(WIFI_STA); // Start wifi
+    Serial.println("(WiFi not enabled, set APSTA mode) ");
+    WiFi.mode(WIFI_MODE_APSTA); // Start wifi
   }
 
   esp_now_init();
   esp_now_register_recv_cb(esp_now_recv_cb);
 
 #ifdef ESP_NOW_PEERS
-  wifi_interface_t ifidx =
-    (mode == WIFI_MODE_AP) ? ESP_IF_WIFI_AP : ESP_IF_WIFI_STA;
+  //wifi_interface_t ifidx =
+  //  (mode == WIFI_MODE_STA) ? ESP_IF_WIFI_STA : ESP_IF_WIFI_AP;
   esp_now_peer_info_t peer_info = {
     .peer_addr = {0},
     .lmk = {0},
-    .channel = 0,
-    .ifidx = ifidx,
+    .channel = ((mode != WIFI_MODE_STA) ? ESP_NOW_CHANNEL : 0),
+    //.ifidx = ifidx,
+    .ifidx = ESP_IF_WIFI_STA,
     .encrypt = false,
     .priv = NULL
   };
@@ -147,10 +148,22 @@ void init_esp_now(void)
 #endif // ESP_NOW_PEERS
 
   Serial.println("DONE");
+}
 
-  // Notify clients
-  char hello[] = "ELRS\n";
-  esp_now_send(NULL, (uint8_t*)hello, strlen(hello)); // send to all registered peers
+void deinit_esp_now(void)
+{
+  Serial.print("Stop ESP-NOW... ");
+
+#ifdef ESP_NOW_PEERS
+  uint8_t peers[][ESP_NOW_ETH_ALEN] = ESP_NOW_PEERS;
+  uint8_t const num_peers = sizeof(peers) / ESP_NOW_ETH_ALEN;
+  for (uint8_t iter = 0; iter < num_peers; iter++) {
+    esp_now_del_peer(peers[iter]);
+  }
+#endif // ESP_NOW_PEERS
+
+  esp_now_deinit();
+  Serial.println("DONE");
 }
 #endif // ESP_NOW
 
@@ -679,7 +692,11 @@ void sendReturn()
 
 void handleRoot()
 {
+#if WIFI_LOGGER || WIFI_UPDATER
   server.send_P(200, "text/html", INDEX_HTML);
+#else
+  server.send_P(200, "text/html", "...Internal ERROR!!");
+#endif
 }
 
 void handleMacAddress()
@@ -856,7 +873,7 @@ int serialEvent(QueueHandle_t queue)
   uint32_t numBytes = uxQueueMessagesWaiting(queue);
   while (numBytes--)
   {
-    if (xQueueReceive(queue, &inChar, (TickType_t)10)) {
+    if (xQueueReceive(queue, &inChar, (TickType_t)1)) {
       if (msp_handler.processReceivedByte(inChar)) {
         WEBSOCKET_BROADCASET("[L] MSP received");
         // msp fully received
@@ -900,8 +917,7 @@ int serialEvent(QueueHandle_t queue)
 
 void wifi_loop(QueueHandle_t queue)
 {
-  if (0 <= serialEvent(queue))
-  {
+  if (0 <= serialEvent(queue)) {
     WEBSOCKET_BROADCASET(inputString);
     inputString = "";
   }
@@ -917,10 +933,16 @@ TaskHandle_t wifiTask = NULL;
 void httpsTask(void *pvParameters)
 {
   QueueHandle_t queue = (QueueHandle_t)pvParameters;
+  TickType_t xLastWakeTime;
+  const TickType_t xFrequency = (20 / portTICK_RATE_MS);
 
   Serial.println("HTTP task started...");
+
+  xLastWakeTime = xTaskGetTickCount();
   for(;;) {
     wifi_loop(queue);
+    // wait for next cycle
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 
   /* delete the input queue */
@@ -945,9 +967,9 @@ void wifi_init(void)
     return;
   }
 
-  if (!receive_queue)
+  if (receive_queue == NULL)
     receive_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
-  if (!send_queue)
+  if (send_queue == NULL)
     send_queue = xQueueCreate(QUEUE_SIZE, sizeof(uint8_t));
 
   ctrl_msp_send.set_queue_rx(send_queue);
@@ -967,27 +989,26 @@ void wifi_init(void)
   xTaskCreatePinnedToCore(
     httpsTask,              // Function to implement the task
     "wifiTask",             // Name of the task
-    4096,                   // Stack size in words
+    4096,                   // Stack size in bytes
     receive_queue,          // Task input parameter
-    1,                      // Priority of the task
+    (tskIDLE_PRIORITY + 1), // Priority of the task
     &wifiTask, 0);
   Serial.println("HTTP task started");
 }
 
 void wifi_start(void)
 {
-  if (wifiTask != NULL) {
-    Serial.println("WiFi init is not called!");
-    return;
-  }
-
+  Serial.println("== Starting WiFi services ==");
+#if ESP_NOW
+  deinit_esp_now();
+#endif
+  wifi_init();
   wifi_setup();
   web_services_start();
 #if ESP_NOW
   init_esp_now();
 #endif
-
-  Serial.println("WiFi services started");
+  Serial.println("WiFi services started!");
 }
 
 void wifi_stop(void)

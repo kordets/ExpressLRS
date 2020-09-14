@@ -55,8 +55,14 @@ public:
 private:
 };
 
-#if defined(WIFI_LOGGER) && !defined(WIFI_UPDATER)
+#if WIFI_LOGGER && !WIFI_UPDATER
 extern DebugSerial wifi_logger_serial;
 #endif
+
+#ifdef ESP_NOW
+#ifndef ESP_NOW_PEERS
+#undef ESP_NOW
+#endif // ESP_NOW_PEERS
+#endif // ESP_NOW
 
 #endif /* __PLATFORM_H_ */

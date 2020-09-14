@@ -11,7 +11,7 @@
 #if WIFI_LOGGER && !WIFI_UPDATER
 #define DEBUG_SERIAL wifi_logger_serial
 #else
-#define DEBUG_SERIAL Serial
+//#define DEBUG_SERIAL Serial
 #endif
 #elif defined(TARGET_R9M_TX)
 #define DEBUG_SERIAL Serial1
