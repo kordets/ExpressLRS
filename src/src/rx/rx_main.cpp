@@ -35,23 +35,25 @@ SX127xDriver DRAM_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
 CRSF_RX DRAM_ATTR crsf(CrsfSerial); //pass a serial port object to the class for it to use
 
-volatile connectionState_e DRAM_ATTR connectionState = STATE_disconnected;
-static volatile uint8_t DRAM_ATTR NonceRXlocal = 0; // nonce that we THINK we are up to.
-static volatile uint8_t DRAM_ATTR TLMinterval = 0;
-static volatile uint32_t DRAM_ATTR tlm_check_ratio = 0;
-static volatile uint32_t DRAM_ATTR rx_last_valid_us = 0; //Time the last valid packet was recv
-static volatile int32_t DRAM_ATTR rx_freqerror = 0;
+volatile connectionState_e DRAM_ATTR connectionState;
+static volatile uint8_t DRAM_ATTR NonceRXlocal; // nonce that we THINK we are up to.
+static volatile uint8_t DRAM_ATTR TLMinterval;
+static volatile uint32_t DRAM_ATTR tlm_check_ratio;
+static volatile uint32_t DRAM_ATTR rx_last_valid_us; //Time the last valid packet was recv
+static volatile int32_t DRAM_ATTR rx_freqerror;
 #if NUM_FAILS_TO_RESYNC
-static volatile uint32_t rx_lost_packages = 0;
+static volatile uint32_t rx_lost_packages;
 #endif
-static volatile int32_t DRAM_ATTR rx_hw_isr_running = 0;
+static volatile int32_t DRAM_ATTR rx_hw_isr_running;
 
-static uint16_t DRAM_ATTR CRCCaesarCipher = 0;
+static uint16_t DRAM_ATTR CRCCaesarCipher;
 
 #if SERVO_OUTPUTS_ENABLED
-static volatile uint8_t DRAM_ATTR update_servos = 0;
+#if !SERVO_WRITE_FROM_ISR
+static volatile uint8_t DRAM_ATTR update_servos;
 #endif
-static EXTRACT_VOLATILE crsf_channels_t DRAM_ATTR CrsfChannels = {0};
+#endif
+static EXTRACT_VOLATILE crsf_channels_t DRAM_ATTR CrsfChannels;
 
 ///////////////////////////////////////////////
 ////////////////  Filters  ////////////////////
@@ -61,18 +63,20 @@ static LPF DRAM_ATTR LPF_UplinkRSSI(5);
 //////////////////////////////////////////////////////////////
 ////// Variables for Telemetry and Link Quality //////////////
 
-static volatile uint32_t DRAM_ATTR LastValidPacket = 0; //Time the last valid packet was recv
-static uint32_t DRAM_ATTR SendLinkStatstoFCintervalNextSend = SEND_LINK_STATS_TO_FC_INTERVAL;
+static volatile uint32_t DRAM_ATTR LastValidPacket; //Time the last valid packet was recv
+#if !SERVO_OUTPUTS_ENABLED
+static uint32_t DRAM_ATTR SendLinkStatstoFCintervalNextSend;
+#endif
 static mspPacket_t DRAM_ATTR msp_packet_tx;
-static volatile uint_fast8_t DRAM_ATTR tlm_msp_send = 0;
-static volatile uint_fast8_t DRAM_ATTR uplink_Link_quality = 0;
+static volatile uint_fast8_t DRAM_ATTR tlm_msp_send;
+static volatile uint_fast8_t DRAM_ATTR uplink_Link_quality;
 
 ///////////////////////////////////////////////////////////////
 ///////////// Variables for Sync Behaviour ////////////////////
-static volatile uint32_t DRAM_ATTR RFmodeNextCycle = 0; // set from isr
-static uint32_t DRAM_ATTR RFmodeCycleDelay = 0;
-static uint8_t DRAM_ATTR scanIndex = 0;
-static uint8_t DRAM_ATTR tentative_cnt = 0;
+static volatile uint32_t DRAM_ATTR RFmodeNextCycle; // set from isr
+static uint32_t DRAM_ATTR RFmodeCycleDelay;
+static uint8_t DRAM_ATTR scanIndex;
+static uint8_t DRAM_ATTR tentative_cnt;
 #if RX_UPDATE_AIR_RATE
 static volatile uint32_t DRAM_ATTR updatedAirRate = 0xff;
 #endif
@@ -329,6 +333,10 @@ void ICACHE_RAM_ATTR LostConnection()
         return; // Already disconnected
     }
 
+#if SERVO_OUTPUTS_ENABLED
+    servo_out_fail_safe();
+#endif
+
     TxTimer.stop(); // Stop sync timer
 
     // Reset FHSS
@@ -457,7 +465,11 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             {
                 RcChannels_channels_extract(rx_buffer, CrsfChannels);
 #if SERVO_OUTPUTS_ENABLED
+#if SERVO_WRITE_FROM_ISR
+                servo_out_write(&CrsfChannels);
+#else
                 update_servos = 1;
+#endif
 #else // !SERVO_OUTPUTS_ENABLED
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
                 digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
@@ -611,6 +623,7 @@ void setup()
     digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
 #endif
 
+    connectionState = STATE_disconnected;
     CRCCaesarCipher = CalcCRC16(UID, sizeof(UID), 0);
 
 #if !SERVO_OUTPUTS_ENABLED
@@ -655,7 +668,9 @@ static uint32_t led_toggle_ms = 0;
 void loop()
 {
     uint32_t now = millis();
+#if !SERVO_OUTPUTS_ENABLED
     uint8_t rx_buffer_handle = 0;
+#endif
 
 #if RX_UPDATE_AIR_RATE
     /* update air rate config, timed to FHSS index 0 */
@@ -679,8 +694,10 @@ void loop()
         else if (connectionState == STATE_connected)
         {
 #if SERVO_OUTPUTS_ENABLED
+#if !SERVO_WRITE_FROM_ISR
             if (update_servos)
-                servo_out_write(CrsfChannels);
+                servo_out_write(&CrsfChannels);
+#endif
 #else
             if (SEND_LINK_STATS_TO_FC_INTERVAL <= (uint32_t)(now - SendLinkStatstoFCintervalNextSend))
             {

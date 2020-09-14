@@ -9,6 +9,14 @@
 #define __section(S)
 #endif
 
+#define SERVO_WRITE_FROM_ISR 0
+#if SERVO_OUTPUTS_ENABLED && !SERVO_WRITE_FROM_ISR
+#define EXTRACT_VOLATILE volatile
+#else
+#define EXTRACT_VOLATILE
+#endif
+
+
 /** EEPROM storage key
 * v0 - initial
 * v1 - tlm added

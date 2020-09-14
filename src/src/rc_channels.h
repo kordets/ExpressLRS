@@ -57,12 +57,6 @@ typedef struct ElrsSyncPacket_s {
     uint8_t pkt_type;
 } ElrsSyncPacket_s;
 
-#if SERVO_OUTPUTS_ENABLED
-#define EXTRACT_VOLATILE volatile
-#else
-#define EXTRACT_VOLATILE
-#endif
-
 
 inline __attribute__((always_inline)) uint8_t
 RcChannels_packetTypeGet(volatile uint8_t const *const input)
