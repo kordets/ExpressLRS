@@ -30,6 +30,10 @@
 #define WIFI_TIMEOUT 60 // default to 1min
 #endif
 
+#ifndef ESP_NOW_CHANNEL
+#define ESP_NOW_CHANNEL 1
+#endif
+
 MDNSResponder mdns;
 WebServer server(80);
 #if WIFI_LOGGER && !WIFI_UPDATER
