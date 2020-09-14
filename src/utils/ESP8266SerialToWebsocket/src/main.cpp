@@ -13,6 +13,13 @@
 #include "stm32Updater.h"
 #include "msp.h"
 
+#ifdef ESP_NOW
+#ifndef ESP_NOW_PEERS
+#undef ESP_NOW
+#endif // ESP_NOW_PEERS
+#endif // ESP_NOW
+
+
 #define STRINGIFY(s) #s
 #define STRINGIFY_TMP(A) STRINGIFY(A)
 #define CONCAT(A, B) A##B
@@ -767,15 +774,15 @@ CtrlSerialEspNow esp_now_sender;
 
 void esp_now_recv_cb(uint8_t *mac_addr, uint8_t *data, uint8_t data_len)
 {
+  /* No data or peer is unknown => ignore */
+  if (!data_len || !esp_now_is_peer_exist(mac_addr))
+    return;
+
   webSocket.broadcastTXT("ESP NOW message received!");
 
   // Pass data to ERLS
   // Note: accepts only correctly formatted MSP packets
   Serial.write((uint8_t*)data, data_len);
-#if 0
-  char hello[] = "ELRS_ACK\n";
-  esp_now_send(mac_addr, (uint8_t*)hello, strlen(hello));
-#endif
 }
 
 void esp_now_send_cb(uint8_t *mac_addr, u8 status) {
@@ -813,12 +820,6 @@ void init_esp_now(void)
 #endif // ESP_NOW_PEERS
 
   espnow_init_info += " - Init DONE!";
-
-#if 0
-  // Notify clients
-  char hello[] = "ELRS\n";
-  esp_now_send(NULL, (uint8_t*)hello, strlen(hello)+1); // send to all registered peers
-#endif
 }
 #endif // ESP_NOW
 /*************************************************/
