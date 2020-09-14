@@ -1,6 +1,5 @@
 #include "HwTimer.h"
 #include "targets.h"
-#include "LoRa_SX127x.h"
 #include <FreeRTOS.h>
 #include <esp32-hal-timer.h>
 #include "debug_elrs.h"
