@@ -45,7 +45,7 @@
 -DWIFI_AP_PSK="\"expresslrs\""
 
 # ESP TX WiFi logger
--DWIFI_LOGGER=1
+#-DWIFI_LOGGER=1
 #-DWIFI_LOGGER_AUTO_START=0
 # ... or only WiFi update (Can be started by using LUA)
 #-DWIFI_UPDATER=1
