@@ -15,9 +15,13 @@ local SX127x_RATES = {
     list = {'200 Hz', '100 Hz', '50 Hz'},
     values = {0x00, 0x01, 0x02},
 }
-local SX128x_RATES = {
+local SX128x_RATES_800 = {
     list = {'250 Hz', '125 Hz', '50 Hz'},
     values = {0x00, 0x01, 0x02},
+}
+local SX128x_RATES_1600 = {
+    list = {'500 Hz', '250 Hz', '125 Hz', '50 Hz'},
+    values = {0x00, 0x01, 0x02, 0x03},
 }
 
 local AirRate = {
@@ -55,9 +59,9 @@ local RFfreq = {
     editable = false,
     name = 'RF Freq',
     selected = 99,
-    list = {'915 MHz', '868 MHz', '433 MHz', '2.4 GHz'},
-    values = {0x00, 0x01, 0x02, 0x03},
-    max_allowed = 4,
+    list = {'915 MHz', '868 MHz', '433 MHz', '2.4 GHz (800k)', '2.4 GHz (1.6M)'},
+    values = {0x00, 0x01, 0x02, 0x03, 0x04},
+    max_allowed = 5,
 }
 
 local function binding(item, event)
@@ -267,11 +271,16 @@ local function processResp()
                 end
                 if data[7] ~= 0xff and data[7] < #RFfreq.list then
                     RFfreq.selected = data[7] + 1
-                    if data[7] == 3 then
-                        -- ISM 2400 band (SX128x)
-                        AirRate.list = SX128x_RATES.list
-                        AirRate.values = SX128x_RATES.values
-                        AirRate.max_allowed = #SX128x_RATES.values
+                    if data[7] == 4 then
+                        -- ISM 2400 band (SX128x), BW 1.6MHz
+                        AirRate.list = SX128x_RATES_1600.list
+                        AirRate.values = SX128x_RATES_1600.values
+                        AirRate.max_allowed = #SX128x_RATES_1600.values
+                    elseif data[7] == 3 then
+                        -- ISM 2400 band (SX128x), BW 0.8MHz
+                        AirRate.list = SX128x_RATES_800.list
+                        AirRate.values = SX128x_RATES_800.values
+                        AirRate.max_allowed = #SX128x_RATES_800.values
                     else
                         -- 433/868/915 (SX127x)
                         AirRate.list = SX127x_RATES.list

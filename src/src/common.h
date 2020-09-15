@@ -64,6 +64,7 @@ enum
     OSD_MODE_125Hz,
     OSD_MODE_200Hz,
     OSD_MODE_250Hz,
+    OSD_MODE_500Hz,
 };
 
 typedef enum
@@ -73,7 +74,11 @@ typedef enum
     RF_AIRMODE_PARAMETERS = 2
 } expresslrs_tlm_header_e;
 
+#if RADIO_SX128x && !RADIO_SX128x_BW800
+#define RATE_DEFAULT         1 // 250Hz
+#else
 #define RATE_DEFAULT         0 // 200HZ or 250Hz
+#endif
 
 typedef struct expresslrs_mod_settings_s
 {
