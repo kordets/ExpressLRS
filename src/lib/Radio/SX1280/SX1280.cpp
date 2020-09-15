@@ -242,8 +242,19 @@ void ICACHE_RAM_ATTR SX1280Driver::SetFrequency(uint32_t Reqfreq)
 
 int32_t ICACHE_RAM_ATTR SX1280Driver::GetFrequencyError()
 {
-    int32_t efe = 0;
+#define EFE_NO_DOUBLE 1
+
+#if EFE_NO_DOUBLE
+#define EFE_USE_32b 1
+#if EFE_USE_32b
+    int32_t efe;
+#else
+    int64_t efe;
+#endif
+#else
     double efeHz;
+    int32_t efe = 0;
+#endif
     uint8_t fei_reg[3] = {0x0, 0x0, 0x0};
 
     ReadRegister(SX1280_REG_LR_ESTIMATED_FREQUENCY_ERROR_MSB, fei_reg, sizeof(fei_reg));
@@ -253,30 +264,80 @@ int32_t ICACHE_RAM_ATTR SX1280Driver::GetFrequencyError()
     efe <<= 8;
     efe += fei_reg[2];
 
-    if (fei_reg[0] & 0b1000) // Sign bit is on
-    {
+     // Check the sign bit
+    if (fei_reg[0] & 0b1000) {
         // convert to negative
         efe -= 524288;
     }
 
-    efeHz = efe;
-    efeHz *= 1.55;
+#if EFE_NO_DOUBLE
+#if EFE_USE_32b
+    /* This cause a bit of Hz error which does not effect to functionality
+     *   SX1280 can handle 203kHz (BW 0.8MHz) or even 406kHz (BW 1.6MHz)
+     *   frequency error.
+     */
     switch (currBW) {
         case SX1280_LORA_BW_0200:
-            efeHz *= 203.125;
+            efe *= 315;
             break;
         case SX1280_LORA_BW_0400:
-            efeHz *= 406.25;
+            efe *= 630;
             break;
         case SX1280_LORA_BW_0800:
-            efeHz *= 812.5;
+            efe *= 1259;
             break;
         case SX1280_LORA_BW_1600:
-            efeHz *= 1625.0;
+            efe *= 2519; // max value fits just to int32_t
+            break;
+    }
+    return (efe / 1600);
+
+#else // EFE_USE_32b
+    switch (currBW) {
+        case SX1280_LORA_BW_0200:
+            efe *= 19677734375;
+            return (int32_t)(efe / 100000000000);
+            break;
+        case SX1280_LORA_BW_0400:
+            efe *= 3935546875;
+            return (int32_t)(efe / 10000000000);
+            break;
+        case SX1280_LORA_BW_0800:
+            efe *= 787109375;
+            return (int32_t)(efe / 1000000000);
+            break;
+        case SX1280_LORA_BW_1600:
+            efe *= 157421875;
+            return (int32_t)(efe / 100000000);
+            break;
+    }
+    return 0;
+#endif // EFE_USE_32b
+
+#else // EFE_NO_DOUBLE
+    efeHz = efe;
+    //efeHz *= 1.55;
+    switch (currBW) {
+        case SX1280_LORA_BW_0200:
+            //efeHz *= 203.125;
+            efeHz *= 314.84375; // 203.125 * 1.55
+            break;
+        case SX1280_LORA_BW_0400:
+            //efeHz *= 406.25;
+            efeHz *= 629.6875; // 406.25 * 1.55
+            break;
+        case SX1280_LORA_BW_0800:
+            //efeHz *= 812.5;
+            efeHz *= 1259.375; // 812.5 * 1.55
+            break;
+        case SX1280_LORA_BW_1600:
+            //efeHz *= 1625.0;
+            efeHz *= 2518.75; // 1625.0 * 1.55
             break;
     }
     efeHz /= 1600;
     return (int32_t)efeHz;
+#endif // EFE_NO_DOUBLE
 }
 
 void ICACHE_RAM_ATTR SX1280Driver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
