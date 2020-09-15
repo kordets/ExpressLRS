@@ -74,6 +74,10 @@ extern "C" {
 #define PIN_SERIAL_RX           PA10
 #define PIN_SERIAL_TX           PA9
 
+#define HAL_TIM_MODULE_ENABLED
+#define TIMER_TONE              TIM6
+#define TIMER_SERVO             TIM7
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
