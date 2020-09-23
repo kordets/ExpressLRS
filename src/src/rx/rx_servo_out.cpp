@@ -47,25 +47,25 @@ static uint32_t DRAM_ATTR last_update;
 
 void servo_out_init(void) {
 #if (SERVO_PIN_CH1 != UNDEF_PIN)
-    ch1.attach(SERVO_PIN_CH1);
+    ch1.attach(SERVO_PIN_CH1, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX);
 #if SERVO_USE_LPF
     lpf_ch1.init(0);
 #endif // SERVO_USE_LPF
 #endif
 #if (SERVO_PIN_CH2 != UNDEF_PIN)
-    ch2.attach(SERVO_PIN_CH2);
+    ch2.attach(SERVO_PIN_CH2, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX);
 #if SERVO_USE_LPF
     lpf_ch2.init(0);
 #endif // SERVO_USE_LPF
 #endif
 #if (SERVO_PIN_CH3 != UNDEF_PIN)
-    ch3.attach(SERVO_PIN_CH3);
+    ch3.attach(SERVO_PIN_CH3, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX);
 #if SERVO_USE_LPF
     lpf_ch3.init(0);
 #endif // SERVO_USE_LPF
 #endif
 #if (SERVO_PIN_CH4 != UNDEF_PIN)
-    ch4.attach(SERVO_PIN_CH4);
+    ch4.attach(SERVO_PIN_CH4, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX);
 #if SERVO_USE_LPF
     lpf_ch4.init(0);
 #endif // SERVO_USE_LPF
