@@ -8,27 +8,22 @@
 #include "utils.h"
 #include "msp.h"
 
-#define CRSF_RX_BAUDRATE 420000
+#define CRSF_RX_BAUDRATE      420000
 #define CRSF_TX_BAUDRATE_FAST 400000
-#define CRSF_TX_BAUDRATE_SLOW 115200 // Used for QX7 not supporting 400kbps
-#define CRSF_NUM_CHANNELS 16         // Number of input channels
+#define CRSF_TX_BAUDRATE_SLOW 115200
+#define CRSF_NUM_CHANNELS     16         // Number of input channels
+
 // OUT to flight controller
 #define CRSF_CHANNEL_OUT_VALUE_MIN 172
 #define CRSF_CHANNEL_OUT_VALUE_MID 992
 #define CRSF_CHANNEL_OUT_VALUE_MAX 1811
+
 // IN comming from handset
 #define CRSF_CHANNEL_IN_VALUE_MIN 0
 #define CRSF_CHANNEL_IN_VALUE_MID 992
 #define CRSF_CHANNEL_IN_VALUE_MAX 1984
 
 #define CRSF_SYNC_BYTE 0xC8
-
-#define RCframeLength sizeof(crsf_channels_t)                         // 22, length of the RC data packed bytes frame. 16 channels in 11 bits each.
-#define LinkStatisticsFrameLength sizeof(crsfPayloadLinkstatistics_s) // 10
-#define OpenTXsyncFrameLength 11                                      //
-#define BattSensorFrameLength sizeof(crsf_sensor_battery_t)           // 8
-#define VTXcontrolFrameLength 12                                      //
-#define LUArespLength 6
 
 #define CRSF_PAYLOAD_SIZE_MAX 62
 #define CRSF_FRAME_START_BYTES 2 // address + len (start of the CRSF frame, not counted to frame len)
@@ -142,13 +137,22 @@ typedef struct crsf_channels_s
     unsigned ch15 : 11;
 } PACKED crsf_channels_t;
 
+typedef struct crsf_channels_msg_s
+{
+    crsf_header_t header;
+    crsf_channels_t data;
+    uint8_t crc;
+} PACKED crsf_channels_msg_t;
+
 // Used by extended header frames (type in range 0x28 to 0x96)
 typedef struct crsf_sensor_battery_s
 {
+    crsf_header_t header;
     uint16_t voltage;  // mv * 100
     uint16_t current;  // ma * 100
     uint32_t capacity : 24; // mah
     uint32_t remaining : 8; // %
+    uint8_t crc;
 } PACKED crsf_sensor_battery_t;
 
 /*
@@ -172,6 +176,7 @@ typedef struct crsf_sensor_battery_s
  */
 typedef struct crsfPayloadLinkstatistics_s
 {
+    crsf_header_t header;
     uint8_t uplink_RSSI_1;
     uint8_t uplink_RSSI_2;
     uint8_t uplink_Link_quality; // this goes to opentx rssi
@@ -182,18 +187,35 @@ typedef struct crsfPayloadLinkstatistics_s
     uint8_t downlink_RSSI;
     uint8_t downlink_Link_quality;
     int8_t downlink_SNR;
+    uint8_t crc;
 } crsfLinkStatistics_t;
 
 typedef struct crsf_sensor_gps_s
 {
+    crsf_header_t header;
     int32_t latitude;
     int32_t longitude;
     uint16_t speed;
     uint16_t heading;
     uint16_t altitude;
     uint8_t satellites;
-    uint8_t valid; // available to send (1)
+    uint8_t valid; // available to send (1) - reused for CRC when sending
 } PACKED crsf_sensor_gps_t;
+
+typedef struct crsf_msp_packet_fc_s
+{
+    crsf_ext_header_t header;
+    uint8_t flags;
+    uint8_t buffer[5];
+    uint8_t crc;
+} PACKED crsf_msp_packet_fc_t;
+
+typedef struct crsf_msp_packet_radio_s
+{
+    crsf_ext_header_t header;
+    uint8_t flags;
+    uint8_t buffer[CRSF_PAYLOAD_SIZE_MAX]; // crc in data
+} PACKED crsf_msp_packet_radio_t;
 
 /////inline and utility functions//////
 
@@ -250,30 +272,26 @@ public:
     void ICACHE_RAM_ATTR GpsStatsExtract(volatile uint8_t const *const data);
     uint8_t ICACHE_RAM_ATTR GpsStatsPack(uint8_t *const output);
 
-    volatile crsfPayloadLinkstatistics_s LinkStatistics = {0}; // Link Statisitics Stored as Struct
-    volatile crsf_sensor_battery_s TLMbattSensor = {0};
-    volatile crsf_sensor_gps_s TLMGPSsensor = {0};
+    volatile crsfPayloadLinkstatistics_s LinkStatistics; // Link Statisitics Stored as Struct
+    volatile crsf_sensor_battery_s TLMbattSensor;
+    volatile crsf_sensor_gps_s TLMGPSsensor;
 
 protected:
     uint8_t *ParseInByte(uint8_t inChar);
     virtual void LinkStatisticsSend(void) = 0;
-    virtual void BatterySensorSend(void);
 
-    HwSerial *_dev = NULL;
+    HwSerial *_dev;
 
     /// UART validity check ///
-    uint32_t GoodPktsCount = 0;
-    uint32_t BadPktsCount = 0;
+    uint32_t GoodPktsCount;
+    uint32_t BadPktsCount;
 
 private:
-    bool CRSFframeActive = false;
-    uint8_t SerialInCrc = 0;
-    uint8_t SerialInPacketStart = 0;
-    uint8_t SerialInPacketLen = 0;               // length of the CRSF packet as measured
-    uint8_t SerialInPacketPtr = 0;               // index where we are reading/writing
+    bool CRSFframeActive;
+    uint8_t SerialInCrc;
+    uint8_t SerialInPacketStart;
+    uint8_t SerialInPacketLen;      // length of the CRSF packet as measured
+    uint8_t SerialInPacketPtr;      // index where we are reading/writing
 };
-
-// CRSF frame TX buffer
-extern uint8_t DMA_ATTR outBuffer[];
 
 #endif

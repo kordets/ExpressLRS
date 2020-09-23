@@ -483,9 +483,11 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             break;
 
         case UL_PACKET_MSP: {
+#if !SERVO_OUTPUTS_ENABLED
             DEBUG_PRINT(" M");
             uint8_t len = RcChannels_tlm_uplink_receive(rx_buffer);
             crsf.sendMSPFrameToFC(rx_buffer, len);
+#endif
             break;
         }
 

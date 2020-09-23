@@ -16,7 +16,11 @@ enum {
     SEND_SYNC = 1 << 4,
     SEND_GPS = 1 << 5,
 };
-static volatile uint_fast8_t DMA_ATTR send_buffers = SEND_NA;
+volatile uint_fast8_t DMA_ATTR send_buffers;
+
+elrs_lua_packet_t DMA_ATTR p_lua_packet;
+OpenTxSyncPacket_s DMA_ATTR p_otx_sync_packet;
+crsf_msp_packet_radio_s DMA_ATTR p_msp_packet;
 
 void CRSF_TX::Begin(void)
 {
@@ -24,6 +28,41 @@ void CRSF_TX::Begin(void)
     pinMode(DBF_PIN_CRSF_BYTES_IN, OUTPUT);
     digitalWrite(DBF_PIN_CRSF_BYTES_IN, 0);
 #endif
+
+    /* Initialize used messages */
+
+    LinkStatistics.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    LinkStatistics.header.frame_size = sizeof(LinkStatistics) - CRSF_FRAME_START_BYTES;
+    LinkStatistics.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
+
+    TLMbattSensor.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    TLMbattSensor.header.frame_size = sizeof(TLMbattSensor) - CRSF_FRAME_START_BYTES;
+    TLMbattSensor.header.type = CRSF_FRAMETYPE_BATTERY_SENSOR;
+
+    TLMGPSsensor.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    TLMGPSsensor.header.frame_size = sizeof(TLMGPSsensor) - CRSF_FRAME_START_BYTES;
+    TLMGPSsensor.header.type = CRSF_FRAMETYPE_GPS;
+
+    p_lua_packet.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    p_lua_packet.header.frame_size = sizeof(p_lua_packet) - CRSF_FRAME_START_BYTES;
+    p_lua_packet.header.type = CRSF_FRAMETYPE_PARAMETER_WRITE;
+    p_lua_packet.header.dest_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    p_lua_packet.header.orig_addr = CRSF_ADDRESS_CRSF_TRANSMITTER;
+
+    p_otx_sync_packet.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    p_otx_sync_packet.header.frame_size = sizeof(p_otx_sync_packet) - CRSF_FRAME_START_BYTES;
+    p_otx_sync_packet.header.type = CRSF_FRAMETYPE_RADIO_ID;
+    p_otx_sync_packet.header.dest_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    p_otx_sync_packet.header.orig_addr = CRSF_ADDRESS_CRSF_TRANSMITTER;
+    p_otx_sync_packet.otx_id = CRSF_FRAMETYPE_OPENTX_SYNC;
+
+    p_msp_packet.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    p_msp_packet.header.frame_size = 0;
+    p_msp_packet.header.type = CRSF_FRAMETYPE_MSP_RESP;
+    p_msp_packet.header.dest_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    p_msp_packet.header.orig_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
+
+    setRcPacketRate(5000); // default to 200hz as per 'normal'
 
     CRSF::Begin();
     p_UartNextCheck = millis(); //  +UARTwdtInterval * 2;
@@ -43,17 +82,17 @@ void CRSF_TX::LinkStatisticsSend(void)
 void CRSF_TX::LinkStatisticsProcess(void)
 {
     send_buffers &= ~SEND_LNK_STAT;
+    CrsfFramePushToFifo((uint8_t*)&LinkStatistics, sizeof(LinkStatistics));
+}
 
-    uint8_t len = CRSF_EXT_FRAME_SIZE(LinkStatisticsFrameLength);
-
-    outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    outBuffer[1] = CRSF_FRAME_SIZE(LinkStatisticsFrameLength);
-    outBuffer[2] = CRSF_FRAMETYPE_LINK_STATISTICS;
-
-    // this is nok with volatile
-    memcpy(&outBuffer[3], (void *)&LinkStatistics, LinkStatisticsFrameLength);
-
-    CrsfFramePushToFifo(outBuffer, len);
+void CRSF_TX::BatterySensorSend(void)
+{
+    send_buffers |= SEND_BATT;
+}
+void CRSF_TX::BatteryStatisticsProcess(void)
+{
+    send_buffers &= ~SEND_BATT;
+    CrsfFramePushToFifo((uint8_t*)&TLMbattSensor, sizeof(TLMbattSensor));
 }
 
 void CRSF_TX::GpsSensorSend(void)
@@ -64,47 +103,19 @@ void CRSF_TX::GpsSensorSend(void)
 void CRSF_TX::GpsSensorProcess(void)
 {
     send_buffers &= ~SEND_GPS;
-
-    uint8_t frame_len = sizeof(crsf_sensor_gps_t) - 1;
-    uint8_t len = CRSF_EXT_FRAME_SIZE(frame_len);
-
-    outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    outBuffer[1] = CRSF_FRAME_SIZE(frame_len);
-    outBuffer[2] = CRSF_FRAMETYPE_GPS;
-
-    // this is nok with volatile
-    memcpy(&outBuffer[3], (void *)&TLMGPSsensor, frame_len);
-
+    CrsfFramePushToFifo((uint8_t *)&TLMGPSsensor, sizeof(crsf_sensor_gps_t));
     TLMGPSsensor.valid = false;
-
-    CrsfFramePushToFifo(outBuffer, len);
 }
 
 void CRSF_TX::sendLUAresponseToRadio(uint8_t *data, uint8_t size)
 {
-    memcpy(lua_buff, data, size);
+    memcpy(p_lua_packet.buffer, data, size);
     send_buffers |= SEND_LUA;
 }
-
 void CRSF_TX::LuaResponseProcess(void)
 {
     send_buffers &= ~SEND_LUA;
-
-    uint8_t const msp_len = 2 + sizeof(lua_buff); // dest, orig + len
-    uint8_t const len = CRSF_EXT_FRAME_SIZE(msp_len);
-
-    outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    outBuffer[1] = CRSF_FRAME_SIZE(msp_len);
-    outBuffer[2] = CRSF_FRAMETYPE_PARAMETER_WRITE;
-
-    // Encapsulated MSP payload
-    outBuffer[3] = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    outBuffer[4] = CRSF_ADDRESS_CRSF_TRANSMITTER;
-
-    for (uint8_t i = 0; i < sizeof(lua_buff); i++)
-        outBuffer[5 + i] = lua_buff[i];
-
-    CrsfFramePushToFifo(outBuffer, len);
+    CrsfFramePushToFifo((uint8_t*)&p_lua_packet, sizeof(p_lua_packet));
 }
 
 void CRSF_TX::sendMspPacketToRadio(mspPacket_t &msp)
@@ -116,52 +127,19 @@ void CRSF_TX::sendMspPacketToRadio(mspPacket_t &msp)
     uint8_t const msp_len = 3 + msp.payloadSize; // dest, orig, flags
     uint8_t const len = CRSF_EXT_FRAME_SIZE(msp_len);
 
-    if (CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX) < len)
+    if (sizeof(p_msp_packet.buffer) < msp.payloadSize)
         /* TODO: split into junks... */
         // just ignore if too big
         return;
 
-    // CRSF packet
-    outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    outBuffer[1] = CRSF_FRAME_SIZE(msp_len);
-    outBuffer[2] = CRSF_FRAMETYPE_MSP_RESP;
-
-    // Encapsulated MSP payload
-    outBuffer[3] = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    outBuffer[4] = CRSF_ADDRESS_FLIGHT_CONTROLLER;
-    outBuffer[5] = MSP_VERSION | MSP_STARTFLAG; // flags
+    p_msp_packet.header.frame_size = CRSF_FRAME_SIZE(msp_len);
+    // Fill encapsulated MSP payload
+    p_msp_packet.flags = MSP_VERSION | MSP_STARTFLAG;
     for (uint8_t i = 0; i < msp.payloadSize; i++) {
-        outBuffer[6 + i] = msp.payload[i];
+        p_msp_packet.buffer[i] = msp.payload[i];
     }
 
-    CrsfFramePushToFifo(outBuffer, len);
-}
-
-void CRSF_TX::BatterySensorSend(void)
-{
-    send_buffers |= SEND_BATT;
-}
-void CRSF_TX::BatteryStatisticsProcess(void)
-{
-    send_buffers &= ~SEND_BATT;
-
-    uint8_t len = CRSF_EXT_FRAME_SIZE(BattSensorFrameLength);
-    memset(outBuffer, 0, len);
-
-    outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    outBuffer[1] = CRSF_FRAME_SIZE(BattSensorFrameLength);
-    outBuffer[2] = CRSF_FRAMETYPE_BATTERY_SENSOR;
-
-    outBuffer[3] = (TLMbattSensor.voltage >> 8) & 0xff;
-    outBuffer[4] = TLMbattSensor.voltage & 0xff;
-    //outBuffer[5] = (TLMbattSensor.current >> 8) & 0xff;
-    //outBuffer[6] = TLMbattSensor.current & 0xff;
-    //outBuffer[7] = (TLMbattSensor.capacity >> 16) & 0xff;
-    //outBuffer[9] = (TLMbattSensor.capacity >> 8) & 0xff;
-    //outBuffer[10] = TLMbattSensor.capacity & 0xff;
-    //outBuffer[11] = TLMbattSensor.remaining;
-
-    CrsfFramePushToFifo(outBuffer, len);
+    CrsfFramePushToFifo((uint8_t*)&p_msp_packet, len);
 }
 
 int CRSF_TX::sendSyncPacketToRadio()
@@ -179,37 +157,10 @@ int CRSF_TX::sendSyncPacketToRadio()
         {
             OpenTXsynNextSend = current;
 
-            /*DEBUG_PRINT("rate: ");
-            DEBUG_PRINT(RequestedRCpacketInterval);
-            DEBUG_PRINT(" offset: ");
-            DEBUG_PRINTLN(offset);*/
-
-            uint32_t packetRate = RequestedRCpacketInterval;
-            packetRate *= 10; //convert from us to right format
-
-            offset *= 10;
-
-            uint8_t len = CRSF_EXT_FRAME_SIZE(OpenTXsyncFrameLength);
-
-            outBuffer[0] = CRSF_ADDRESS_RADIO_TRANSMITTER;         // 0xEA
-            outBuffer[1] = CRSF_FRAME_SIZE(OpenTXsyncFrameLength); // 13
-            outBuffer[2] = CRSF_FRAMETYPE_RADIO_ID;                // 0x3A
-
-            outBuffer[3] = CRSF_ADDRESS_RADIO_TRANSMITTER; //0XEA
-            outBuffer[4] = 0x00;                           //??? not sure doesn't seem to matter
-            outBuffer[5] = CRSF_FRAMETYPE_OPENTX_SYNC;     //0X10
-
-            outBuffer[6] = (packetRate & 0xFF000000) >> 24;
-            outBuffer[7] = (packetRate & 0x00FF0000) >> 16;
-            outBuffer[8] = (packetRate & 0x0000FF00) >> 8;
-            outBuffer[9] = (packetRate & 0x000000FF) >> 0;
-
-            outBuffer[10] = (offset & 0xFF000000) >> 24;
-            outBuffer[11] = (offset & 0x00FF0000) >> 16;
-            outBuffer[12] = (offset & 0x0000FF00) >> 8;
-            outBuffer[13] = (offset & 0x000000FF) >> 0;
-
-            CrsfFramePushToFifo(outBuffer, len);
+            p_otx_sync_packet.packetRate =
+                __builtin_bswap32(RequestedRCpacketInterval);
+            p_otx_sync_packet.offset = __builtin_bswap32(offset * 10);
+            CrsfFramePushToFifo((uint8_t*)&p_otx_sync_packet, sizeof(p_otx_sync_packet));
             return 0;
         }
     }
@@ -224,7 +175,7 @@ void CRSF_TX::processPacket(uint8_t const *input)
         p_RadioConnected = true;
 #if (FEATURE_OPENTX_SYNC)
         RCdataLastRecv = 0;
-        OpenTXsynNextSend = millis(); //+60;
+        OpenTXsynNextSend = millis();
 #endif
         DEBUG_PRINT("CRSF Connected. Baud ");
         if (p_slowBaudrate)

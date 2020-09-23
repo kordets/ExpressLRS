@@ -3,6 +3,35 @@
 #include "debug_elrs.h"
 #include <string.h>
 
+void CRSF_RX::Begin(void)
+{
+    LinkStatistics.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
+    LinkStatistics.header.frame_size = sizeof(LinkStatistics) - CRSF_FRAME_START_BYTES;
+    LinkStatistics.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
+
+#if 0
+    TLMbattSensor.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
+    TLMbattSensor.header.frame_size = sizeof(TLMbattSensor) - CRSF_FRAME_START_BYTES;
+    TLMbattSensor.header.type;
+
+    TLMGPSsensor.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
+    TLMGPSsensor.header.frame_size = sizeof(TLMGPSsensor) - CRSF_FRAME_START_BYTES;
+    TLMGPSsensor.header.type;
+#endif
+
+    msp_packet.header.device_addr = CRSF_ADDRESS_BROADCAST;
+    msp_packet.header.frame_size = sizeof(msp_packet) - CRSF_FRAME_START_BYTES;
+    msp_packet.header.type = CRSF_FRAMETYPE_MSP_WRITE;
+    msp_packet.header.dest_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
+    msp_packet.header.orig_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+
+    p_crsf_channels.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
+    p_crsf_channels.header.frame_size = sizeof(p_crsf_channels) - CRSF_FRAME_START_BYTES;
+    p_crsf_channels.header.type = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
+
+    CRSF::Begin();
+}
+
 void ICACHE_RAM_ATTR CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size)
 {
     buff[size - 1] = CalcCRC(&buff[2], (buff[1] - 1));
@@ -15,60 +44,27 @@ void ICACHE_RAM_ATTR CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size)
 
 void CRSF_RX::LinkStatisticsSend()
 {
-    uint8_t out[CRSF_EXT_FRAME_SIZE(LinkStatisticsFrameLength)]; // 10 + 2 + 2 bytes
-
-    out[0] = CRSF_ADDRESS_FLIGHT_CONTROLLER;
-    out[1] = CRSF_FRAME_SIZE(LinkStatisticsFrameLength);
-    out[2] = CRSF_FRAMETYPE_LINK_STATISTICS;
-
-    memcpy(&out[3], (void *)&LinkStatistics, LinkStatisticsFrameLength);
-
-    sendFrameToFC(out, sizeof(out));
+    sendFrameToFC((uint8_t*)&LinkStatistics, sizeof(LinkStatistics));
 }
 
 void ICACHE_RAM_ATTR CRSF_RX::sendRCFrameToFC(crsf_channels_t * channels)
 {
-    uint8_t out_rc_data[CRSF_EXT_FRAME_SIZE(RCframeLength)];
-
-    out_rc_data[0] = CRSF_ADDRESS_FLIGHT_CONTROLLER;
-    out_rc_data[1] = CRSF_FRAME_SIZE(RCframeLength);
-    out_rc_data[2] = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
-
-    memcpy(&out_rc_data[3], channels, RCframeLength);
-
-    sendFrameToFC(out_rc_data, sizeof(out_rc_data));
+    memcpy(&p_crsf_channels.data, (void*)channels, sizeof(crsf_channels_t));
+    sendFrameToFC((uint8_t*)&p_crsf_channels, sizeof(p_crsf_channels));
 }
 
 void ICACHE_RAM_ATTR CRSF_RX::sendMSPFrameToFC(uint8_t const *const packet, uint8_t len)
 {
     uint8_t i;
-    uint8_t msp_len = 2 + len; // dest, orig + len
-    uint8_t frame_len = CRSF_EXT_FRAME_SIZE(msp_len); // total len = msp_len + address & crc
-    if (CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX) < frame_len || !len)
+
+    if (!len || len > (sizeof(msp_packet.buffer) + 1))
         return;
 
-    // CRSF frame header
-    outBuffer[0] = CRSF_ADDRESS_BROADCAST;         // address
-    outBuffer[1] = CRSF_FRAME_SIZE(msp_len);       // CRSF frame len
-    outBuffer[2] = CRSF_FRAMETYPE_MSP_WRITE;       // packet type
-    // Encapsulated MSP
-    outBuffer[3] = CRSF_ADDRESS_FLIGHT_CONTROLLER; // destination
-    outBuffer[4] = CRSF_ADDRESS_RADIO_TRANSMITTER; // origin
-    outBuffer[5] = packet[len-1];                  // flags, last byte in packet buffer
+    msp_packet.flags = packet[len-1];     // flags, last byte in packet buffer
     for (i = 0; i < (len - 1); i++) {
-        outBuffer[i + 6] = packet[i];              // payload
+        msp_packet.buffer[i] = packet[i]; // payload
     }
-
-    sendFrameToFC(outBuffer, frame_len);
-
-#if 0
-    DEBUG_PRINT(" MSP: >");
-    for (uint8_t iter = 0; iter < frame_len; iter++) {
-        DEBUG_PRINT(" 0x");
-        DEBUG_PRINT(_outBuffer[iter], HEX);
-    }
-    DEBUG_PRINTLN(" <");
-#endif
+    sendFrameToFC((uint8_t*)&msp_packet, sizeof(msp_packet));
 }
 
 void CRSF_RX::processPacket(uint8_t const *data)

@@ -35,7 +35,7 @@ SX1280Driver Radio(RadioSpi, OTA_PACKET_SIZE);
 #else
 SX127xDriver Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
-CRSF_TX crsf(CrsfSerial);
+CRSF_TX DMA_ATTR crsf(CrsfSerial);
 POWERMGNT PowerMgmt(Radio);
 
 volatile uint32_t DRAM_ATTR _rf_rxtx_counter;

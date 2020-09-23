@@ -3,6 +3,24 @@
 
 #include "CRSF.h"
 
+/* OpenTX timer control sync packet */
+typedef struct OpenTxSyncPacket_s {
+    crsf_ext_header_s   header;
+    uint8_t             otx_id;
+    uint32_t            packetRate;
+    uint32_t            offset;
+    uint8_t             crc;
+} PACKED OpenTxSyncPacket_t;
+
+/* LUA packet is used only on TX */
+typedef struct elrs_lua_packet_s
+{
+    crsf_ext_header_t header;
+    uint8_t buffer[5];
+    uint8_t crc;
+} PACKED elrs_lua_packet_t;
+
+
 class CRSF_TX : public CRSF
 {
 public:
@@ -25,7 +43,8 @@ public:
     void ICACHE_RAM_ATTR setRcPacketRate(uint32_t interval)
     {
 #if (FEATURE_OPENTX_SYNC)
-        RequestedRCpacketInterval = interval;
+        // Scale value to correct format
+        RequestedRCpacketInterval = interval * 10;
 #endif
     }
 
@@ -42,9 +61,6 @@ public:
     ///// Variables /////
 
 private:
-    bool p_slowBaudrate = false;
-    volatile bool p_RadioConnected = false; // connected staet
-
     void uart_wdt(void);
     void processPacket(uint8_t const *input);
     void ICACHE_RAM_ATTR CrsfFramePushToFifo(uint8_t *buff, uint8_t size);
@@ -58,18 +74,19 @@ private:
 #define OpenTXsyncPakcetInterval 200 // in ms
 #define RequestedRCpacketAdvance 500 // 800 timing adcance in us
 
-    volatile uint32_t RCdataLastRecv = 0;
-    volatile int32_t OpenTXsyncOffset = 0;
-    uint32_t RequestedRCpacketInterval = 5000; // default to 200hz as per 'normal'
-    uint32_t OpenTXsynNextSend = 0;
+    volatile uint32_t RCdataLastRecv;
+    volatile int32_t OpenTXsyncOffset;
+    uint32_t RequestedRCpacketInterval;
+    uint32_t OpenTXsynNextSend;
 #endif /* FEATURE_OPENTX_SYNC */
-    int sendSyncPacketToRadio(); // called from main loop
+    int sendSyncPacketToRadio();
 
     // for the UART wdt, every 1000ms we change bauds when connect is lost
 #define UARTwdtInterval 1000
-    uint32_t p_UartNextCheck = 0;
+    uint32_t p_UartNextCheck;
 
-    uint8_t lua_buff[5];
+    bool p_slowBaudrate;
+    bool p_RadioConnected; // connected state
 };
 
 #endif /* CRSF_TX_H_ */

@@ -11,7 +11,6 @@ void nullCallback(void){};
 void (*CRSF::disconnected)() = &nullCallback; // called when CRSF stream is lost
 void (*CRSF::connected)() = &nullCallback;    // called when CRSF stream is regained
 
-uint8_t DMA_ATTR outBuffer[CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX)];
 uint8_t DMA_ATTR SerialInBuffer[CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX)];
 
 //#define DBF_PIN_CRSF_PACKET 2
@@ -152,10 +151,6 @@ uint8_t ICACHE_RAM_ATTR CRSF::GpsStatsPack(uint8_t *const output)
     }
     output[5] = type << 2;
     return 1;
-}
-
-void CRSF::BatterySensorSend(void)
-{
 }
 
 uint8_t *CRSF::ParseInByte(uint8_t inChar)
