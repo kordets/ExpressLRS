@@ -5,6 +5,7 @@
 //#include "LED.h"
 #include <EEPROM.h>
 #include "wifi_logger.h"
+#include "printf.h"
 
 #ifdef TARGET_EXPRESSLRS_PCB_TX_V3
 #include "soc/soc.h"
@@ -16,6 +17,15 @@
 #include "soc/timer_group_reg.h"
 
 SemaphoreHandle_t DRAM_ATTR irqMutex;
+
+void Printf::_putchar(char character)
+{
+#ifdef DEBUG_SERIAL
+    DEBUG_SERIAL.print(character);
+#else
+    (void)character;
+#endif
+}
 
 void feedTheDog(void)
 {

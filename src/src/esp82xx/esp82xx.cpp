@@ -10,6 +10,15 @@
 
 uint32_t webUpdateLedFlashIntervalNext = 0;
 
+void Printf::_putchar(char character)
+{
+#ifdef DEBUG_SERIAL
+    DEBUG_SERIAL.print(character);
+#else
+    (void)character;
+#endif
+}
+
 void beginWebsever(void)
 {
     if (connectionState != STATE_disconnected)
