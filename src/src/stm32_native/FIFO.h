@@ -31,10 +31,11 @@
 
 #pragma once
 
-#include "platform.h"
 #include <stdint.h>
 
-#define FIFO_SIZE 256
+#ifndef FIFO_SIZE
+#define FIFO_SIZE 128
+#endif
 
 class FIFO
 {
@@ -47,11 +48,11 @@ private:
 public:
     FIFO();
     ~FIFO();
-    void ICACHE_RAM_ATTR push(uint8_t data);
-    void ICACHE_RAM_ATTR pushBytes(uint8_t *data, int len);
-    uint8_t ICACHE_RAM_ATTR pop();
-    void ICACHE_RAM_ATTR popBytes(uint8_t *data, int len);
-    uint8_t ICACHE_RAM_ATTR peek();
-    int ICACHE_RAM_ATTR size();
-    void ICACHE_RAM_ATTR flush();
+    void push(uint8_t data);
+    void pushBytes(uint8_t *data, int len);
+    uint8_t pop();
+    void popBytes(uint8_t *data, int len);
+    uint8_t peek();
+    int size();
+    void flush();
 };

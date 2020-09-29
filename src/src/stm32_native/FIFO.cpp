@@ -42,13 +42,11 @@ FIFO::~FIFO()
 {
 }
 
-void ICACHE_RAM_ATTR FIFO::push(uint8_t data)
+void FIFO::push(uint8_t data)
 {
     if (numElements == FIFO_SIZE)
     {
-        DEBUG_PRINTLN(("CRITICAL ERROR: Buffer full, will flush"));
-        //this->flush();
-        this->popBytes(nullptr, numElements);
+        DEBUG_PRINTF(("CRITICAL ERROR: Buffer full, will flush\n"));
         return;
     }
     else
@@ -71,7 +69,7 @@ void ICACHE_RAM_ATTR FIFO::push(uint8_t data)
     }
 }
 
-void ICACHE_RAM_ATTR FIFO::pushBytes(uint8_t *data, int len)
+void FIFO::pushBytes(uint8_t *data, int len)
 {
     for (int i = 0; i < len; i++)
     {
@@ -79,11 +77,10 @@ void ICACHE_RAM_ATTR FIFO::pushBytes(uint8_t *data, int len)
     }
 }
 
-uint8_t ICACHE_RAM_ATTR FIFO::pop()
+uint8_t FIFO::pop()
 {
     if (numElements == 0)
     {
-        //    DEBUG_PRINTLN(F("Buffer empty"));
         return 0;
     }
     else
@@ -106,7 +103,7 @@ uint8_t ICACHE_RAM_ATTR FIFO::pop()
     }
 }
 
-void ICACHE_RAM_ATTR FIFO::popBytes(uint8_t *data, int len)
+void FIFO::popBytes(uint8_t *data, int len)
 {
     for (int i = 0; i < len; i++)
     {
@@ -114,11 +111,10 @@ void ICACHE_RAM_ATTR FIFO::popBytes(uint8_t *data, int len)
     }
 }
 
-uint8_t ICACHE_RAM_ATTR FIFO::peek()
+uint8_t FIFO::peek()
 {
     if (numElements == 0)
     {
-        //    DEBUG_PRINTLN(F("Buffer empty"));
         return 0;
     }
     else
@@ -128,14 +124,13 @@ uint8_t ICACHE_RAM_ATTR FIFO::peek()
     }
 }
 
-int ICACHE_RAM_ATTR FIFO::size()
+int FIFO::size()
 {
     return numElements;
 }
 
-void ICACHE_RAM_ATTR FIFO::flush()
+void FIFO::flush()
 {
-    //memset(buffer, 0x00, FIFO_SIZE);
     head = 0;
     tail = 0;
     numElements = 0;
