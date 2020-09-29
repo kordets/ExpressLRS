@@ -20,8 +20,6 @@
 #endif
 #endif
 
-static int32_t duplex_pin = -1;
-
 HwSerial CrsfSerial(SPORT_RX_TX, BUFFER_OE);
 
 HwSerial::HwSerial(uint32_t _rx, uint32_t _tx, int32_t pin)
@@ -39,13 +37,13 @@ HwSerial::HwSerial(void *peripheral, int32_t pin)
 void HwSerial::Begin(uint32_t baud, uint32_t config)
 {
     HardwareSerial::begin((unsigned long)baud, (uint8_t)config);
-    if (duplex_pin > -1)
+    if (duplex_pin != UNDEF_PIN)
         pinMode(duplex_pin, OUTPUT);
 }
 
 void ICACHE_RAM_ATTR HwSerial::enable_receiver(void)
 {
-    if (duplex_pin > -1)
+    if (duplex_pin != UNDEF_PIN)
     {
         HardwareSerial::flush(); // wait until write ends
         digitalWrite(duplex_pin, LOW);
@@ -55,7 +53,7 @@ void ICACHE_RAM_ATTR HwSerial::enable_receiver(void)
 
 void ICACHE_RAM_ATTR HwSerial::enable_transmitter(void)
 {
-    if (duplex_pin > -1)
+    if (duplex_pin != UNDEF_PIN)
     {
         delayMicroseconds(20);
         HAL_HalfDuplex_EnableTransmitter(&_serial.handle);

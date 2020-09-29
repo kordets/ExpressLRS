@@ -3,13 +3,14 @@
 
 #include <HardwareSerial.h>
 #include "platform.h"
+#include "targets.h"
 
 class HwSerial : public HardwareSerial
 {
 public:
-    HwSerial(int uart_nr, int32_t duplex_pin = -1);
-    HwSerial(uint32_t _rx, uint32_t _tx, int32_t duplex_pin = -1);
-    HwSerial(void *peripheral, int32_t duplex_pin = -1);
+    HwSerial(int uart_nr, int32_t duplex_pin = UNDEF_PIN);
+    HwSerial(uint32_t _rx, uint32_t _tx, int32_t duplex_pin = UNDEF_PIN);
+    HwSerial(void *peripheral, int32_t duplex_pin = UNDEF_PIN);
 
     void Begin(uint32_t baud, uint32_t config = SERIAL_8N1);
 
@@ -31,12 +32,8 @@ public:
         return ret;
     }
 
-    size_t write_buffer(const uint8_t * buff, size_t len)
-    {
-        return HardwareSerial::write(buff, len);
-    }
-
 private:
+    int32_t duplex_pin;
 };
 
 extern HwSerial CrsfSerial;
