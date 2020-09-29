@@ -31,14 +31,14 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 
 /// define some libs to use ///
 #if RADIO_SX128x
-SX1280Driver Radio(RadioSpi, OTA_PACKET_SIZE);
+SX1280Driver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 #else
-SX127xDriver Radio(RadioSpi, OTA_PACKET_SIZE);
+SX127xDriver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
-CRSF_TX DMA_ATTR crsf(CrsfSerial);
-POWERMGNT PowerMgmt(Radio);
+CRSF_TX DRAM_FORCE_ATTR crsf(CrsfSerial);
+POWERMGNT DRAM_FORCE_ATTR PowerMgmt(Radio);
 
-volatile uint32_t DRAM_ATTR _rf_rxtx_counter;
+static volatile uint32_t DRAM_ATTR _rf_rxtx_counter;
 static volatile uint8_t DMA_ATTR rx_buffer[OTA_PACKET_SIZE];
 static volatile uint8_t DRAM_ATTR rx_buffer_handle;
 static volatile uint8_t red_led_state;
@@ -53,11 +53,11 @@ static volatile uint32_t DRAM_ATTR sync_send_interval; // Default is send always
 
 /////////// CONNECTION /////////
 static uint32_t DRAM_ATTR LastPacketRecvMillis;
-volatile connectionState_e DRAM_ATTR connectionState = STATE_disconnected;
+volatile connectionState_e DRAM_ATTR connectionState;
 
 //////////// TELEMETRY /////////
-static volatile uint32_t DMA_ATTR expected_tlm_counter;
-static uint32_t DMA_ATTR recv_tlm_counter;
+static volatile uint32_t DRAM_ATTR expected_tlm_counter;
+static uint32_t DRAM_ATTR recv_tlm_counter;
 static volatile uint32_t DRAM_ATTR tlm_check_ratio;
 static volatile uint_fast8_t DRAM_ATTR TLMinterval;
 static mspPacket_t msp_packet_tx;
@@ -67,6 +67,7 @@ static volatile uint_fast8_t DRAM_ATTR tlm_msp_send;
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static LPF DRAM_ATTR LPF_dyn_tx_power(3);
 static uint32_t DRAM_ATTR dyn_tx_updated;
+
 //////////// LUA /////////
 
 ///////////////////////////////////////
@@ -97,7 +98,7 @@ int8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
     }
     else if (TLM_RATIO_MAX <= value)
     {
-        DEBUG_PRINTLN("TLM: Invalid value! disable tlm");
+        DEBUG_PRINTF("TLM: Invalid value! disable tlm\n");
         value = TLM_RATIO_NO_TLM;
     }
 
@@ -108,15 +109,14 @@ int8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
             Radio.TXdoneCallback1 = HandleTLM;
             connectionState = STATE_disconnected;
             ratio = TLMratioEnumToValue(value);
-            DEBUG_PRINT("TLM ratio ");
-            DEBUG_PRINTLN(ratio);
+            DEBUG_PRINTF("TLM ratio %u\n", ratio);
             ratio -= 1;
         } else {
             Radio.RXdoneCallback1 = SXRadioDriver::rx_nullCallback;
             Radio.TXdoneCallback1 = SXRadioDriver::tx_nullCallback;
             // Set connected if telemetry is not used
             connectionState = STATE_connected;
-            DEBUG_PRINTLN("TLM disabled");
+            DEBUG_PRINTF("TLM disabled\n");
         }
         TLMinterval = value;
         tlm_check_ratio = ratio;
@@ -152,11 +152,11 @@ static void process_rx_buffer()
 
     if (crc_in != crc)
     {
-        DEBUG_PRINT("!C");
+        DEBUG_PRINTF("!C");
         return;
     }
 
-    //DEBUG_PRINT(" PROC_RX ");
+    //DEBUG_PRINTF(" PROC_RX ");
 
     connectionState = STATE_connected;
     platform_connection_state(STATE_connected);
@@ -168,7 +168,7 @@ static void process_rx_buffer()
     {
         case DL_PACKET_TLM_MSP:
         {
-            //DEBUG_PRINTLN("DL MSP junk");
+            //DEBUG_PRINTF("DL MSP junk\n");
             RcChannels_tlm_downlink_receive(rx_buffer, msp_packet_rx);
             break;
         }
@@ -206,19 +206,19 @@ static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff)
     volatile_memcpy(rx_buffer, buff, sizeof(rx_buffer));
     rx_buffer_handle = 1;
 
-    //DEBUG_PRINT(" R ");
+    //DEBUG_PRINTF(" R ");
 }
 
 static void ICACHE_RAM_ATTR HandleTLM()
 {
-    //DEBUG_PRINT("X ");
+    //DEBUG_PRINTF("X ");
     if (tlm_check_ratio && (_rf_rxtx_counter & tlm_check_ratio) == 0)
     {
         // receive tlm package
         PowerMgmt.pa_off();
         Radio.RXnb(FHSSgetCurrFreq());
         expected_tlm_counter++;
-        //DEBUG_PRINT(" RX ");
+        //DEBUG_PRINTF(" RX ");
     }
 }
 
@@ -280,20 +280,18 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     {
         /* send tlm packet if needed */
         if (RcChannels_tlm_ota_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error) {
-            DEBUG_PRINT("<< MSP DONE ");
-            DEBUG_PRINTLN(msp_packet_tx.error);
+            DEBUG_PRINTF("<< MSP DONE %u\n", msp_packet_tx.error);
             msp_packet_tx.reset();
             tlm_msp_send = 0;
         } else {
-            DEBUG_PRINTLN("<< MSP junk sent");
+            DEBUG_PRINTF("<< MSP junk sent\n");
         }
 #if 0
-        DEBUG_PRINT(" MSP: >");
+        DEBUG_PRINTF(" MSP: >");
         for (uint8_t iter = 0; iter < sizeof(__tx_buffer); iter++) {
-            DEBUG_PRINT(" 0x");
-            DEBUG_PRINT(tx_buffer[iter], HEX);
+            DEBUG_PRINTF(" %X", tx_buffer[iter]);
         }
-        DEBUG_PRINTLN(" <");
+        DEBUG_PRINTF(" <\n");
 #endif
     }
     else
@@ -319,7 +317,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     Radio.TXnb(tx_buffer, index, freq);
     // Increase TX counter
     HandleFHSS_TX();
-    //DEBUG_PRINT(" T");
+    //DEBUG_PRINTF(" T");
 }
 
 ///////////////////////////////////////
@@ -341,10 +339,7 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
             // set air rate
             if (get_elrs_airRateMax() > value)
                 modified |= SetRFLinkRate(value) ? (1 << 1) : 0;
-            DEBUG_PRINT("Rate: ");
-            //DEBUG_PRINTLN(get_elrs_airRateIndex((void*)ExpressLRS_currAirRate));
-            //DEBUG_PRINTLN(current_rate_config);
-            DEBUG_PRINTLN(ExpressLRS_currAirRate->rate);
+            DEBUG_PRINTF("Rate: %u\n", ExpressLRS_currAirRate->rate);
             break;
 
         case 2:
@@ -364,8 +359,7 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
                 return -1;
             modified = PowerMgmt.currPower();
             PowerMgmt.setPower((PowerLevels_e)value);
-            DEBUG_PRINT("Power: ");
-            DEBUG_PRINTLN(PowerMgmt.currPower());
+            DEBUG_PRINTF("Power: %u\n", PowerMgmt.currPower());
             modified = (modified != PowerMgmt.currPower()) ? (1 << 3) : 0;
             break;
 
@@ -508,26 +502,22 @@ static void msp_data_cb(uint8_t const *const input)
     mspHeaderV1_t *hdr = (mspHeaderV1_t *)input;
     uint8_t payloadSize = hdr->payloadSize + 1U; // include size
 
-   DEBUG_PRINT("MSP from radio: ");
+   DEBUG_PRINTF("MSP from radio: ");
 
     if (tlm_msp_send) {
-        DEBUG_PRINTLN(" msp packet reserved, ignore");
+        DEBUG_PRINTF(" msp packet reserved, ignore\n");
         return;
     } else if (sizeof(msp_packet_tx.payload) < payloadSize) {
         /* too big, ignore */
-        DEBUG_PRINTLN(" too big, ignore!");
+        DEBUG_PRINTF(" too big, ignore!\n");
         return;
     }
 
     // BF: MSP from radio: size: 0 flags: 48 func: 88 Lsize: 0 Lflags: 48 Lfunc: 88 received
 
-    DEBUG_PRINT("size: ");
-    DEBUG_PRINT(hdr->payloadSize);
-    DEBUG_PRINT(" flags: ");
-    DEBUG_PRINT(hdr->flags);
-    DEBUG_PRINT(" func: ");
-    DEBUG_PRINT(hdr->function);
-    DEBUG_PRINTLN(" >>");
+    DEBUG_PRINTF("size: %u ", hdr->payloadSize);
+    DEBUG_PRINTF("flags: %u ", hdr->flags);
+    DEBUG_PRINTF("func: %u >>\n", hdr->function);
 
     msp_packet_tx.reset(hdr);
     msp_packet_tx.type = MSP_PACKET_TLM_OTA;
@@ -545,20 +535,16 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
 {
     uint8_t iter;
 
-    DEBUG_PRINT("CTRL_SERIAL MSP: ");
+    DEBUG_PRINTF("CTRL_SERIAL MSP: ");
 
     if (tlm_msp_send) {
-        DEBUG_PRINTLN(" msp packet reserved, ignore");
+        DEBUG_PRINTF(" msp packet reserved, ignore\n");
         return;
     }
 
-    DEBUG_PRINT("size: ");
-    DEBUG_PRINT(packet.payloadSize);
-    DEBUG_PRINT(" flags: ");
-    DEBUG_PRINT(packet.flags, HEX);
-    DEBUG_PRINT(" func: ");
-    DEBUG_PRINT(packet.function);
-    DEBUG_PRINTLN(" >>");
+    DEBUG_PRINTF("size: %u ", packet.payloadSize);
+    DEBUG_PRINTF("flags: %u ", packet.flags);
+    DEBUG_PRINTF("func: %u >>\n", packet.function);
 
     msp_packet_tx.reset();
     msp_packet_tx.type = MSP_PACKET_TLM_OTA;
@@ -586,6 +572,7 @@ void platform_radio_force_stop(void)
 void setup()
 {
     PowerLevels_e power;
+    uint8_t UID[6] = {MY_UID};
 
     init_globals();
 
@@ -597,7 +584,7 @@ void setup()
     CrsfSerial.Begin(CRSF_TX_BAUDRATE_FAST);
 
     platform_setup();
-    DEBUG_PRINTLN("ExpressLRS TX Module...");
+    DEBUG_PRINTF("ExpressLRS TX Module...\n");
     platform_config_load(pl_config);
     current_rate_config = pl_config.mode % get_elrs_airRateMax();
     power = (PowerLevels_e)(pl_config.power % PWR_UNKNOWN);
@@ -692,7 +679,7 @@ void loop()
         // Send MSP resp if allowed and packet ready
         if (can_send && msp_packet_rx.iterated())
         {
-            DEBUG_PRINTLN("DL MSP rcvd => radio");
+            DEBUG_PRINTF("DL MSP rcvd => radio\n");
             if (!msp_packet_rx.error)
                 crsf.sendMspPacketToRadio(msp_packet_rx);
             msp_packet_rx.reset();
@@ -705,8 +692,7 @@ void loop()
                 //  MSP received, check content
                 mspPacket_t &packet = msp_packet_parser.getPacket();
 
-                //DEBUG_PRINT("MSP rcvd, type:");
-                //DEBUG_PRINTLN(packet.type);
+                //DEBUG_PRINTF("MSP rcvd, type:%u\n", packet.type);
 
                 /* Check if packet is ELRS internal */
                 if ((packet.type == MSP_PACKET_V1_ELRS) && (packet.flags & MSP_ELRS_INT)) {

@@ -194,10 +194,7 @@ bool MSP::processReceivedByte(uint8_t c)
             }
             else
             {
-                DEBUG_PRINT("MSP FAIL! CRC: ");
-                DEBUG_PRINT(c);
-                DEBUG_PRINT(" Exp: ");
-                DEBUG_PRINTLN(m_crc);
+                DEBUG_PRINTF("MSP FAIL! CRC: %u != %u\n", c, m_crc);
                 m_inputState = MSP_IDLE;
             }
             break;

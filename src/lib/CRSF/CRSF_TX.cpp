@@ -177,11 +177,7 @@ void CRSF_TX::processPacket(uint8_t const *input)
         RCdataLastRecv = 0;
         OpenTXsynNextSend = millis();
 #endif
-        DEBUG_PRINT("CRSF Connected. Baud ");
-        if (p_slowBaudrate)
-            DEBUG_PRINTLN("115k");
-        else
-            DEBUG_PRINTLN("400k");
+        DEBUG_PRINTF("CRSF Connected. Baud %uk\n", (p_slowBaudrate ? 115 : 400));
         connected();
     }
 
@@ -271,16 +267,13 @@ void CRSF_TX::uart_wdt(void)
     uint32_t now = millis();
     if (UARTwdtInterval <= (now - p_UartNextCheck))
     {
-        DEBUG_PRINT("CRSF Bad:Good ");
-        DEBUG_PRINT(BadPktsCount);
-        DEBUG_PRINT(":");
-        DEBUG_PRINTLN(GoodPktsCount);
+        DEBUG_PRINTF("CRSF Bad:Good %u:%u\n", BadPktsCount, GoodPktsCount);
 
         if (BadPktsCount >= GoodPktsCount)
         {
             if (p_RadioConnected == true)
             {
-                DEBUG_PRINT("CRSF UART Disconnect. ");
+                DEBUG_PRINTF("CRSF UART Disconnect. ");
                 disconnected();
                 p_RadioConnected = false;
 #if (FEATURE_OPENTX_SYNC)
@@ -295,12 +288,12 @@ void CRSF_TX::uart_wdt(void)
             if (p_slowBaudrate)
             {
                 _dev->Begin(CRSF_TX_BAUDRATE_FAST);
-                DEBUG_PRINTLN("Switch to 400000 baud");
+                DEBUG_PRINTF("Switch to 400000 baud\n");
             }
             else
             {
                 _dev->Begin(CRSF_TX_BAUDRATE_SLOW);
-                DEBUG_PRINTLN("Switch to 115000 baud");
+                DEBUG_PRINTF("Switch to 115000 baud\n");
             }
             p_slowBaudrate = !p_slowBaudrate;
         }

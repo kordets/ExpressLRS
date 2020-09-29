@@ -219,19 +219,14 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
 #if 0
                     // https://crccalc.com/
                     // CRC algorithm: CRC-8/DVB-S2
-                    DEBUG_PRINT("UART CRC failure ");
-                    DEBUG_PRINT(SerialInCrc, HEX);
-                    DEBUG_PRINT("!=");
-                    DEBUG_PRINT(inChar, HEX);
+                    DEBUG_PRINTF("UART CRC %X != %X\n", SerialInCrc, inChar);
                     for (int i = (SerialInPacketStart-2); i < (SerialInPacketLen + 2); i++)
                     {
-                        DEBUG_PRINT(" 0x");
-                        DEBUG_PRINT(SerialInBuffer[i], HEX);
+                        DEBUG_PRINTF(" 0x%X", SerialInBuffer[i]);
                     }
-                    DEBUG_PRINTLN();
+                    DEBUG_PRINTF("\n");
 #elif defined(DEBUG_SERIAL)
-                    DEBUG_SERIAL.print("!C");
-                    //DEBUG_SERIAL.write((uint8_t *)&SerialInBuffer[SerialInPacketStart - 2], SerialInPacketLen + 2);
+                    DEBUG_PRINTF("!C");
 #endif
                     BadPktsCount++;
                 }

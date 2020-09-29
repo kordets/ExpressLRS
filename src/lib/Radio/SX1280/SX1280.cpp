@@ -49,8 +49,7 @@ void SX1280Driver::Begin(void)
     uint16_t firmwareRev = buffer[0];
     firmwareRev <<= 8;
     firmwareRev += buffer[1];
-    DEBUG_PRINT("SX1280 Firmware Revision: ");
-    DEBUG_PRINTLN(firmwareRev);
+    DEBUG_PRINTF("SX1280 Firmware Revision: %u\n", firmwareRev);
 
     //attachInterrupt(digitalPinToInterrupt(_BUSY), this->busyISR, CHANGE); //not used atm
     attachInterrupt(digitalPinToInterrupt(_DIO1), _rxtx_isr_handler, RISING);
@@ -109,8 +108,7 @@ void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power)
 
     uint8_t buf[] = {(uint8_t)(power), SX1280_RADIO_RAMP_04_US};
     WriteCommand(SX1280_RADIO_SET_TXPARAMS, buf, sizeof(buf));
-    //DEBUG_PRINT("SetOutputPower: ");
-    //DEBUG_PRINTLN(power - 18);
+    //DEBUG_PRINTF("SetOutputPower: %d", (power - 18));
     current_power = power;
 }
 

@@ -158,7 +158,8 @@ void platform_setup(void)
 {
     EEPROM.begin();
 
-#if defined(DEBUG_SERIAL)
+#if defined(DEBUG_SERIAL) && defined(TX_MODULE)
+#if 0
     // Init debug serial if not done already
     if (((void *)&DEBUG_SERIAL != (void *)&CrsfSerial) &&
         ((void *)&DEBUG_SERIAL != (void *)&Serial1))
@@ -172,6 +173,7 @@ void platform_setup(void)
 #endif
         DEBUG_SERIAL.begin(400000);
     }
+#endif
 #endif /* DEBUG_SERIAL */
 
 #if defined(CTRL_SERIAL)

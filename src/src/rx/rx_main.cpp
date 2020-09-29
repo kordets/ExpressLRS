@@ -29,11 +29,11 @@ void ICACHE_RAM_ATTR LostConnection();
 ///////////////////
 
 #if RADIO_SX128x
-SX1280Driver DRAM_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
+SX1280Driver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 #else
-SX127xDriver DRAM_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
+SX127xDriver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
-CRSF_RX DRAM_ATTR crsf(CrsfSerial); //pass a serial port object to the class for it to use
+CRSF_RX DRAM_FORCE_ATTR crsf(CrsfSerial); //pass a serial port object to the class for it to use
 
 volatile connectionState_e DRAM_ATTR connectionState;
 static volatile uint8_t DRAM_ATTR NonceRXlocal; // nonce that we THINK we are up to.
@@ -57,8 +57,8 @@ static EXTRACT_VOLATILE crsf_channels_t DRAM_ATTR CrsfChannels;
 
 ///////////////////////////////////////////////
 ////////////////  Filters  ////////////////////
-static LPF DRAM_ATTR LPF_FreqError(5);
-static LPF DRAM_ATTR LPF_UplinkRSSI(5);
+static LPF DRAM_FORCE_ATTR LPF_FreqError(5);
+static LPF DRAM_FORCE_ATTR LPF_UplinkRSSI(5);
 
 //////////////////////////////////////////////////////////////
 ////// Variables for Telemetry and Link Quality //////////////
@@ -67,7 +67,7 @@ static volatile uint32_t DRAM_ATTR LastValidPacket; //Time the last valid packet
 #if !SERVO_OUTPUTS_ENABLED
 static uint32_t DRAM_ATTR SendLinkStatstoFCintervalNextSend;
 #endif
-static mspPacket_t DRAM_ATTR msp_packet_tx;
+static mspPacket_t DRAM_FORCE_ATTR msp_packet_tx;
 static volatile uint_fast8_t DRAM_ATTR tlm_msp_send;
 static volatile uint_fast8_t DRAM_ATTR uplink_Link_quality;
 
@@ -83,7 +83,7 @@ static volatile uint32_t DRAM_ATTR updatedAirRate = 0xff;
 
 ///////////////////////////////////////
 
-static bool DRAM_ATTR ledState = false;
+static bool DRAM_ATTR ledState;
 inline void led_set_state(bool state)
 {
     ledState = state;
@@ -108,8 +108,7 @@ static void ICACHE_RAM_ATTR handle_tlm_ratio(uint8_t interval)
         tlm_check_ratio = 0;
     }
     TLMinterval = interval;
-    DEBUG_PRINT("TLM: ");
-    DEBUG_PRINTLN(interval);
+    DEBUG_PRINTF("TLM: %u\n", interval);
 }
 ///////////////////////////////////////
 
@@ -138,8 +137,7 @@ uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
         return 0;
 
 #if PRINT_FREQ_ERROR
-    DEBUG_PRINT(" > freqerror:");
-    DEBUG_PRINT(freqerror);
+    DEBUG_PRINTF(" > freqerror:%u", freqerror);
 #endif
 
 #define MAX_ERROR 0 //3000
@@ -152,8 +150,7 @@ uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
     freqerror = LPF_FreqError.update(freqerror);
 
 #if PRINT_FREQ_ERROR
-    DEBUG_PRINT(" smooth:");
-    DEBUG_PRINT(freqerror);
+    DEBUG_PRINTF(" smooth:%u", freqerror);
 #endif
 
     if (abs(freqerror) > 100) // 120
@@ -163,8 +160,7 @@ uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
         retval = 1;
     }
 #if PRINT_FREQ_ERROR
-    //DEBUG_PRINT(" local:");
-    //DEBUG_PRINT(FreqCorrection - (UID[4] + UID[5]));
+    //DEBUG_PRINTF(" local:%u", FreqCorrection);
 #endif
 
     return retval;
@@ -184,7 +180,7 @@ uint8_t ICACHE_RAM_ATTR HandleFHSS()
 
 void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
 {
-    DEBUG_PRINT(" X");
+    DEBUG_PRINTF(" X");
     // esp requires word aligned buffer
     uint32_t __tx_buffer[(OTA_PACKET_SIZE + sizeof(uint32_t) - 1) / sizeof(uint32_t)];
     uint8_t *tx_buffer = (uint8_t *)__tx_buffer;
@@ -229,7 +225,7 @@ void tx_done_cb(void)
 
 void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 {
-    //DEBUG_PRINT("H");
+    //DEBUG_PRINTF("H");
 #if (DBG_PIN_TMR_ISR_FAST != UNDEF_PIN)
     digitalWriteFast(DBG_PIN_TMR_ISR_FAST, 1);
 #endif
@@ -239,8 +235,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     rx_last_valid_us = 0;
 
 #if PRINT_TIMER && PRINT_HW_ISR
-    DEBUG_PRINT("HW us ");
-    DEBUG_PRINT(us);
+    DEBUG_PRINTF("HW us %u", us);
 #endif
 
     /* do adjustment */
@@ -248,10 +243,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     {
         int32_t diff_us = (int32_t)(us - __rx_last_valid_us);
 #if PRINT_TIMER && PRINT_HW_ISR
-        DEBUG_PRINT(" - rx ");
-        DEBUG_PRINT(__rx_last_valid_us);
-        DEBUG_PRINT(" = ");
-        DEBUG_PRINT(diff_us);
+        DEBUG_PRINTF(" - rx %u = %u", __rx_last_valid_us, diff_us);
 #endif
 
         int32_t interval = ExpressLRS_currAirRate->interval;
@@ -277,8 +269,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     fhss_config_rx |= HandleFHSS();
 
 #if PRINT_TIMER && PRINT_HW_ISR
-    //DEBUG_PRINT(" nonce ");
-    //DEBUG_PRINT(NonceRXlocal);
+    //DEBUG_PRINTF(" nonce %u", NonceRXlocal);
 #endif
 
     tlm_send = ((0 < tlm_ratio) && ((NonceRXlocal & tlm_ratio) == 0));
@@ -306,7 +297,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
         if (NUM_FAILS_TO_RESYNC < (++rx_lost_packages)) {
             // consecutive losts => trigger connection lost to resync
             LostConnection();
-            DEBUG_PRINT("RESYNC!");
+            DEBUG_PRINTF("RESYNC!");
         }
     }
 #endif
@@ -316,9 +307,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     }
 
 #if (PRINT_TIMER && PRINT_HW_ISR) || PRINT_FREQ_ERROR
-    //DEBUG_PRINTLN("");
-    DEBUG_PRINT(" took ");
-    DEBUG_PRINTLN(micros() - us);
+    DEBUG_PRINTF(" took %u\n", (micros() - us));
 #endif
     rx_hw_isr_running = 0;
 #if (DBG_PIN_TMR_ISR_FAST != UNDEF_PIN)
@@ -348,7 +337,7 @@ void ICACHE_RAM_ATTR LostConnection()
 
     led_set_state(1);             // turn off led
     Radio.RXnb(GetInitialFreq()); // in conn lost state we always want to listen on freq index 0
-    DEBUG_PRINTLN("lost conn");
+    DEBUG_PRINTF("lost conn\n");
 
     platform_connection_state(connectionState);
     RFmodeNextCycle = millis(); // make sure to stay on same freq during next sync search phase
@@ -365,7 +354,7 @@ void ICACHE_RAM_ATTR TentativeConnection(int32_t freqerror)
 
     tentative_cnt = 0;
     connectionState = STATE_tentative;
-    DEBUG_PRINTLN("tentative");
+    DEBUG_PRINTF("tentative\n");
     TxTimer.start();     // Start local sync timer
     TxTimer.setTime(80); // Trigger isr right after reception
 }
@@ -375,7 +364,7 @@ void ICACHE_RAM_ATTR GotConnection()
     connectionState = STATE_connected; //we got a packet, therefore no lost connection
 
     led_set_state(0); // turn on led
-    DEBUG_PRINTLN("connected");
+    DEBUG_PRINTF("connected\n");
 
     platform_connection_state(connectionState);
 }
@@ -393,7 +382,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
     digitalWriteFast(DBG_PIN_RX_ISR_FAST, 1);
 #endif
 
-    //DEBUG_PRINT("I");
+    //DEBUG_PRINTF("I");
     const connectionState_e _conn_state = connectionState;
     const uint32_t current_us = Radio.LastPacketIsrMicros;
     const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_PAYLOAD, CRCCaesarCipher);
@@ -401,8 +390,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
     const uint8_t type = RcChannels_packetTypeGet(rx_buffer);
 
 #if PRINT_TIMER && PRINT_RX_ISR
-    DEBUG_PRINT("RX us ");
-    DEBUG_PRINT(current_us);
+    DEBUG_PRINTF("RX us %u", current_us);
 #endif
 
     if (crc_in != crc)
@@ -410,8 +398,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
         digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
 #endif
-        DEBUG_PRINT(" !");
-        //DEBUG_PRINTLN(FHSSgetCurrFreq());
+        DEBUG_PRINTF(" !");
         return;
     }
 
@@ -424,7 +411,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
     {
         case UL_PACKET_SYNC:
         {
-            DEBUG_PRINT(" S");
+            DEBUG_PRINTF(" S");
             ElrsSyncPacket_s const * const sync = (ElrsSyncPacket_s*)rx_buffer;
 
             if (sync->CRCCaesarCipher == CRCCaesarCipher)
@@ -460,7 +447,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
             break;
         }
         case UL_PACKET_RC_DATA: //Standard RC Data Packet
-            DEBUG_PRINT(" R");
+            DEBUG_PRINTF(" R");
             if (STATE_lost < _conn_state)
             {
                 RcChannels_channels_extract(rx_buffer, CrsfChannels);
@@ -484,7 +471,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
 
         case UL_PACKET_MSP: {
 #if !SERVO_OUTPUTS_ENABLED
-            DEBUG_PRINT(" M");
+            DEBUG_PRINTF(" M");
             uint8_t len = RcChannels_tlm_uplink_receive(rx_buffer);
             crsf.sendMSPFrameToFC(rx_buffer, len);
 #endif
@@ -515,8 +502,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
     FillLinkStats();
 
 #if PRINT_TIMER && PRINT_RX_ISR
-    DEBUG_PRINT(" took ");
-    DEBUG_PRINTLN(micros() - current_us);
+    DEBUG_PRINTF(" took %u\n", (micros() - current_us));
 #endif
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
     digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
@@ -525,7 +511,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
 
 void forced_start(void)
 {
-    DEBUG_PRINTLN("Manual Start");
+    DEBUG_PRINTF("Manual Start\n");
     Radio.RXnb(GetInitialFreq());
 }
 
@@ -548,8 +534,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     ExpressLRS_currAirRate = config;
     current_rate_config = rate;
 
-    DEBUG_PRINT("Set RF rate: ");
-    DEBUG_PRINTLN(config->rate);
+    DEBUG_PRINTF("Set RF rate: %u\n", config->rate);
 
     // Init CRC aka LQ array
     LQ_reset();
@@ -568,9 +553,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     // Measure RF noise
 #ifdef DEBUG_SERIAL // TODO: Enable this when noize floor is used!
     int RFnoiseFloor = Radio.MeasureNoiseFloor(10, GetInitialFreq());
-    DEBUG_PRINT("RF noise floor: ");
-    DEBUG_PRINT(RFnoiseFloor);
-    DEBUG_PRINTLN("dBm");
+    DEBUG_PRINTF("RF noise floor: %d dBm\n", RFnoiseFloor);
     (void)RFnoiseFloor;
 #endif
 
@@ -616,6 +599,8 @@ void msp_data_cb(uint8_t const *const input)
 
 void setup()
 {
+    uint8_t UID[6] = {MY_UID};
+
 #if (DBG_PIN_TMR_ISR_FAST != UNDEF_PIN)
     pinMode(DBG_PIN_TMR_ISR, OUTPUT);
     digitalWriteFast(DBG_PIN_TMR_ISR_FAST, 0);
@@ -634,7 +619,7 @@ void setup()
 
     msp_packet_tx.reset();
 
-    DEBUG_PRINTLN("ExpressLRS RX Module...");
+    DEBUG_PRINTF("ExpressLRS RX Module...\n");
     platform_setup();
 
     //FHSSrandomiseFHSSsequence();
@@ -670,6 +655,7 @@ static uint32_t led_toggle_ms = 0;
 void loop()
 {
     uint32_t now = millis();
+    const connectionState_e _conn_state = connectionState;
 #if !SERVO_OUTPUTS_ENABLED
     uint8_t rx_buffer_handle = 0;
 #endif
@@ -686,14 +672,14 @@ void loop()
     }
 #endif /* RX_UPDATE_AIR_RATE */
 
-    if (STATE_lost < connectionState)
+    if (STATE_lost < _conn_state)
     {
         // check if connection is lost
         if (ExpressLRS_currAirRate->connectionLostTimeout <= (int32_t)(now - LastValidPacket))
         {
             LostConnection();
         }
-        else if (connectionState == STATE_connected)
+        else if (_conn_state == STATE_connected)
         {
 #if SERVO_OUTPUTS_ENABLED
 #if !SERVO_WRITE_FROM_ISR
@@ -710,7 +696,7 @@ void loop()
 #endif
         }
     }
-    else if (connectionState == STATE_disconnected)
+    else if (_conn_state == STATE_disconnected)
     { /* Cycle only if initial connection search */
 
         if (RFmodeCycleDelay < (uint32_t)(now - RFmodeNextCycle))
@@ -729,7 +715,7 @@ void loop()
             led_toggle_ms = now;
         }
     }
-    else if (connectionState == STATE_lost)
+    else if (_conn_state == STATE_lost)
     { /* Just blink a led if connections is lost */
         if (300 <= (uint32_t)(now - led_toggle_ms))
         {
@@ -742,7 +728,7 @@ void loop()
     crsf.handleUartIn(rx_buffer_handle);
 #endif
 
-    platform_loop(connectionState);
+    platform_loop(_conn_state);
 
     platform_wd_feed();
 }

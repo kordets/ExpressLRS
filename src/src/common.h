@@ -29,8 +29,6 @@ typedef enum
 } connectionState_e;
 extern volatile connectionState_e connectionState;
 
-extern uint8_t const DRAM_ATTR UID[6];
-
 uint8_t getSyncWord(void);
 
 enum

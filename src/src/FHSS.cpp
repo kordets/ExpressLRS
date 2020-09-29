@@ -16,13 +16,13 @@
 #endif
 
 #if NR_SEQUENCE_ENTRIES <= 256
-uint_fast8_t volatile DRAM_ATTR FHSSptr = 0;
+uint_fast8_t volatile DRAM_ATTR FHSSptr;
 #elif NR_SEQUENCE_ENTRIES <= 65536
-uint_fast16_t volatile DRAM_ATTR FHSSptr = 0;
+uint_fast16_t volatile DRAM_ATTR FHSSptr;
 #else
 #error "FHSS sequence len invalid!"
 #endif
-int_fast32_t volatile DRAM_ATTR FreqCorrection = 0;
+int_fast32_t volatile DRAM_ATTR FreqCorrection;
 
 void ICACHE_RAM_ATTR FHSSsetCurrIndex(uint32_t value)
 { // set the current index of the FHSS pointer
@@ -95,20 +95,20 @@ void FHSSrandomiseFHSSsequence()
     const uint32_t NR_FHSS_ENTRIES = (sizeof(FHSSfreqs) / sizeof(FHSSfreqs[0]));
 
 #if defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915)
-    DEBUG_PRINTLN("Setting 915MHz Mode");
+    DEBUG_PRINTF("Setting 915MHz Mode\n");
 #elif defined Regulatory_Domain_EU_868 || defined Regulatory_Domain_EU_868_R9
-    DEBUG_PRINTLN("Setting 868MHz Mode");
+    DEBUG_PRINTF("Setting 868MHz Mode\n");
 #elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
-    DEBUG_PRINTLN("Setting 433MHz Mode");
+    DEBUG_PRINTF("Setting 433MHz Mode\n");
 #elif defined(Regulatory_Domain_ISM_2400) || defined(Regulatory_Domain_ISM_2400_800kHz)
-    DEBUG_PRINTLN("Setting ISM 2400 Mode");
+    DEBUG_PRINTF("Setting ISM 2400 Mode\n");
 #else
 #error No regulatory domain defined, please define one in common.h
 #endif
 
-    DEBUG_PRINT("Number of FHSS frequencies =");
-    DEBUG_PRINTLN(NR_FHSS_ENTRIES);
+    DEBUG_PRINTF("Number of FHSS frequencies = %u\n", NR_FHSS_ENTRIES);
 
+    uint8_t UID[6] = {MY_UID};
     uint32_t macSeed = CalcCRC32(UID, sizeof(UID));
     rngSeed(macSeed);
 
@@ -158,7 +158,7 @@ void FHSSrandomiseFHSSsequence()
                 if (index == NR_FHSS_ENTRIES)
                 {
                     // This should never happen
-                    DEBUG_PRINT("FAILED to find the available entry!\n");
+                    DEBUG_PRINTF("FAILED to find the available entry!\n");
                     // What to do? We don't want to hang as that will stop us getting to the wifi hotspot
                     // Use the sync channel
                     index = 0;
@@ -178,18 +178,14 @@ void FHSSrandomiseFHSSsequence()
             }
         }
 
-        DEBUG_PRINT(FHSSsequence[i]);
+        DEBUG_PRINTF("%u ", FHSSsequence[i]);
         if ((i + 1) % 10 == 0)
         {
-            DEBUG_PRINTLN();
-        }
-        else
-        {
-            DEBUG_PRINT(" ");
+            DEBUG_PRINTF("\n");
         }
     } // for each element in FHSSsequence
 
-    DEBUG_PRINTLN();
+    DEBUG_PRINTF("\n");
 }
 
 /** Previous version of FHSSrandomiseFHSSsequence

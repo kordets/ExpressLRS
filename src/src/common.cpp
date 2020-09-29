@@ -6,11 +6,12 @@
 #include <Arduino.h>
 
 volatile uint8_t current_rate_config;
+volatile const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
 
 //
 // https://semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R000000HUhK/6T9Vdb3_ldnElA8drIbPYjs1wBbhlWUXej8ZMXtZXOM
 //
-const expresslrs_mod_settings_t DRAM_ATTR ExpressLRS_AirRateConfig[] = {
+static expresslrs_mod_settings_t DRAM_FORCE_ATTR ExpressLRS_AirRateConfig[] = {
 #if RADIO_SX128x
     // NOTE! Preamble len is calculate MANT*2^EXP when MANT is bits [3:0] and EXP is bits [7:4]
 #if RADIO_SX128x_BW800
@@ -65,18 +66,15 @@ uint8_t get_elrs_airRateMax(void)
     return sizeof(ExpressLRS_AirRateConfig) / sizeof(expresslrs_mod_settings_t);
 }
 
-volatile const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
-
 #ifndef MY_UID
 #error "UID is mandatory!"
-#else
-uint8_t const DRAM_ATTR UID[6] = {MY_UID};
 #endif
 
 #define SYNC_WORD_LORAWAN  0x34  //  52  - sync word reserved for LoRaWAN networks
 
 uint8_t getSyncWord(void)
 {
+    uint8_t UID[6] = {MY_UID};
     // TX: 0x1d
     // RX: 0x61 -> NOK
     // RX: 0x1E, 0x1F, 0x2d, 0x3d, 0x4d, 0x6d -> OK

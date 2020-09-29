@@ -75,7 +75,7 @@ void CRSF_RX::processPacket(uint8_t const *data)
         {
             if (data[1] == 0x62 && data[2] == 0x6c)
             {
-                DEBUG_PRINTLN("Jumping to Bootloader...");
+                DEBUG_PRINTF("Jumping to Bootloader...\n");
                 delay(200);
                 platform_restart();
             }

@@ -167,16 +167,13 @@ uint8_t SX127xDriver::CheckChipVersion()
         {
             flagFound = true;
 #ifdef DEBUG
-            DEBUG_PRINTLN("SX127x found! (match by REG_VERSION == 0x12)");
+            DEBUG_PRINTF("SX127x found! (match by REG_VERSION == 0x12)\n");
 #endif
         }
         else
         {
 #ifdef DEBUG
-            DEBUG_PRINT("SX127x not found! (");
-            DEBUG_PRINT(i + 1);
-            DEBUG_PRINT(" of 10 tries) REG_VERSION == 0x");
-            DEBUG_PRINTLN(version, HEX);
+            DEBUG_PRINTF("SX127x not found! (%u of 10 tries) REG_VERSION == 0x%X\n", (i+1), version);
 #endif
             delay(200);
             i++;
@@ -238,7 +235,7 @@ uint8_t ICACHE_RAM_ATTR SX127xDriver::TX(uint8_t *data, uint8_t length)
         //TODO: calculate timeout dynamically based on modem settings
         if (millis() - start > (length * 100))
         {
-            DEBUG_PRINTLN("Send Timeout");
+            DEBUG_PRINTF("Send Timeout\n");
             return (ERR_TX_TIMEOUT);
         }
     }
@@ -452,8 +449,7 @@ void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
         ((RFmodule == RFMOD_SX1276) && (freq > 1020000000)) ||
         ((RFmodule == RFMOD_SX1278) && (freq > 525000000)))
     {
-        DEBUG_PRINT("Invalid Frequnecy!: ");
-        DEBUG_PRINTLN(freq);
+        DEBUG_PRINTF("Invalid Frequnecy!: %u\n", freq);
         return;
     }
 

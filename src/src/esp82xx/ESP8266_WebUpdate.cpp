@@ -36,8 +36,9 @@ ESP8266HTTPUpdateServer httpUpdater;
 void BeginWebUpdate(void)
 {
     const char *host = "elrs_rx";
-
-    DEBUG_PRINTLN("Begin Webupdater");
+#ifdef DEBUG_SERIAL
+    DEBUG_SERIAL.println("Begin Webupdater");
+#endif
 
     wifi_station_set_hostname(host);
 
@@ -102,8 +103,9 @@ void BeginWebUpdate(void)
 
     httpUpdater.setup(&httpServer);
     httpServer.begin();
-
-    DEBUG_PRINTF("HTTPUpdateServer ready! Open http://%s.local/update in your browser\n", host);
+#ifdef DEBUG_SERIAL
+    DEBUG_SERIAL.printf("HTTPUpdateServer ready! Open http://%s.local/update in your browser\n", host);
+#endif
 }
 
 void HandleWebUpdate(void)

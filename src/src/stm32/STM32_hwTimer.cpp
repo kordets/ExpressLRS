@@ -69,7 +69,6 @@ void HwTimer::setTime(uint32_t time)
         time = HWtimerInterval;
     timer_tx.setOverflow(time, MICROSEC_FORMAT);
 #if PRINT_TIMER && PRINT_TMR
-    DEBUG_PRINT(" set: ");
-    DEBUG_PRINT(time);
+    DEBUG_PRINTF(" set: %u", time);
 #endif
 }
