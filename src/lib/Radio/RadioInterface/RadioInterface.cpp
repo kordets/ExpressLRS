@@ -1,6 +1,6 @@
 #include "RadioInterface.h"
 
-volatile enum isr_states DRAM_ATTR RadioInterface::p_state_isr = NONE;
+volatile enum isr_states DRAM_ATTR RadioInterface::p_state_isr;
 
 /////////////////////////////////////////////////////////////////
 
@@ -28,6 +28,8 @@ void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
 
 void RadioInterface::InitPins(void)
 {
+    p_state_isr = NONE;
+
     if (-1 < _RST) {
         pinMode(_RST, OUTPUT);
         digitalWrite(_RST, HIGH);
