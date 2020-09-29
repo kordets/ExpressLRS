@@ -11,7 +11,8 @@
 #endif
 
 #define ICACHE_RAM_ATTR
-#define DRAM_ATTR __section(".data")
+#define DRAM_ATTR //DRAM_FORCE_ATTR
+#define DRAM_FORCE_ATTR __section(".data")
 #define DMA_ATTR WORD_ALIGNED_ATTR DRAM_ATTR
 #define WORD_ALIGNED_ATTR __attribute__((aligned(32)))
 

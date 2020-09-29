@@ -11,6 +11,8 @@
 #define ICACHE_RAM_ATTR IRAM_ATTR
 #endif // !defined(ICACHE_RAM_ATTR)
 
+#define DRAM_FORCE_ATTR DRAM_ATTR
+
 #define _DISABLE_IRQ()
 #define _ENABLE_IRQ()
 #define _SAVE_IRQ() 0; xSemaphoreTake(irqMutex, portMAX_DELAY);
