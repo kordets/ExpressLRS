@@ -265,12 +265,12 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
             _f.write("#define FHSS_MY_STEP (%u)\n\n" % (my_step))
 
             _f.write("/* Note: UID offset included */\n")
-            _f.write('static uint32_t DRAM_ATTR FHSSfreqs[%u] = {\n' % num_of_fhss)
+            _f.write('static uint32_t DRAM_FORCE_ATTR FHSSfreqs[%u] = {\n' % num_of_fhss)
             freqs = ["    %u" % (freq + FREQ_OFFSET_UID) for freq in FHSSfreqs]
             _f.write(",\n".join(freqs))
             _f.write("\n};\n\n")
 
-            _f.write('uint8_t DRAM_ATTR FHSSsequence[NR_SEQUENCE_ENTRIES] = {\n')
+            _f.write('static uint8_t DRAM_FORCE_ATTR FHSSsequence[NR_SEQUENCE_ENTRIES] = {\n')
             if rand_version == 1:
                 FHSSsequence = FHSSrandomiseFHSSsequence_v1(num_of_fhss, SYNC_INTERVAL)
             elif rand_version == 2:
