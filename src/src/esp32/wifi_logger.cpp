@@ -136,7 +136,7 @@ void init_esp_now(void)
   esp_now_peer_info_t peer_info = {
     .peer_addr = {0},
     .lmk = {0},
-    .channel = ((mode != WIFI_MODE_STA) ? ESP_NOW_CHANNEL : 0),
+    .channel = (uint8_t)((mode != WIFI_MODE_STA) ? ESP_NOW_CHANNEL : 0),
     //.ifidx = ifidx,
     .ifidx = ESP_IF_WIFI_STA,
     .encrypt = false,
