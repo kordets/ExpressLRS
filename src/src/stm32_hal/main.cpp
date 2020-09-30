@@ -22,6 +22,11 @@ void shutdown(const char * reason)
     while(1);
 }
 
+void _Error_Handler(const char * error, int)
+{
+    shutdown(error);
+}
+
 // Enable a peripheral clock
 void enable_pclock(uint32_t periph_base)
 {
@@ -144,7 +149,7 @@ uint32_t millis(void)
 
 void delay(uint32_t ms)
 {
-    // HAL_Delay();
+    //HAL_Delay(ms);
     ms += millis();
     while (timer_is_before(millis(), ms))
         ;
@@ -227,10 +232,11 @@ static void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL12;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
-    Error_Handler();
+    while (1);
+    //Error_Handler();
   }
   /** Initializes the CPU, AHB and APB busses clocks
    */
@@ -242,7 +248,8 @@ static void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
-    Error_Handler();
+    while (1);
+    //Error_Handler();
   }
 #endif // !USE_INTERNAL_XO
 
@@ -315,11 +322,14 @@ static void init(void)
   dwt_init();
 #endif
 
-  /* Initialize the HAL */
-  HAL_Init();
-
   /* Configure the system clock */
   SystemClock_Config();
+
+  /* Initialize the HAL */
+  HAL_Init();
+  HAL_InitTick(TICK_INT_PRIORITY);
+  HAL_SetTickFreq(HAL_TICK_FREQ_1KHZ);
+  HAL_ResumeTick();
 
 #if defined (STM32MP1xx)
   __HAL_RCC_HSEM_CLK_ENABLE();
