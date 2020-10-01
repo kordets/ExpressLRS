@@ -68,12 +68,14 @@ extern "C"
 void timer_enable(void)
 {
     TIMx->CR1 = TIM_CR1_CEN;
+    TIMx->DIER = TIM_IT_UPDATE;
+    TIMx->SR  &= ~(TIM_SR_UIF);
 }
 
 void timer_disable(void)
 {
     TIMx->CR1 = 0;
-    TIMx->SR  &= ~(TIM_SR_UIF);
+    TIMx->DIER = 0;
 }
 
 static void timer_init(void)
@@ -87,7 +89,7 @@ static void timer_init(void)
     TIMx->CNT = 0;
     //TIMx->RCR = 0;
     TIMx->EGR = TIM_EGR_UG;
-    TIMx->DIER = TIM_IT_UPDATE;
+    //TIMx->DIER = TIM_IT_UPDATE;
     NVIC_SetPriority(TIMx_IRQn, 2);
     NVIC_EnableIRQ(TIMx_IRQn);
     irq_restore(flag);
@@ -98,7 +100,7 @@ static void timer_init(void)
  ****************************************************************/
 void HwTimer::init()
 {
-    timer_disable();
+    //timer_disable();
     timer_init();
     //timer_enable();
 }
