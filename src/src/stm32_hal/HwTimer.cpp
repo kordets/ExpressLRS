@@ -4,7 +4,7 @@
 
 #include <Arduino.h>
 
-#define TIMER_IS_2US 0
+#define TIMER_IS_2US 1
 
 
 HwTimer TxTimer;
@@ -38,7 +38,7 @@ static inline void timer_counter_set(uint32_t cnt)
 
 static inline void timer_set(uint32_t next)
 {
-    TIMx->CCR1 = next >> TIMER_IS_2US;
+    TIMx->ARR = next >> TIMER_IS_2US;
     TIMx->SR = 0;
 }
 
