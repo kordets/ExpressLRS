@@ -152,7 +152,7 @@ void USART_IDLE_IRQ_handler(HardwareSerial *serial, USART_TypeDef * uart, uint8_
 #endif /* USART3 */
 
 /* USART1 TX DMA */
-void DMA1_Stream4_IRQHandler(void)
+void DMA1_Channel4_IRQHandler(void)
 {
     uint32_t sr = DMA1->ISR;
     if (sr & DMA_ISR_TCIF4) {
@@ -166,7 +166,7 @@ void DMA1_Stream4_IRQHandler(void)
 }
 
 /* USART2 TX DMA */
-void DMA1_Stream6_IRQHandler(void)
+void DMA1_Channel6_IRQHandler(void)
 {
     uint32_t sr = DMA1->ISR;
     if (sr & DMA_ISR_TCIF6) {
@@ -180,7 +180,7 @@ void DMA1_Stream6_IRQHandler(void)
 }
 
 /* USART3 TX DMA */
-void DMA1_Stream2_IRQHandler(void)
+void DMA1_Channel2_IRQHandler(void)
 {
     uint32_t sr = DMA1->ISR;
     if (sr & DMA_ISR_TCIF2) {
