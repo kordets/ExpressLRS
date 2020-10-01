@@ -6,5 +6,6 @@
 #define DRAM_ATTR
 #define DMA_ATTR WORD_ALIGNED_ATTR
 #define WORD_ALIGNED_ATTR __attribute__((aligned(4)))
+#define DRAM_FORCE_ATTR
 
 #endif /* PLATFORM_H_ */
