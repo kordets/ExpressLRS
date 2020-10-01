@@ -30,9 +30,13 @@ size_t printf_idx, printf_buff;
 
 void Printf::_putchar(char character)
 {
+    uint8_t is_end = character == '\n';
+    if (is_end && (printf_idx + 1) < PRINTF_BUFF_SIZE)
+        printf_out[printf_buff][printf_idx++] = '\r';
     printf_out[printf_buff][printf_idx++] = character;
+
     /* Send buff out if line end or buffer is full */
-    if (character == '\n' || PRINTF_BUFF_SIZE <= printf_idx) {
+    if (is_end || PRINTF_BUFF_SIZE <= printf_idx) {
         DEBUG_SERIAL.write((uint8_t*)printf_out[printf_buff], printf_idx);
         printf_buff = (printf_buff+1) % 4;
         printf_idx = 0;
@@ -93,17 +97,12 @@ int8_t DMA_transmit(HardwareSerial * ptr, uint8_t dma_ch)
     return -1;
 }
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 void USART_IDLE_IRQ_handler(HardwareSerial *serial, USART_TypeDef * uart, uint8_t dma_ch)
 {
     uint32_t SR = uart->SR, CR1 = uart->CR1;
 
     /* Check for IDLE line interrupt */
-    if ((SR & USART_SR_IDLE) && (CR1 & USART_CR1_RE)) {
+    if ((SR & USART_SR_IDLE) && (CR1 & USART_CR1_IDLEIE)) {
         uint8_t head_pos = sizeof(serial->rx_buffer) - LL_DMA_GetDataLength(DMA1, dma_ch);
         uint8_t head = serial->rx_head;
         uint8_t tail = head + (uint8_t)(head_pos - head);
@@ -114,8 +113,9 @@ void USART_IDLE_IRQ_handler(HardwareSerial *serial, USART_TypeDef * uart, uint8_
     /* Check for RX data */
     else if ((SR & (USART_SR_RXNE | USART_SR_ORE)) && (CR1 & USART_CR1_RXNEIE)) {
         uint8_t next = serial->rx_head;
-        if (next != serial->rx_tail) {
-            serial->rx_buffer[next] = uart->DR;
+        uint8_t data = uart->DR;
+        if ((next + 1) != serial->rx_tail) {
+            serial->rx_buffer[next] = data;
             serial->rx_head = next + 1;
         }
     }
@@ -128,9 +128,12 @@ void USART_IDLE_IRQ_handler(HardwareSerial *serial, USART_TypeDef * uart, uint8_
         else
             uart->DR = serial->tx_buffer[serial->tx_tail++];
     }
-
-    //uart->SR = SR; // Needed?
 }
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #ifdef USART1
     void USART1_IRQHandler(void)
@@ -156,7 +159,7 @@ void DMA1_Channel4_IRQHandler(void)
 {
     uint32_t sr = DMA1->ISR;
     if (sr & DMA_ISR_TCIF4) {
-        DMA1->ISR = DMA_ISR_TCIF4; // Clear IRQ
+        //DMA1->ISR = DMA_ISR_TCIF4; // Clear IRQ
         CLEAR_BIT(DMA1_Channel4->CCR, DMA_CCR_EN); // Disable DMA stream
 #ifdef USART1
         if (_started_serials[0] && DMA_transmit(_started_serials[0], LL_DMA_CHANNEL_4) < 0)
@@ -170,7 +173,7 @@ void DMA1_Channel6_IRQHandler(void)
 {
     uint32_t sr = DMA1->ISR;
     if (sr & DMA_ISR_TCIF6) {
-        DMA1->ISR = DMA_ISR_TCIF6; // Clear IRQ
+        //DMA1->ISR = DMA_ISR_TCIF6; // Clear IRQ
         CLEAR_BIT(DMA1_Channel6->CCR, DMA_CCR_EN); // Disable DMA stream
 #ifdef USART2
         if (_started_serials[1] && DMA_transmit(_started_serials[1], LL_DMA_CHANNEL_6) < 0)
@@ -184,7 +187,7 @@ void DMA1_Channel2_IRQHandler(void)
 {
     uint32_t sr = DMA1->ISR;
     if (sr & DMA_ISR_TCIF2) {
-        DMA1->ISR = DMA_ISR_TCIF2; // Clear IRQ
+        //DMA1->ISR = DMA_ISR_TCIF2; // Clear IRQ
         CLEAR_BIT(DMA1_Channel2->CCR, DMA_CCR_EN); // Disable DMA stream
 #ifdef USART3
         if (_started_serials[2] && DMA_transmit(_started_serials[2], LL_DMA_CHANNEL_2) < 0)
