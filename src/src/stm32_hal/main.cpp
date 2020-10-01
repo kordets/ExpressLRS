@@ -6,6 +6,8 @@ extern void setup(void);
 extern void loop(void);
 void yield(void);
 
+uint32_t _ms_cntr;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,9 +24,10 @@ void shutdown(const char * reason)
     while(1);
 }
 
-void _Error_Handler(const char * error, int)
+void _Error_Handler(const char * error, int line)
 {
     shutdown(error);
+    (void)line;
 }
 
 // Enable a peripheral clock
@@ -92,19 +95,21 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
     if (mode == GPIO_INPUT) {
         cfg = pullup ? 0x8 : 0x4;
     } else if (mode == GPIO_OUTPUT) {
-        cfg = 0x1;
+        cfg = 0x1; // push-pull, 0b00 | max speed 2 MHz, 0b01
     } else if (mode == (GPIO_OUTPUT | GPIO_OPEN_DRAIN)) {
-        cfg = 0x5;
+        cfg = 0x5; // Open-drain, 0b01 | max speed 2 MHz, 0b01
     } else if (mode == GPIO_ANALOG) {
         cfg = 0x0;
     } else {
+        // Alternate function
         if (mode & GPIO_OPEN_DRAIN)
-            // Alternate function with open-drain mode
+            // output open-drain mode, 10MHz
             cfg = 0xd;
         else if (pullup > 0)
-            // Alternate function input pins use GPIO_INPUT mode on the stm32f1
+            // input pins use GPIO_INPUT mode on the stm32f1
             cfg = 0x8;
         else
+            // output push-pull mode, 10MHz
             cfg = 0x9;
     }
     if (pos & 0x8)
@@ -144,7 +149,9 @@ uint32_t micros(void)
 
 uint32_t millis(void)
 {
-    return HAL_GetTick();
+    uint32_t ms = read_u32(&_ms_cntr);
+    return ms;
+    //return HAL_GetTick();
 }
 
 void delay(uint32_t ms)
@@ -167,6 +174,38 @@ void delayMicroseconds(uint32_t usecs)
         ;
 }
 
+void HAL_IncTick(void)
+{
+    // just empty to avoid issue with HAL implementation
+}
+
+uint32_t HAL_GetTick(void)
+{
+    return millis();
+}
+
+void HAL_Delay(uint32_t Delay)
+{
+    delay(Delay);
+}
+
+static void timer_init(void)
+{
+    // Enable Debug Watchpoint and Trace (DWT) for its 32bit timer
+    /*
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+    DWT->CYCCNT = 0;
+    */
+
+    // Enable SysTick
+    write_u32(&_ms_cntr, 0);
+    NVIC_SetPriority(SysTick_IRQn, 2);
+    SysTick->LOAD = (uint32_t)(SystemCoreClock / 1000UL) - 1;
+    SysTick->VAL = 0UL;
+    SysTick->CTRL = (SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk);
+}
+
 
 /**
   * @brief  System Clock Configuration
@@ -187,152 +226,156 @@ void delayMicroseconds(uint32_t usecs)
   */
 static void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct;
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
+    RCC_OscInitTypeDef RCC_OscInitStruct;
+    RCC_ClkInitTypeDef RCC_ClkInitStruct;
 
 #if !USE_INTERNAL_XO
-  RCC_PeriphCLKInitTypeDef PeriphClkInit;
+    RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
-  /* Initializes the CPU, AHB and APB busses clocks */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-    while (1);
-  }
+    /* Initializes the CPU, AHB and APB busses clocks */
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+        Error_Handler();
+    }
 
-  /* Initializes the CPU, AHB and APB busses clocks */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-                                | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+    /* Initializes the CPU, AHB and APB busses clocks */
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+                                    | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
-    while (1);
-  }
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+        Error_Handler();
+    }
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC | RCC_PERIPHCLK_USB;
-  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
-    while (1);
-  }
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC | RCC_PERIPHCLK_USB;
+    PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
+    PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
+        Error_Handler();
+    }
 
 #else // USE_INTERNAL_XO
-  /** Initializes the CPU, AHB and APB busses clocks
-   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    while (1);
-    //Error_Handler();
-  }
-  /** Initializes the CPU, AHB and APB busses clocks
-   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
-                                RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+    /** Initializes the CPU, AHB and APB busses clocks
+     */
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
+    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+        Error_Handler();
+    }
+    /** Initializes the CPU, AHB and APB busses clocks
+     */
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                                    RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
-    while (1);
-    //Error_Handler();
-  }
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+        Error_Handler();
+    }
 #endif // !USE_INTERNAL_XO
 
-  SystemCoreClockUpdate();
+    SystemCoreClockUpdate();
 }
 
 #ifdef DWT_BASE
 static void dwt_access(bool ena)
 {
 #if (__CORTEX_M == 0x07U)
-  /*
-   * Define DWT LSR mask which is (currentuly) not defined by the CMSIS.
-   * Same as ITM LSR one.
-   */
+    /*
+    * Define DWT LSR mask which is (currentuly) not defined by the CMSIS.
+    * Same as ITM LSR one.
+    */
 #if !defined DWT_LSR_Present_Msk
 #define DWT_LSR_Present_Msk ITM_LSR_Present_Msk
 #endif
 #if !defined DWT_LSR_Access_Msk
 #define DWT_LSR_Access_Msk ITM_LSR_Access_Msk
 #endif
-  uint32_t lsr = DWT->LSR;
+    uint32_t lsr = DWT->LSR;
 
-  if ((lsr & DWT_LSR_Present_Msk) != 0) {
-    if (ena) {
-      if ((lsr & DWT_LSR_Access_Msk) != 0) { //locked
-        DWT->LAR = 0xC5ACCE55;
-      }
-    } else {
-      if ((lsr & DWT_LSR_Access_Msk) == 0) { //unlocked
-        DWT->LAR = 0;
-      }
+    if ((lsr & DWT_LSR_Present_Msk) != 0) {
+        if (ena) {
+        if ((lsr & DWT_LSR_Access_Msk) != 0) { //locked
+            DWT->LAR = 0xC5ACCE55;
+        }
+        } else {
+        if ((lsr & DWT_LSR_Access_Msk) == 0) { //unlocked
+            DWT->LAR = 0;
+        }
+        }
     }
-  }
 #else /* __CORTEX_M */
-  UNUSED(ena);
+    UNUSED(ena);
 #endif /* __CORTEX_M */
 }
 
 static uint32_t dwt_init(void)
 {
 
-  /* Enable use of DWT */
-  if (!(CoreDebug->DEMCR & CoreDebug_DEMCR_TRCENA_Msk)) {
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-  }
+    /* Enable use of DWT */
+    if (!(CoreDebug->DEMCR & CoreDebug_DEMCR_TRCENA_Msk)) {
+        CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    }
 
-  /* Unlock */
-  dwt_access(true);
+    /* Unlock */
+    dwt_access(true);
 
-  /* Reset the clock cycle counter value */
-  DWT->CYCCNT = 0;
+    /* Reset the clock cycle counter value */
+    DWT->CYCCNT = 0;
 
-  /* Enable  clock cycle counter */
-  DWT->CTRL |=  DWT_CTRL_CYCCNTENA_Msk;
+    /* Enable  clock cycle counter */
+    DWT->CTRL |=  DWT_CTRL_CYCCNTENA_Msk;
 
-  /* 3 NO OPERATION instructions */
-  __asm volatile(" nop      \n\t"
-                 " nop      \n\t"
-                 " nop      \n\t");
+    /* 3 NO OPERATION instructions */
+    __asm volatile(" nop      \n\t"
+                    " nop      \n\t"
+                    " nop      \n\t");
 
-  /* Check if clock cycle counter has started */
-  return (DWT->CYCCNT) ? 0 : 1;
+    /* Check if clock cycle counter has started */
+    return (DWT->CYCCNT) ? 0 : 1;
 }
 #endif /* DWT_BASE */
 
 static void init(void)
 {
-  /* Init DWT if present */
+    /* Deinit HAL just in case => reset all peripherals */
+    HAL_DeInit();
+
+    /* Init DWT if present */
 #ifdef DWT_BASE
-  dwt_init();
+    if (dwt_init()) {
+        Error_Handler();
+    }
 #endif
 
-  /* Configure the system clock */
-  SystemClock_Config();
+    /* Initialize the HAL */
+    //HAL_Init();
 
-  /* Initialize the HAL */
-  HAL_Init();
-  HAL_InitTick(TICK_INT_PRIORITY);
-  HAL_SetTickFreq(HAL_TICK_FREQ_1KHZ);
-  HAL_ResumeTick();
+    /* Configure the system clock */
+    SystemClock_Config();
+
+    timer_init();
+
+    // Enable AFIO peripheral
+    enable_pclock((uint32_t)AFIO_BASE);
 
 #if defined (STM32MP1xx)
-  __HAL_RCC_HSEM_CLK_ENABLE();
+    __HAL_RCC_HSEM_CLK_ENABLE();
 #endif
 }
 
@@ -340,38 +383,57 @@ static void init(void)
 // Otherwise, statically allocated objects that need HAL may fail.
 __attribute__((constructor(101))) void premain()
 {
-  // Required by FreeRTOS, see http://www.freertos.org/RTOS-Cortex-M3-M4.html
+    /* Reset vector location which is set wrongly by SystemInit */
+    extern uint32_t g_pfnVectors;
+    SCB->VTOR = (uint32_t) &g_pfnVectors;
+
+/* Configure Flash prefetch */
+#if (PREFETCH_ENABLE != 0)
+#if defined(STM32F101x6) || defined(STM32F101xB) || defined(STM32F101xE) || defined(STM32F101xG) || \
+    defined(STM32F102x6) || defined(STM32F102xB) || \
+    defined(STM32F103x6) || defined(STM32F103xB) || defined(STM32F103xE) || defined(STM32F103xG) || \
+    defined(STM32F105xC) || defined(STM32F107xC)
+
+  /* Prefetch buffer is not available on value line devices */
+  __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+#endif
+#endif /* PREFETCH_ENABLE */
+
+    // Required by FreeRTOS, see http://www.freertos.org/RTOS-Cortex-M3-M4.html
 #ifdef NVIC_PRIORITYGROUP_4
-  HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+    HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
 #endif
 #if (__CORTEX_M == 0x07U)
-  // Defined in CMSIS core_cm7.h
+    // Defined in CMSIS core_cm7.h
 #ifndef I_CACHE_DISABLED
-  SCB_EnableICache();
+    SCB_EnableICache();
 #endif
 #ifndef D_CACHE_DISABLED
-  SCB_EnableDCache();
+    SCB_EnableDCache();
 #endif
 #endif
 
-  init();
+    init();
 }
+
+extern void initVariant() __attribute__((weak));
 
 /*
  * \brief Main entry point of Arduino application
  */
 int main(void)
 {
-  setup();
-  for (;;) {
-    loop();
-  }
+    initVariant();
+    setup();
+    for (;;) {
+        loop();
+    }
 
-  return 0;
+    return 0;
 }
 
 void SysTick_Handler(void)
 {
-  HAL_IncTick();
-  HAL_SYSTICK_IRQHandler();
+    //HAL_IncTick();
+    ++_ms_cntr;
 }

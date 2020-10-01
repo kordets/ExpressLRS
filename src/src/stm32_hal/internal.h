@@ -57,10 +57,11 @@ extern GPIO_TypeDef *const digital_regs[];
 
 #define GPIO_INPUT        0
 #define GPIO_OUTPUT       1
-#define GPIO_INPUT_PULLUP 4
-#define GPIO_OPEN_DRAIN   0x100
-#define GPIO_FUNCTION(fn) (2 | ((fn) << 4))
+#define GPIO_AF           2
 #define GPIO_ANALOG       3
+#define GPIO_INPUT_PULLUP 4 /* For arduino ide compatibility */
+#define GPIO_OPEN_DRAIN   0x100
+#define GPIO_FUNCTION(fn) (GPIO_AF | ((fn) << 4))
 
 #define CONFIG_CLOCK_FREQ     F_CPU
 

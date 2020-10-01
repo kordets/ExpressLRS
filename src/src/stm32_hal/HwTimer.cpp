@@ -4,6 +4,9 @@
 
 #include <Arduino.h>
 
+#define TIMER_IS_2US 0
+
+
 HwTimer TxTimer;
 
 /****************************************************************
@@ -35,7 +38,7 @@ static inline void timer_counter_set(uint32_t cnt)
 
 static inline void timer_set(uint32_t next)
 {
-    TIMx->CCR1 = next;
+    TIMx->CCR1 = next >> TIMER_IS_2US;
     TIMx->SR = 0;
 }
 
@@ -78,7 +81,8 @@ static void timer_init(void)
     irqstatus_t flag = irq_save();
     enable_pclock((uint32_t)TIMx);
     timer_disable();
-    TIMx->PSC = (get_pclock_frequency((uint32_t)TIMx) / 1000000) - 1; // Prescaler to 2us
+    // Set clock prescaler to 1us or 2us
+    TIMx->PSC = (get_pclock_frequency((uint32_t)TIMx) / (1000000 >> TIMER_IS_2US)) - 1;
     TIMx->ARR = (1U << 16) - 1; // Init to max
     TIMx->CNT = 0;
     //TIMx->RCR = 0;

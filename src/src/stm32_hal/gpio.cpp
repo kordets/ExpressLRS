@@ -282,7 +282,9 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
 #endif
 
     uint32_t prioritygroup = NVIC_GetPriorityGrouping();
-    NVIC_SetPriority(gpio_irq_conf[index].irqnb, NVIC_EncodePriority(prioritygroup, EXTI_IRQ_PRIO, EXTI_IRQ_SUBPRIO));
+    NVIC_SetPriority(
+        gpio_irq_conf[index].irqnb,
+        NVIC_EncodePriority(prioritygroup, EXTI_IRQ_PRIO, EXTI_IRQ_SUBPRIO));
     NVIC_EnableIRQ(gpio_irq_conf[index].irqnb);
 }
 
