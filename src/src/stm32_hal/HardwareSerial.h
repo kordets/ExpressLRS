@@ -59,8 +59,13 @@ public:
         return ret;
     }
 
-protected:
+    uint32_t dma_unit_tx;
+    uint32_t dma_unit_rx;
     void* p_usart;
+    uint8_t dma_ch_tx;
+    uint8_t dma_ch_rx;
+
+protected:
     uint32_t rx_pin;
     uint32_t tx_pin;
     int32_t usart_irq;
@@ -68,8 +73,6 @@ protected:
 
 private:
     uint8_t p_use_dma;
-    uint8_t dma_ch_tx;
-    uint8_t dma_ch_rx;
     uint8_t dma_irq_tx;
     uint8_t dma_irq_rx;
 

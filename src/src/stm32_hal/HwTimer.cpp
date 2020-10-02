@@ -5,7 +5,8 @@
 #include <Arduino.h>
 
 #define TIMER_IS_2US 1
-
+#define COUNT_DOWN TIM_CR1_DIR
+//#define COUNT_DOWN 0
 
 HwTimer TxTimer;
 
@@ -33,12 +34,17 @@ static inline uint32_t timer_counter_get(void)
 
 static inline void timer_counter_set(uint32_t cnt)
 {
-    TIMx->CNT = cnt;
+    TIMx->CNT = cnt >> TIMER_IS_2US;
 }
 
 static inline void timer_set(uint32_t next)
 {
     TIMx->ARR = next >> TIMER_IS_2US;
+#if COUNT_DOWN
+    timer_counter_set(next);
+#else
+    timer_counter_set(0);
+#endif
     TIMx->SR = 0;
 }
 
@@ -67,7 +73,7 @@ extern "C"
 
 void timer_enable(void)
 {
-    TIMx->CR1 = TIM_CR1_CEN;
+    TIMx->CR1 = TIM_CR1_CEN | COUNT_DOWN;
     TIMx->DIER = TIM_IT_UPDATE;
     TIMx->SR  &= ~(TIM_SR_UIF);
 }
@@ -90,7 +96,7 @@ static void timer_init(void)
     //TIMx->RCR = 0;
     TIMx->EGR = TIM_EGR_UG;
     //TIMx->DIER = TIM_IT_UPDATE;
-    NVIC_SetPriority(TIMx_IRQn, 2);
+    NVIC_SetPriority(TIMx_IRQn, 4);
     NVIC_EnableIRQ(TIMx_IRQn);
     irq_restore(flag);
 }
@@ -109,15 +115,18 @@ void HwTimer::start()
 {
     timer_set(HWtimerInterval);
     timer_enable();
+    running = 1;
 }
 
 void HwTimer::stop()
 {
+    running = 0;
     timer_disable();
 }
 
 void HwTimer::pause()
 {
+    running = 0;
     timer_disable();
 }
 
@@ -125,7 +134,6 @@ void HwTimer::reset(int32_t offset)
 {
     if (running)
     {
-        timer_counter_set(0);
         timer_set(HWtimerInterval - offset);
     }
 }
@@ -135,4 +143,14 @@ void HwTimer::setTime(uint32_t time)
     if (!time)
         time = HWtimerInterval;
     timer_set(time);
+}
+
+void HwTimer::triggerSoon(void)
+{
+    TIMx->SR = 0; // Clear pending ISR
+#if !COUNT_DOWN
+    timer_counter_set(HWtimerInterval - TIMER_SOON);
+#else
+    timer_counter_set(TIMER_SOON);
+#endif
 }

@@ -8,14 +8,12 @@
 #ifndef __INTERNAL_H_
 #define __INTERNAL_H_
 
-#if defined(STM32F0xx)
-#include "stm32f0xx.h"
-#elif defined(STM32F1xx)
-#include "stm32f1xx.h"
-#elif defined(STM32F4xx)
-#include "stm32f4xx.h"
+#include "hal_inc.h"
+
+#if defined(STM32L0xx)
+#define NVIC_EncodePriority(_x, _y, _z) (_y)
+#define NVIC_GetPriorityGrouping() 0
 #endif
-//#include <cmsis_armcc.h>
 
 #define _NOP() asm ("nop")
 #define barrier() __asm__ __volatile__("": : :"memory")
@@ -76,9 +74,21 @@ uint32_t timer_read_time(void);
 uint8_t timer_is_before(uint32_t time1, uint32_t time2);
 
 void enable_pclock(uint32_t periph_base);
-int is_enabled_pclock(uint32_t periph_base);
+uint32_t is_enabled_pclock(uint32_t periph_base);
 uint32_t get_pclock_frequency(uint32_t periph_base);
 void gpio_clock_enable(GPIO_TypeDef *regs);
 void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup);
 
+enum {
+    DMA_USART_RX,
+    DMA_USART_TX,
+};
+
+uint32_t dma_get(uint32_t periph, uint8_t type, uint8_t index);
+uint32_t dma_channel_get(uint32_t periph, uint8_t type, uint8_t index);
+uint32_t dma_irq_get(uint32_t periph, uint8_t type, uint8_t index);
+
+uint32_t uart_peripheral_get(uint32_t rx_pin, uint32_t tx_pin);
+void uart_pins_get(uint32_t periph, uint32_t *rx_pin, uint32_t *tx_pin, uint8_t alt);
+void uart_config_afio(uint32_t periph, uint32_t rx_pin, uint32_t tx_pin);
 #endif

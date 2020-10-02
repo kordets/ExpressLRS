@@ -257,8 +257,6 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
         /* Adjust the timer */
         if ((TIMER_OFFSET_LIMIT < diff_us) || (diff_us < 0))
             TxTimer.reset(diff_us - TIMER_OFFSET);
-
-        //LQ_packetAck(); // RX ack
     }
     else
     {
@@ -507,6 +505,9 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
 #if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
     digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
 #endif
+
+    /* TODO: Need testing!! */
+    //TxTimer.triggerSoon(); // Trigger FHSS ISR
 }
 
 void forced_start(void)

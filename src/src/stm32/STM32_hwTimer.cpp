@@ -72,3 +72,8 @@ void HwTimer::setTime(uint32_t time)
     DEBUG_PRINTF(" set: %u", time);
 #endif
 }
+
+void HwTimer::triggerSoon(void)
+{
+    timer_tx.setCount((HWtimerInterval - TIMER_SOON), MICROSEC_FORMAT);
+}

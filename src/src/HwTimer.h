@@ -10,6 +10,8 @@
 
 #define TimerIntervalUSDefault 20000
 
+#define TIMER_SOON 80 // 80us
+
 class HwTimer
 {
 public:
@@ -30,6 +32,8 @@ public:
     void (*callbackTock)(uint32_t us);
 
     void ICACHE_RAM_ATTR setTime(uint32_t time = 0);
+
+    void ICACHE_RAM_ATTR triggerSoon(void);
 
 private:
     volatile uint32_t HWtimerInterval;

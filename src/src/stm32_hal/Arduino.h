@@ -65,6 +65,12 @@
 
 // ----------------------------------
 
+extern void setup(void);
+extern void loop(void);
+void yield(void);
+
+// ----------------------------------
+
 uint32_t millis(void);
 uint32_t micros(void);
 

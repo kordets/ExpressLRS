@@ -9,6 +9,7 @@
 #include "internal.h"
 #include "helpers.h"
 #include "irq.h"
+#include "stm32_def.h"
 #include <string.h> // ffs
 #include <Arduino.h>
 
@@ -18,21 +19,33 @@ GPIO_TypeDef *const digital_regs[] = {
     GPIOC,
 #ifdef GPIOD
     ['D' - 'A'] = GPIOD,
+#else
+    NULL,
 #endif
 #ifdef GPIOE
     ['E' - 'A'] = GPIOE,
+#else
+    NULL,
 #endif
 #ifdef GPIOF
     ['F' - 'A'] = GPIOF,
+#else
+    NULL,
 #endif
 #ifdef GPIOG
     ['G' - 'A'] = GPIOG,
+#else
+    NULL,
 #endif
 #ifdef GPIOH
     ['H' - 'A'] = GPIOH,
+#else
+    NULL,
 #endif
 #ifdef GPIOI
     ['I' - 'A'] = GPIOI,
+#else
+    NULL,
 #endif
 };
 
@@ -50,11 +63,9 @@ regs_to_pin(GPIO_TypeDef *regs, uint32_t bit)
 struct gpio_out
 gpio_out_setup(uint32_t pin, uint32_t val)
 {
-    //if (GPIO2PORT(pin) >= ARRAY_SIZE(digital_regs))
-    //    goto fail;
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
-    //if (!regs)
-    //    goto fail;
+    if (!regs)
+        Error_Handler();
     gpio_clock_enable(regs);
     struct gpio_out g = {.regs = regs, .bit = GPIO2BIT(pin)};
     gpio_out_reset(g, val);
@@ -99,11 +110,9 @@ void gpio_out_write(struct gpio_out g, uint32_t val)
 struct gpio_in
 gpio_in_setup(uint32_t pin, int32_t pull_up)
 {
-    //if (GPIO2PORT(pin) >= ARRAY_SIZE(digital_regs))
-    //    goto fail;
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
-    //if (!regs)
-    //    goto fail;
+    if (!regs)
+        Error_Handler();
     struct gpio_in g = {.regs = regs, .bit = GPIO2BIT(pin)};
     gpio_in_reset(g, pull_up);
     return g;
@@ -182,6 +191,8 @@ static gpio_irq_conf_str gpio_irq_conf[NB_EXTI] = {
 
 void pinMode(uint32_t pin, uint8_t mode)
 {
+    if (GPIO('X', 15) <= pin)
+        return;
     switch (mode)
     {
         case GPIO_INPUT:
@@ -198,7 +209,11 @@ void pinMode(uint32_t pin, uint8_t mode)
 
 void digitalWrite(uint32_t pin, uint8_t val)
 {
+    if (GPIO('X', 15) <= pin)
+        return;
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
+    if (!regs)
+        Error_Handler();
     uint32_t bit = GPIO2BIT(pin);
     // toggle => regs->ODR ^= bit;
     if (val)
@@ -209,7 +224,11 @@ void digitalWrite(uint32_t pin, uint8_t val)
 
 uint8_t digitalRead(uint32_t pin)
 {
+    if (GPIO('X', 15) <= pin)
+        return 0xff;
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
+    if (!regs)
+        Error_Handler();
     uint32_t bit = GPIO2BIT(pin);
     return !!(regs->ODR & bit);
 }
@@ -217,9 +236,21 @@ uint8_t digitalRead(uint32_t pin)
 #define GPIO_MODE_IT  (1 << 0)
 #define GPIO_MODE_EVT (1 << 1)
 
+
+#if defined(STM32L4xx)
+#define IMR IMR1
+#define EMR EMR1
+#define RTSR RTSR1
+#define FTSR FTSR1
+#define PR PR1
+#endif
+
 void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
 {
-    //GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
+    if (!digital_regs[GPIO2PORT(pin)])
+        Error_Handler();
+    if (GPIO('X', 15) <= pin)
+        return;
     uint32_t index = GPIO2IDX(pin);
     uint32_t bit = GPIO2BIT(pin);
     uint32_t it_mode = type + GPIO_MODE_IT;
@@ -281,15 +312,16 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
 #define EXTI_IRQ_SUBPRIO 0
 #endif
 
-    uint32_t prioritygroup = NVIC_GetPriorityGrouping();
     NVIC_SetPriority(
         gpio_irq_conf[index].irqnb,
-        NVIC_EncodePriority(prioritygroup, EXTI_IRQ_PRIO, EXTI_IRQ_SUBPRIO));
+        NVIC_EncodePriority(NVIC_GetPriorityGrouping(), EXTI_IRQ_PRIO, EXTI_IRQ_SUBPRIO));
     NVIC_EnableIRQ(gpio_irq_conf[index].irqnb);
 }
 
 void detachInterrupt(uint32_t pin)
 {
+    if (!digital_regs[GPIO2PORT(pin)])
+        Error_Handler();
     uint32_t index = GPIO2IDX(pin);
     irqstatus_t irq = irq_save();
     gpio_irq_conf[index].callback = NULL;
@@ -310,89 +342,3 @@ void GPIO_EXTI_IRQHandler(uint16_t pin)
         }
     }
 }
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-    /**
-  * @brief This function handles external line 0 interrupt request.
-  * @param  None
-  * @retval None
-  */
-    void EXTI0_IRQHandler(void)
-    {
-        GPIO_EXTI_IRQHandler(0);
-    }
-
-    /**
-  * @brief This function handles external line 1 interrupt request.
-  * @param  None
-  * @retval None
-  */
-    void EXTI1_IRQHandler(void)
-    {
-        GPIO_EXTI_IRQHandler(1);
-    }
-
-    /**
-  * @brief This function handles external line 2 interrupt request.
-  * @param  None
-  * @retval None
-  */
-    void EXTI2_IRQHandler(void)
-    {
-        GPIO_EXTI_IRQHandler(2);
-    }
-
-    /**
-  * @brief This function handles external line 3 interrupt request.
-  * @param  None
-  * @retval None
-  */
-    void EXTI3_IRQHandler(void)
-    {
-        GPIO_EXTI_IRQHandler(3);
-    }
-
-    /**
-  * @brief This function handles external line 4 interrupt request.
-  * @param  None
-  * @retval None
-  */
-    void EXTI4_IRQHandler(void)
-    {
-        GPIO_EXTI_IRQHandler(4);
-    }
-
-    /**
-  * @brief This function handles external line 5 to 9 interrupt request.
-  * @param  None
-  * @retval None
-  */
-    void EXTI9_5_IRQHandler(void)
-    {
-        uint8_t pin;
-        for (pin = 5; pin <= 9; pin++)
-        {
-            GPIO_EXTI_IRQHandler(pin);
-        }
-    }
-
-    /**
-  * @brief This function handles external line 10 to 15 interrupt request.
-  * @param  None
-  * @retval None
-  */
-    void EXTI15_10_IRQHandler(void)
-    {
-        uint8_t pin;
-        for (pin = 10; pin <= 15; pin++)
-        {
-            GPIO_EXTI_IRQHandler(pin);
-        }
-    }
-
-#ifdef __cplusplus
-}
-#endif
