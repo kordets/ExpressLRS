@@ -247,6 +247,34 @@ uint8_t digitalRead(uint32_t pin)
 
 void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
 {
+#ifdef AFIO_BASE
+    // Disconnect JTAG-DP + SW-DP signals.
+    // Warning: Need to reconnect under reset
+    if ((pin == PA13) || (pin == PA14)) {
+        __HAL_AFIO_REMAP_SWJ_DISABLE(); // JTAG-DP Disabled and SW-DP Disabled
+    }
+    if ((pin == PA15) || (pin == PB3) || (pin == PB4)) {
+        __HAL_AFIO_REMAP_SWJ_NOJTAG(); // JTAG-DP Disabled and SW-DP enabled
+    }
+#endif
+
+#if 1
+    GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
+    if (!regs)
+        Error_Handler();
+    uint32_t index = GPIO2IDX(pin);
+
+    gpio_clock_enable(regs);
+
+    GPIO_InitTypeDef init;
+    init.Pin = (1 << index);
+    init.Mode = GPIO_MODE_IT_RISING;
+    init.Pull = GPIO_NOPULL;
+    init.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(regs, &init);
+
+#else
+
     if (!digital_regs[GPIO2PORT(pin)])
         Error_Handler();
     if (GPIO('X', 15) <= pin)
@@ -256,6 +284,10 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
     uint32_t it_mode = type + GPIO_MODE_IT;
 
     /* Configure the External Interrupt or event for the current IO */
+    uint32_t temp = AFIO->EXTICR[index >> 2U];
+    CLEAR_BIT(temp, (0x0FU) << (4U * (index & 0x03U)));
+    SET_BIT(temp, (GPIO_GET_INDEX(GPIOx)) << (4U * (index & 0x03U)));
+    AFIO->EXTICR[index >> 2U] = temp;
 
     /* Configure the interrupt mask */
     if ((it_mode & GPIO_MODE_IT) == GPIO_MODE_IT)
@@ -297,25 +329,25 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
         CLEAR_BIT(EXTI->FTSR, bit);
     }
 
+#endif
+
     gpio_irq_conf[index].callback = callback;
 
     // Enable and set EXTI Interrupt
 
-#ifndef EXTI_IRQ_PRIO
 #if (__CORTEX_M == 0x00U)
 #define EXTI_IRQ_PRIO 3
 #else
-#define EXTI_IRQ_PRIO 6
+#define EXTI_IRQ_PRIO 5
 #endif /* __CORTEX_M */
-#endif /* EXTI_IRQ_PRIO */
-#ifndef EXTI_IRQ_SUBPRIO
 #define EXTI_IRQ_SUBPRIO 0
-#endif
 
     NVIC_SetPriority(
         gpio_irq_conf[index].irqnb,
         NVIC_EncodePriority(NVIC_GetPriorityGrouping(), EXTI_IRQ_PRIO, EXTI_IRQ_SUBPRIO));
     NVIC_EnableIRQ(gpio_irq_conf[index].irqnb);
+    // Clear pending IRQ
+    EXTI->PR = (1 << index);
 }
 
 void detachInterrupt(uint32_t pin)
@@ -333,12 +365,12 @@ void detachInterrupt(uint32_t pin)
 void GPIO_EXTI_IRQHandler(uint16_t pin)
 {
     /* EXTI line interrupt detected */
-    if (EXTI->PR & pin)
+    if (EXTI->PR & (1 << pin))
     {
-        EXTI->PR = pin;
         if (gpio_irq_conf[pin].callback != NULL)
         {
             gpio_irq_conf[pin].callback();
         }
+        EXTI->PR = (1 << pin);
     }
 }

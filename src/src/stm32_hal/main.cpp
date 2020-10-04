@@ -78,11 +78,6 @@ static void init(void)
 
     timer_init();
 
-#ifdef AFIO_BASE
-    // Enable AFIO peripheral
-    enable_pclock((uint32_t)AFIO_BASE);
-#endif
-
 #if defined (STM32MP1xx)
     __HAL_RCC_HSEM_CLK_ENABLE();
 #endif
