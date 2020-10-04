@@ -4,9 +4,9 @@
 
 #include <Arduino.h>
 
-#define TIMER_IS_2US 1
-#define COUNT_DOWN TIM_CR1_DIR
-//#define COUNT_DOWN 0
+#define TIMER_IS_2US 0
+//#define COUNT_DOWN TIM_CR1_DIR
+#define COUNT_DOWN 0
 
 HwTimer TxTimer;
 
@@ -17,12 +17,10 @@ HwTimer TxTimer;
 #ifdef TIM2
 #define TIMx TIM2
 #define TIMx_IRQn TIM2_IRQn
-#define HAVE_TIMER_32BIT 1
 #define TIMx_IRQx_FUNC TIM2_IRQHandler
 #else
 #define TIMx TIM3
 #define TIMx_IRQn TIM3_IRQn
-#define HAVE_TIMER_32BIT 0
 #define TIMx_IRQx_FUNC TIM3_IRQHandler
 #endif
 // originally TIM1;
@@ -39,13 +37,13 @@ static inline void timer_counter_set(uint32_t cnt)
 
 static inline void timer_set(uint32_t next)
 {
-    TIMx->ARR = next >> TIMER_IS_2US;
 #if COUNT_DOWN
     timer_counter_set(next);
 #else
     timer_counter_set(0);
 #endif
-    TIMx->SR = 0;
+    TIMx->ARR = next >> TIMER_IS_2US;
+    TIMx->SR  &= ~(TIM_SR_UIF);
 }
 
 /****************************************************************
@@ -90,7 +88,8 @@ static void timer_init(void)
     enable_pclock((uint32_t)TIMx);
     timer_disable();
     // Set clock prescaler to 1us or 2us
-    TIMx->PSC = (get_pclock_frequency((uint32_t)TIMx) / (1000000 >> TIMER_IS_2US)) - 1;
+    // Note: PSC == 1 clock is APB1 x1 (36MHz) else x2 (72MHz)
+    TIMx->PSC = (2* get_pclock_frequency((uint32_t)TIMx) / (1000000 >> TIMER_IS_2US)) - 1;
     TIMx->ARR = (1U << 16) - 1; // Init to max
     TIMx->CNT = 0;
     //TIMx->RCR = 0;
@@ -106,7 +105,6 @@ static void timer_init(void)
  ****************************************************************/
 void HwTimer::init()
 {
-    //timer_disable();
     timer_init();
     //timer_enable();
 }
@@ -147,10 +145,14 @@ void HwTimer::setTime(uint32_t time)
 
 void HwTimer::triggerSoon(void)
 {
-    TIMx->SR = 0; // Clear pending ISR
+#if 0
+    TIMx->SR  &= ~(TIM_SR_UIF); // Clear pending ISR
 #if !COUNT_DOWN
     timer_counter_set(HWtimerInterval - TIMER_SOON);
 #else
     timer_counter_set(TIMER_SOON);
+#endif
+#else
+    EXTI->SWIER |= (0x1 << 3);
 #endif
 }
