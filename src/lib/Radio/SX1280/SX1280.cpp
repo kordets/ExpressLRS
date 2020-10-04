@@ -44,12 +44,12 @@ void SX1280Driver::Begin(void)
     Reset();
     delay(100);
 
-    uint8_t buffer[2];
+    uint8_t buffer[2] = {0, 0};
     ReadRegister(REG_LR_FIRMWARE_VERSION_MSB, buffer, sizeof(buffer));
     uint16_t firmwareRev = buffer[0];
     firmwareRev <<= 8;
     firmwareRev += buffer[1];
-    DEBUG_PRINTF("SX1280 Firmware Revision: %u\n", firmwareRev);
+    DEBUG_PRINTF("SX1280 fw rev %u\n", firmwareRev);
 
     //attachInterrupt(digitalPinToInterrupt(_BUSY), this->busyISR, CHANGE); //not used atm
     attachInterrupt(digitalPinToInterrupt(_DIO1), _rxtx_isr_handler, RISING);
