@@ -66,19 +66,19 @@ void spi_prepare(struct spi_config config)
 void spi_transfer(struct spi_config config, uint8_t receive_data, uint8_t len, uint8_t *data)
 {
     SPI_TypeDef *spi = (SPI_TypeDef *)config.spi;
-    while (len--)
-    {
+    while (len--) {
         spi->DR = *data;
-        while (!(spi->SR & SPI_SR_RXNE))
-            ;
+        //while (!(spi->SR & (SPI_SR_TXE)));
+        while (!(spi->SR & SPI_SR_RXNE));
         uint8_t rdata = spi->DR;
         if (receive_data)
             *data = rdata;
         data++;
     }
+    //while (spi->SR & (SPI_SR_BSY));
 }
 
-void SPIClass::Begin(uint8_t mosi, uint8_t miso, uint8_t sclk, uint8_t ssel)
+void SPIClass::Begin(uint32_t speed, uint8_t mosi, uint8_t miso, uint8_t sclk, uint8_t ssel)
 {
     uint8_t bus;
     for (bus = 0; bus < ARRAY_SIZE(spi_bus); bus++)
@@ -91,7 +91,7 @@ void SPIClass::Begin(uint8_t mosi, uint8_t miso, uint8_t sclk, uint8_t ssel)
     {
         // Setup GPIO
         //gpio_out_setup(ssel, 1);
-        spi_cfg = spi_setup(bus, 0, 10000000);
+        spi_cfg = spi_setup(bus, 0, speed);
         spi_prepare(spi_cfg);
     }
 }
@@ -105,5 +105,5 @@ uint8_t SPIClass::transfer(uint32_t _buf)
 
 void SPIClass::transfer(void *_buf, size_t _count)
 {
-    spi_transfer(spi_cfg, 1, _count, (uint8_t *)&_buf);
+    spi_transfer(spi_cfg, 1, _count, (uint8_t *)_buf);
 }
