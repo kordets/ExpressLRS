@@ -258,7 +258,7 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
     }
 #endif
 
-#if 1
+#if 0
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
     if (!regs)
         Error_Handler();
@@ -269,12 +269,13 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
     GPIO_InitTypeDef init;
     init.Pin = (1 << index);
     init.Mode = GPIO_MODE_IT_RISING;
-    init.Pull = GPIO_NOPULL;
+    init.Pull = GPIO_PULLDOWN; //GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(regs, &init);
 
 #else
 
+    uint32_t port_idx = GPIO2PORT(pin);
     if (!digital_regs[GPIO2PORT(pin)])
         Error_Handler();
     if (GPIO('X', 15) <= pin)
@@ -286,7 +287,7 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
     /* Configure the External Interrupt or event for the current IO */
     uint32_t temp = AFIO->EXTICR[index >> 2U];
     CLEAR_BIT(temp, (0x0FU) << (4U * (index & 0x03U)));
-    SET_BIT(temp, (GPIO_GET_INDEX(GPIOx)) << (4U * (index & 0x03U)));
+    SET_BIT(temp, port_idx << (4U * (index & 0x03U)));
     AFIO->EXTICR[index >> 2U] = temp;
 
     /* Configure the interrupt mask */

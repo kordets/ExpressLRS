@@ -37,11 +37,6 @@ static inline void timer_counter_set(uint32_t cnt)
 
 static inline void timer_set(uint32_t next)
 {
-#if COUNT_DOWN
-    timer_counter_set(next);
-#else
-    timer_counter_set(0);
-#endif
     TIMx->ARR = next >> TIMER_IS_2US;
     TIMx->SR  &= ~(TIM_SR_UIF);
 }
@@ -132,6 +127,11 @@ void HwTimer::reset(int32_t offset)
 {
     if (running)
     {
+#if COUNT_DOWN
+        timer_counter_set(HWtimerInterval - offset);
+#else
+        timer_counter_set(0);
+#endif
         timer_set(HWtimerInterval - offset);
     }
 }
