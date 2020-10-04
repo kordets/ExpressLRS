@@ -56,8 +56,6 @@ size_t printf_idx, printf_buff;
 void Printf::_putchar(char character)
 {
     uint8_t is_end = character == '\n';
-    if (is_end && (printf_idx + 1) < PRINTF_BUFF_SIZE)
-        printf_out[printf_buff][printf_idx++] = '\r';
     printf_out[printf_buff][printf_idx++] = character;
 
     /* Send buff out if line end or buffer is full */

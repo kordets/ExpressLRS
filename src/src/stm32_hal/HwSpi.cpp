@@ -11,13 +11,7 @@ HwSpi::HwSpi() : SPIClass()
 
 void HwSpi::platform_init(uint32_t speed)
 {
-    //setMOSI(MOSI);
-    //setMISO(MISO);
-    //setSCLK(SCK);
-    //setBitOrder(MSBFIRST);
-    //setDataMode(SPI_MODE0);
-    SPIClass::Begin(MOSI, MISO, SCK, SS);
-    //setClockDivider(SPI_CLOCK_DIV4); // 72 / 8 = 9 MHz //not correct for SPI2
+    SPIClass::Begin(speed, MOSI, MISO, SCK, SS);
 }
 
 void HwSpi::write(uint8_t data)
