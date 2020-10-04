@@ -182,8 +182,9 @@ void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
     default:
         break;
     }
-
     currOpmode = OPmode;
+
+    WaitOnBusy();
 }
 
 void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
@@ -222,7 +223,8 @@ void ICACHE_RAM_ATTR SX1280Driver::SetFrequency(uint32_t Reqfreq)
     if (current_freq == Reqfreq) return;
 
 #if 1
-    uint32_t freq = (uint32_t)((double)Reqfreq / (double)SX1280_FREQ_STEP);
+    //uint32_t freq = (uint32_t)((double)Reqfreq / (double)SX1280_FREQ_STEP);
+    uint32_t freq = (uint32_t)(Reqfreq / SX1280_FREQ_STEP);
 #else
     // 1024 * x / 203125
     uint64_t freq = Reqfreq;
