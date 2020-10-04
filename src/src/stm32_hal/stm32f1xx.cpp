@@ -112,11 +112,7 @@ uint32_t is_enabled_pclock(uint32_t periph_base)
 uint32_t
 get_pclock_frequency(uint32_t periph_base)
 {
-    if (periph_base < APB2PERIPH_BASE) {
-        // APB1 is configured to F_CPU / 2
-        return (CONFIG_CLOCK_FREQ / 2);
-    }
-    return CONFIG_CLOCK_FREQ;
+    return (CONFIG_CLOCK_FREQ / 2);
 }
 
 // Enable a GPIO peripheral clock
@@ -152,12 +148,16 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
         if (mode & GPIO_OPEN_DRAIN)
             // output open-drain mode, 10MHz
             cfg = 0xd;
+            // output open-drain mode, 50MHz
+            //cfg = 0xF;
         else if (pullup > 0)
             // input pins use GPIO_INPUT mode on the stm32f1
             cfg = 0x8;
         else
             // output push-pull mode, 10MHz
             cfg = 0x9;
+            // output push-pull mode, 50MHz
+            //cfg = 0xB;
     }
     if (pos & 0x8)
         regs->CRH = (regs->CRH & ~msk) | (cfg << shift);
@@ -253,7 +253,8 @@ void SystemClock_Config(void)
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9; // 8MHz * 9 = 72MHz
+    //RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9; // 8MHz * 9 = 72MHz
+    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6; // 12MHz * 6 = 72MHz
 #else // USE_INTERNAL_XO
     // CPU_CLK to 64MHz (max)
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI; // HSI = 8MHz
@@ -273,7 +274,7 @@ void SystemClock_Config(void)
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLatency) != HAL_OK) {
         Error_Handler();
     }
@@ -286,6 +287,8 @@ void SystemClock_Config(void)
     }
 
     SystemCoreClockUpdate();
+
+    __HAL_RCC_AFIO_CLK_ENABLE();
 }
 
 void hw_init(void)
