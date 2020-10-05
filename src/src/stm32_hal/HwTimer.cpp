@@ -4,6 +4,10 @@
 
 #include <Arduino.h>
 
+#if defined(STM32L4xx)
+#define SWIER SWIER1
+#endif
+
 #define TIMER_IS_2US 0
 //#define COUNT_DOWN TIM_CR1_DIR
 #define COUNT_DOWN 0
@@ -84,7 +88,7 @@ static void timer_init(void)
     timer_disable();
     // Set clock prescaler to 1us or 2us
     // Note: PSC == 1 clock is APB1 x1 (36MHz) else x2 (72MHz)
-    TIMx->PSC = (2* get_pclock_frequency((uint32_t)TIMx) / (1000000 >> TIMER_IS_2US)) - 1;
+    TIMx->PSC = (2 * get_pclock_frequency((uint32_t)TIMx) / (1000000 >> TIMER_IS_2US)) - 1;
     TIMx->ARR = (1U << 16) - 1; // Init to max
     TIMx->CNT = 0;
     //TIMx->RCR = 0;
