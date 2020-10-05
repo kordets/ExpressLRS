@@ -52,8 +52,10 @@ protected:
     void ICACHE_RAM_ATTR RxEnable() const;
     void ICACHE_RAM_ATTR TxRxDisable() const;
 
+#if TX_MODULE
     volatile int8_t _RXen = -1;
     volatile int8_t _TXen = -1;
+#endif // TX_MODULE
     volatile int8_t _DIO1 = -1;
     volatile int8_t _DIO2 = -1;
     volatile int8_t _DIO3 = -1;
@@ -61,7 +63,7 @@ protected:
     volatile int8_t _BUSY = -1;
 
     ////////// Config Variables //////////
-    volatile uint32_t current_freq = 0;
+    volatile uint32_t current_freq;
     volatile int8_t current_power;
 
 private:

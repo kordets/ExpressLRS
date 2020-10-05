@@ -22,8 +22,10 @@ void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
     _DIO2 = dio2,
     _DIO3 = dio3,
     _BUSY = busy;
+#if TX_MODULE
     _TXen = txpin;
     _RXen = rxpin;
+#endif // TX_MODULE
 
     if (-1 < rst) {
         pinMode(rst, OUTPUT);
@@ -37,6 +39,8 @@ void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
         pinMode(dio3, INPUT);
     if (-1 < busy)
         pinMode(busy, INPUT);
+
+#if TX_MODULE
     if (-1 < txpin) {
         pinMode(txpin, OUTPUT);
         digitalWrite(txpin, LOW);
@@ -45,6 +49,7 @@ void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
         pinMode(rxpin, OUTPUT);
         digitalWrite(rxpin, LOW);
     }
+#endif // TX_MODULE
 }
 
 void RadioInterface::Reset(void)
@@ -75,23 +80,29 @@ void ICACHE_RAM_ATTR RadioInterface::WaitOnBusy() const
 void ICACHE_RAM_ATTR RadioInterface::TxEnable() const
 {
     p_state_isr = TX_DONE;
+#if TX_MODULE
     if (0 > _RXen) return;
     digitalWrite(_RXen, LOW);
     digitalWrite(_TXen, HIGH);
+#endif // TX_MODULE
 }
 
 void ICACHE_RAM_ATTR RadioInterface::RxEnable() const
 {
     p_state_isr = RX_DONE;
+#if TX_MODULE
     if (0 > _RXen) return;
     digitalWrite(_TXen, LOW);
     digitalWrite(_RXen, HIGH);
+#endif // TX_MODULE
 }
 
 void ICACHE_RAM_ATTR RadioInterface::TxRxDisable() const
 {
     p_state_isr = NONE;
+#if TX_MODULE
     if (0 > _RXen) return;
     digitalWrite(_RXen, LOW);
     digitalWrite(_TXen, LOW);
+#endif // TX_MODULE
 }
