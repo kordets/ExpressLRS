@@ -42,7 +42,7 @@ static inline void timer_counter_set(uint32_t cnt)
 static inline void timer_set(uint32_t next)
 {
     TIMx->ARR = next >> TIMER_IS_2US;
-    TIMx->SR  &= ~(TIM_SR_UIF);
+    //TIMx->SR  &= ~(TIM_SR_UIF);
 }
 
 /****************************************************************
@@ -72,7 +72,7 @@ void timer_enable(void)
 {
     TIMx->CR1 = TIM_CR1_CEN | TIM_CR1_URS | COUNT_DOWN;
     TIMx->DIER = TIM_IT_UPDATE;
-    TIMx->SR  &= ~(TIM_SR_UIF);
+    TIMx->SR &= ~(TIM_SR_UIF);
 }
 
 void timer_disable(void)
@@ -80,7 +80,7 @@ void timer_disable(void)
     //irqstatus_t flag = irq_save();
     TIMx->CR1 = 0;
     TIMx->DIER = 0;
-    TIMx->SR  &= ~(TIM_SR_UIF);
+    TIMx->SR &= ~(TIM_SR_UIF);
     //irq_restore(flag);
 }
 

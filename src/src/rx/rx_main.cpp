@@ -239,14 +239,15 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 #endif
 
     /* do adjustment */
-    if (__rx_last_valid_us)
+    if (unlikely(__rx_last_valid_us != 0))
     {
+#if !USE_TIMER_KICK
         int32_t diff_us = (int32_t)(us - __rx_last_valid_us);
 #if PRINT_TIMER && PRINT_HW_ISR
         DEBUG_PRINTF(" - rx %u = %u", __rx_last_valid_us, diff_us);
 #endif
 
-        int32_t interval = ExpressLRS_currAirRate->interval;
+        int32_t const interval = ExpressLRS_currAirRate->interval;
         if (diff_us > (interval >> 1))
         {
             /* the timer was called too early */
@@ -255,16 +256,20 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
         }
 
         /* Adjust the timer */
-#if !USE_TIMER_KICK
         if ((TIMER_OFFSET_LIMIT < diff_us) || (diff_us < 0))
             TxTimer.reset(diff_us - TIMER_OFFSET);
-#else
-        TxTimer.setTime(interval+TIMER_OFFSET);
-#endif
+#else // USE_TIMER_KICK
+        //TxTimer.setTime(interval+200 /*TIMER_OFFSET*/);
+        TxTimer.reset(-TIMER_OFFSET);
+#endif // USE_TIMER_KICK
     }
     else
     {
-        TxTimer.setTime(0); // Reset timer interval
+#if !USE_TIMER_KICK
+        TxTimer.setTime(); // Reset timer interval
+#else
+        TxTimer.reset(0); // Reset timer interval
+#endif
     }
 
     fhss_config_rx |= RadioFreqErrorCorr();
