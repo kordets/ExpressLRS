@@ -5,9 +5,6 @@
 #include "msptypes.h"
 #include "crc.h"
 
-#include <HardwareSerial.h>
-#include <Arduino.h>
-
 enum {
     ELRS_INT_MSP_PARAMS = 1,
 };

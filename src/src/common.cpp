@@ -3,7 +3,6 @@
 #include "utils.h"
 #include "FHSS.h"
 #include "crc.h"
-#include <Arduino.h>
 
 volatile uint8_t current_rate_config;
 volatile const expresslrs_mod_settings_t *ExpressLRS_currAirRate;

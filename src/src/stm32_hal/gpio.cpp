@@ -12,7 +12,6 @@
 #include "stm32_def.h"
 #include "priorities.h"
 #include <string.h> // ffs
-#include <Arduino.h>
 
 #if defined(STM32L4xx)
 #define IMR IMR1
@@ -72,6 +71,8 @@ regs_to_pin(GPIO_TypeDef *regs, uint32_t bit)
 struct gpio_out
 gpio_out_setup(uint32_t pin, uint32_t val)
 {
+    if (GPIO('J', 0) <= pin)
+        return {.regs = NULL, .bit = 0};
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
     if (!regs)
         Error_Handler();
@@ -119,6 +120,9 @@ void gpio_out_write(struct gpio_out g, uint32_t val)
 struct gpio_in
 gpio_in_setup(uint32_t pin, int32_t pull_up)
 {
+    if (GPIO('J', 0) <= pin)
+        return {.regs = NULL, .bit = 0};
+
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
     if (!regs)
         Error_Handler();
@@ -142,9 +146,6 @@ gpio_in_read(struct gpio_in g)
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
     return !!(regs->IDR & g.bit);
 }
-
-/***************** Arduino.h compatibility *****************/
-#include <Arduino.h>
 
 typedef struct
 {
@@ -191,55 +192,12 @@ static gpio_irq_conf_str gpio_irq_conf[GPIO_NUM_PINS] = {
 #endif
 };
 
-void pinMode(uint32_t pin, uint8_t mode)
+void gpio_in_isr(struct gpio_in g, isr_cb_t callback, uint8_t it_mode)
 {
-    if (GPIO('X', 15) <= pin)
-        return;
-    switch (mode)
-    {
-        case GPIO_INPUT:
-            gpio_in_setup(pin, 0);
-            break;
-        case GPIO_OUTPUT:
-            gpio_out_setup(pin, 1);
-            break;
-        case GPIO_INPUT_PULLUP:
-            gpio_in_setup(pin, 1);
-            break;
-    }
-}
-
-void digitalWrite(uint32_t pin, uint8_t val)
-{
-    //if (GPIO('X', 15) <= pin)
-    //    return;
-    GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
-    //if (!regs)
-    //    Error_Handler();
-    uint32_t bit = GPIO2BIT(pin);
-    // toggle => regs->ODR ^= bit;
-    if (val)
-        regs->BSRR = bit;
-    else
-        regs->BSRR = bit << 16;
-}
-
-uint8_t digitalRead(uint32_t pin)
-{
-    //if (GPIO('X', 15) <= pin)
-    //    return 0xff;
-    GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
-    //if (!regs)
-    //    Error_Handler();
-    uint32_t bit = GPIO2BIT(pin);
-    return !!(regs->ODR & bit);
-}
-
-void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t it_mode)
-{
+    GPIO_TypeDef *regs = (GPIO_TypeDef*)g.regs;
+    uint32_t pin = regs_to_pin(regs, g.bit);
     uint32_t port_idx = GPIO2PORT(pin);
 #if 0
-    GPIO_TypeDef *regs = digital_regs[port_idx];
     if (!regs)
         Error_Handler();
     uint32_t index = GPIO2IDX(pin);
@@ -254,26 +212,16 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t it_mode)
     HAL_GPIO_Init(regs, &init);
 
 #else
-    if (!digital_regs[port_idx])
+    if (!g.regs)
         Error_Handler();
-    if (GPIO('X', 15) <= pin)
-        return;
     uint32_t index = GPIO2IDX(pin);
-    uint32_t bit = GPIO2BIT(pin);
+    uint32_t bit = g.bit; //GPIO2BIT(pin);
 
     /* Configure the External Interrupt or event for the current IO */
 #ifdef AFIO_BASE
     __IO uint32_t * exticr_reg = &AFIO->EXTICR[index >> 2u];
-    //uint32_t EXTICR = AFIO->EXTICR[index >> 0x2];
-    //CLEAR_BIT(EXTICR, (0x0FU) << (0x4 * (index & 0x03)));
-    //SET_BIT(EXTICR, port_idx << (0x4 * (index & 0x03)));
-    //AFIO->EXTICR[index >> 2U] = EXTICR;
 #elif defined(SYSCFG_BASE)
     __IO uint32_t * exticr_reg = &SYSCFG->EXTICR[index >> 2u];
-    //uint32_t EXTICR = SYSCFG->EXTICR[index >> 2u];
-    //EXTICR &= ~(0x0FuL << (4u * (index & 0x03u)));
-    //EXTICR |= (port_idx << (0x4 * (index & 0x03)));
-    //SYSCFG->EXTICR[index >> 2u] = EXTICR;
 #endif
     uint32_t EXTICR = *exticr_reg;
     CLEAR_BIT(EXTICR, (0x0FU) << (0x4 * (index & 0x03)));
@@ -320,11 +268,11 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t it_mode)
     EXTI->PR = (1 << index);
 }
 
-void detachInterrupt(uint32_t pin)
+void gpio_in_isr_remove(struct gpio_in g)
 {
-    if (!digital_regs[GPIO2PORT(pin)])
+    if (!g.regs)
         Error_Handler();
-    uint32_t index = GPIO2IDX(pin);
+    uint32_t index = ffs(g.bit) - 1;
     irqstatus_t irq = irq_save();
     write_u32(&gpio_irq_conf[index].callback, 0);
     irq_restore(irq);

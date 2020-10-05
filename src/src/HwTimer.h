@@ -10,7 +10,11 @@
 
 #define TimerIntervalUSDefault 20000
 
-#define TIMER_SOON 80 // 80us
+#define TIMER_SOON 40 //80 // 80us
+
+#if RADIO_SX128x && PLATFORM_STM32 && !defined(ARDUINO)
+#define USE_TIMER_KICK  1   // TODO: Need testing!!
+#endif
 
 class HwTimer
 {
@@ -38,8 +42,6 @@ public:
 private:
     volatile uint32_t HWtimerInterval;
     volatile bool running = false;
-
-    //void ICACHE_RAM_ATTR setTime(uint32_t);
 };
 
 extern HwTimer TxTimer;

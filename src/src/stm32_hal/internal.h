@@ -9,6 +9,7 @@
 #define __INTERNAL_H_
 
 #include "hal_inc.h"
+#include "gpio.h"
 
 #if defined(STM32L0xx)
 #define NVIC_EncodePriority(_x, _y, _z) (_y)

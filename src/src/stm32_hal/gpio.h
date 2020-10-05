@@ -10,6 +10,19 @@
 
 #include <stdint.h> // uint32_t
 
+#define LOW  0
+#define HIGH 1
+
+enum {
+    GPIO_MODE_IT  = 1 << 0,
+    GPIO_MODE_EVT = 1 << 1,
+
+    FALLING = (GPIO_MODE_IT | (1 << 4)),
+    RISING  = (GPIO_MODE_IT | (1 << 3)),
+    CHANGE  = (FALLING | RISING),
+};
+
+
 struct gpio_out
 {
     void *regs;
@@ -20,6 +33,9 @@ void gpio_out_reset(struct gpio_out g, uint32_t val);
 void gpio_out_toggle_noirq(struct gpio_out g);
 void gpio_out_toggle(struct gpio_out g);
 void gpio_out_write(struct gpio_out g, uint32_t val);
+static inline uint8_t gpio_out_valid(struct gpio_out g) {
+    return (!!g.regs);
+}
 
 struct gpio_in
 {
@@ -29,6 +45,13 @@ struct gpio_in
 struct gpio_in gpio_in_setup(uint32_t pin, int32_t pull_up);
 void gpio_in_reset(struct gpio_in g, int32_t pull_up);
 uint8_t gpio_in_read(struct gpio_in g);
+static inline uint8_t gpio_in_valid(struct gpio_in g) {
+    return (!!g.regs);
+}
+typedef void (*isr_cb_t)(void);
+void gpio_in_isr(struct gpio_in g, isr_cb_t func, uint8_t type);
+void gpio_in_isr_remove(struct gpio_in g);
+
 
 struct gpio_adc
 {
@@ -59,4 +82,5 @@ struct i2c_config i2c_setup(uint32_t bus, uint32_t rate, uint8_t addr);
 void i2c_write(struct i2c_config config, uint8_t write_len, uint8_t *write);
 void i2c_read(struct i2c_config config, uint8_t reg_len, uint8_t *reg, uint8_t read_len, uint8_t *read);
 */
+
 #endif /* __STM32_GPIO_H */

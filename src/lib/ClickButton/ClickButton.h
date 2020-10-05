@@ -2,6 +2,7 @@
 #define ClickButton_H
 
 #include <stdint.h>
+#include "gpio.h"
 
 class ClickButton {
  public:
@@ -33,7 +34,7 @@ class ClickButton {
 
   private:
     uint32_t _lastBounceTime;  // the last time the button input pin was toggled, due to noise or a press
-    uint8_t  _pin;             // Arduino pin connected to the button
+    gpio_in  _pin;             // Arduino pin connected to the button
     uint8_t  _activeState;     // Type of button: Active-low = 0 or active-high = 1
     uint8_t  _clickCount;      // Number of button clicks within multiclickTime milliseconds
     uint8_t  _state;

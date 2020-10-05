@@ -12,7 +12,7 @@ ClickButton::ClickButton(uint8_t const buttonPin,
                          uint32_t const _multiclickTime,
                          uint32_t const _longClickTime)
 {
-    _pin            = buttonPin;
+    _pin            = gpio_in_setup(buttonPin, (activeType) ? 0 : 1);
     _activeState    = activeType ? HIGH : LOW;
     _clickCount     = 0;
     _lastBounceTime = 0; //millis()
@@ -22,8 +22,7 @@ ClickButton::ClickButton(uint8_t const buttonPin,
     multiclickTime  = _multiclickTime;          // Time limit for multi clicks
     longClickTime   = _longClickTime;           // time until long clicks register
 
-    pinMode(_pin, (_activeState == HIGH) ? INPUT : INPUT_PULLUP);
-    _state = _btnStateLast = 0; //digitalRead(_pin);
+    _state = _btnStateLast = 0;
 }
 
 
@@ -43,7 +42,7 @@ void ClickButton::update(uint32_t const & time_ms)
     }
 
     // Read the state of the switch
-    uint8_t _btnState = (digitalRead(_pin) == _activeState);
+    uint8_t _btnState = (gpio_in_read(_pin) == _activeState);
 
     if (_btnState != _btnStateLast) {
         // If the reading is different from last reading, reset the debounce counter

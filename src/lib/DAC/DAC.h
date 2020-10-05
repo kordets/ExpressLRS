@@ -3,6 +3,7 @@
 #ifdef TARGET_R9M_TX
 
 #include "POWERMGNT.h"
+#include "gpio.h"
 #include <stdint.h>
 
 class R9DAC
@@ -61,11 +62,11 @@ private:
 
     } DAC_State;
 
+    struct gpio_out pin_RFswitch;
+    struct gpio_out pin_RFamp;
     uint32_t CurrVoltageMV;
     uint8_t CurrVoltageRegVal;
     uint8_t ADDR;
-    int8_t pin_RFswitch;
-    int8_t pin_RFamp;
 
     uint8_t get_lut_index(PowerLevels_e &power);
 

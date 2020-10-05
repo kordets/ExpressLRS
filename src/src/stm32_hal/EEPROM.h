@@ -21,7 +21,6 @@
 #ifndef EEPROM_h
 #define EEPROM_h
 
-#include "Arduino.h"
 #include "stm32_eeprom.h"
 
 /***

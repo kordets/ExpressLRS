@@ -3,7 +3,6 @@
 #include "debug_elrs.h"
 #include "common.h"
 #include "POWERMGNT.h"
-#include <Arduino.h>
 #include <EEPROM.h>
 
 #define NEW_BUTTON 1
@@ -11,31 +10,34 @@
 uint8_t rate_config_dips = 0xff;
 
 #if (GPIO_PIN_LED != UNDEF_PIN)
+struct gpio_out led_red;
 #if defined(TARGET_R9M_RX) || defined(TARGET_R9M_TX)
 // Led is inverted
-#define LED_STATE_RED(_x) digitalWrite(GPIO_PIN_LED, (_x))
+#define LED_STATE_RED(_x) gpio_out_write(led_red, (_x))
 #else // others
-#define LED_STATE_RED(_x) digitalWrite(GPIO_PIN_LED, !(_x))
+#define LED_STATE_RED(_x) gpio_out_write(led_red, !(_x))
 #endif
 #else
 #define LED_STATE_RED(_x) (void)(_x);
 #endif
 
 #if (GPIO_PIN_LED_GREEN != UNDEF_PIN)
-#define LED_STATE_GREEN(_x) digitalWrite(GPIO_PIN_LED_GREEN, (_x))
+struct gpio_out led_green;
+#define LED_STATE_GREEN(_x) gpio_out_write(led_green, (_x))
 #else
 #define LED_STATE_GREEN(_x) (void)(_x);
 #endif
 
 #if (GPIO_PIN_BUZZER != UNDEF_PIN)
+struct gpio_out buzzer;
 static inline void PLAY_SOUND(uint32_t wait = 244, uint32_t cnt = 50)
 {
     for (uint32_t x = 0; x < cnt; x++)
     {
         // 1 / 2048Hz = 488uS, or 244uS high and 244uS low to create 50% duty cycle
-        digitalWrite(GPIO_PIN_BUZZER, HIGH);
+        gpio_out_write(buzzer, HIGH);
         delayMicroseconds(wait);
-        digitalWrite(GPIO_PIN_BUZZER, LOW);
+        gpio_out_write(buzzer, LOW);
         delayMicroseconds(wait);
     }
 }
@@ -182,11 +184,11 @@ void platform_setup(void)
 
     /**** SWTICHES ****/
 #if defined(GPIO_PIN_DIP1) && defined(GPIO_PIN_DIP2)
-    pinMode(GPIO_PIN_DIP1, INPUT_PULLUP);
-    pinMode(GPIO_PIN_DIP2, INPUT_PULLUP);
-    rate_config_dips = digitalRead(GPIO_PIN_DIP1) ? 0u : 1u;
+    struct gpio_in dip = gpio_in_setup(GPIO_PIN_DIP1, 1);
+    rate_config_dips = gpio_in_read(dip) ? 0u : 1u;
     rate_config_dips <<= 1;
-    rate_config_dips |= digitalRead(GPIO_PIN_DIP2) ? 0u : 1u;
+    dip = gpio_in_setup(GPIO_PIN_DIP2, 1);
+    rate_config_dips |= gpio_in_read(dip) ? 0u : 1u;
     if (rate_config_dips < get_elrs_airRateMax())
     {
         current_rate_config = rate_config_dips;
@@ -195,12 +197,10 @@ void platform_setup(void)
 
     /*************** CONFIGURE LEDs *******************/
 #if (GPIO_PIN_LED != UNDEF_PIN)
-    pinMode(GPIO_PIN_LED, OUTPUT);
-    LED_STATE_RED(LOW);
+    led_red = gpio_out_setup(GPIO_PIN_LED, LOW);
 #endif
 #if (GPIO_PIN_LED_GREEN != UNDEF_PIN)
-    pinMode(GPIO_PIN_LED_GREEN, OUTPUT);
-    LED_STATE_GREEN(LOW);
+    led_red = gpio_out_setup(GPIO_PIN_LED_GREEN, LOW);
 #endif
 
 #if (GPIO_PIN_BUTTON != UNDEF_PIN)
@@ -228,7 +228,7 @@ void platform_setup(void)
                GPIO_PIN_RFamp_APC1); // used to control ADC which sets PA output
 #endif // TARGET_R9M_TX
 #if (GPIO_PIN_BUZZER != UNDEF_PIN)
-    pinMode(GPIO_PIN_BUZZER, OUTPUT);
+    buzzer = gpio_out_setup(GPIO_PIN_BUZZER, OUTPUT);
 
 #define STARTUP_BEEPS 0
 
@@ -252,18 +252,15 @@ void platform_setup(void)
 #endif /* RX_MODULE */
 
 #if defined(GPIO_SELECT_RFIO_HIGH) && defined(GPIO_SELECT_RFIO_LOW)
-    pinMode(GPIO_SELECT_RFIO_HIGH, OUTPUT);
-    pinMode(GPIO_SELECT_RFIO_LOW, OUTPUT);
-
 #if defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
-    digitalWrite(GPIO_SELECT_RFIO_HIGH, 0);
-    digitalWrite(GPIO_SELECT_RFIO_LOW, 1);
+    (void)gpio_out_setup(GPIO_SELECT_RFIO_HIGH, 0);
+    (void)gpio_out_setup(GPIO_SELECT_RFIO_LOW, 1);
 #elif defined(RADIO_SX128x)
 #error "Not implemented!"
 
 #else
-    digitalWrite(GPIO_SELECT_RFIO_LOW, 0);
-    digitalWrite(GPIO_SELECT_RFIO_HIGH, 1);
+    (void)gpio_out_setup(GPIO_SELECT_RFIO_LOW, 0);
+    (void)gpio_out_setup(GPIO_SELECT_RFIO_HIGH, 1);
 #endif
 #endif /* RFIO HIGH / LOW */
 }

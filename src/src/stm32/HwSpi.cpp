@@ -3,7 +3,6 @@
 
 HwSpi::HwSpi() : SPIClass()
 {
-    SS = GPIO_PIN_NSS;
 }
 
 void HwSpi::platform_init(uint32_t speed, int sck, int miso, int mosi)

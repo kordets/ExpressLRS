@@ -86,15 +86,15 @@ void SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
     reg_dio1_isr_mask_write(0);
 
     /* Attach interrupts to pins */
-    if (-1 < _DIO1)
-        attachInterrupt(digitalPinToInterrupt(_DIO1), _rxtx_isr_handler_dio0, RISING);
+    if (gpio_in_valid(_DIO1))
+        gpio_in_isr(_DIO1, _rxtx_isr_handler_dio0, RISING);
 }
 
 void SX127xDriver::End(void)
 {
     StopContRX();
-    if (-1 < _DIO1)
-        detachInterrupt(_DIO1);
+    if (gpio_in_valid(_DIO1))
+        gpio_in_isr_remove(_DIO1);
 }
 
 void SX127xDriver::SetSyncWord(uint8_t syncWord)

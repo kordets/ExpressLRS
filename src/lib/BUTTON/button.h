@@ -1,11 +1,12 @@
 #pragma once
 
 #include <stdint.h>
+#include "gpio.h"
 
 class Button
 {
 private:
-    int buttonPin;
+    gpio_in buttonPin;
     int p_inverted;
 
     uint32_t p_nextSamplingTime;

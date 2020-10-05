@@ -8,9 +8,9 @@
 #define SWIER SWIER1
 #endif
 
-#define TIMER_IS_2US 0
-//#define COUNT_DOWN TIM_CR1_DIR
-#define COUNT_DOWN 0
+#define TIMER_IS_2US 1
+#define COUNT_DOWN TIM_CR1_DIR
+//#define COUNT_DOWN 0
 
 HwTimer TxTimer;
 
@@ -70,7 +70,7 @@ extern "C"
 
 void timer_enable(void)
 {
-    TIMx->CR1 = TIM_CR1_CEN | COUNT_DOWN;
+    TIMx->CR1 = TIM_CR1_CEN | TIM_CR1_URS | COUNT_DOWN;
     TIMx->DIER = TIM_IT_UPDATE;
     TIMx->SR  &= ~(TIM_SR_UIF);
 }
@@ -152,7 +152,7 @@ void HwTimer::setTime(uint32_t time)
 
 void HwTimer::triggerSoon(void)
 {
-#if 0
+#if 1
     TIMx->SR  &= ~(TIM_SR_UIF); // Clear pending ISR
 #if !COUNT_DOWN
     timer_counter_set(HWtimerInterval - TIMER_SOON);

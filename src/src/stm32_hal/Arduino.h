@@ -60,9 +60,6 @@
 #define PD1  GPIO('D', 1)
 #define PD2  GPIO('D', 2)
 
-#define LOW  0
-#define HIGH 1
-
 // ----------------------------------
 
 extern void setup(void);
@@ -78,29 +75,3 @@ void delay(uint32_t ms);
 void delayMicroseconds(uint32_t us);
 
 // ----------------------------------
-
-#define INPUT        GPIO_INPUT
-#define OUTPUT       GPIO_OUTPUT
-#define INPUT_PULLUP GPIO_INPUT_PULLUP
-
-void pinMode(uint32_t pin, uint8_t mode);
-void digitalWrite(uint32_t pin, uint8_t val);
-uint8_t digitalRead(uint32_t pin);
-
-#define digitalWriteFast(_pin, _val) digitalWrite((_pin), (_val))
-
-enum {
-    GPIO_MODE_IT  = 1 << 0,
-    GPIO_MODE_EVT = 1 << 1,
-
-    FALLING = (GPIO_MODE_IT | (1 << 4)),
-    RISING  = (GPIO_MODE_IT | (1 << 3)),
-    CHANGE  = (FALLING | RISING),
-};
-
-typedef void (*isr_cb_t)(void);
-#define digitalPinToInterrupt(pin) (pin)
-void detachInterrupt(uint32_t);
-void attachInterrupt(uint32_t pin, isr_cb_t cb, uint8_t type);
-
-#define MICROSEC_COMPARE_FORMAT 1

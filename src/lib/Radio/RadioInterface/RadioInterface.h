@@ -3,6 +3,7 @@
 
 #include "platform.h"
 #include "RadioHalSpi.h"
+#include "gpio.h"
 
 // default payload size is 8 bytes
 #define RX_BUFFER_LEN (8)
@@ -53,14 +54,14 @@ protected:
     void ICACHE_RAM_ATTR TxRxDisable() const;
 
 #if TX_MODULE
-    volatile int8_t _RXen = -1;
-    volatile int8_t _TXen = -1;
+    gpio_out _RXen;
+    gpio_out _TXen;
 #endif // TX_MODULE
-    volatile int8_t _DIO1 = -1;
-    volatile int8_t _DIO2 = -1;
-    volatile int8_t _DIO3 = -1;
-    volatile int8_t _RST = -1;
-    volatile int8_t _BUSY = -1;
+    gpio_in _DIO1;
+    gpio_in _DIO2;
+    gpio_in _DIO3;
+    gpio_out _RST;
+    gpio_in _BUSY;
 
     ////////// Config Variables //////////
     volatile uint32_t current_freq;

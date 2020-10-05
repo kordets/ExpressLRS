@@ -13,9 +13,6 @@ R9DAC::R9DAC()
     CurrVoltageMV = 0;
     CurrVoltageRegVal = 0;
     ADDR = 0;
-    pin_RFswitch = -1;
-    pin_RFamp = -1;
-
     DAC_State = UNKNOWN;
 }
 
@@ -24,14 +21,11 @@ void R9DAC::init(uint8_t sda, uint8_t scl, uint8_t addr, int8_t pin_switch, int8
     ADDR = addr;
     if (0 <= pin_switch)
     {
-        pin_RFswitch = pin_switch;
-        pinMode(pin_switch, OUTPUT);
+        pin_RFswitch = gpio_out_setup(pin_switch, 0);
     }
     if (0 <= pin_amp)
     {
-        pin_RFamp = pin_amp;
-        pinMode(pin_amp, OUTPUT);
-        digitalWrite(pin_amp, HIGH);
+        pin_RFamp = gpio_out_setup(pin_amp, 1);
     }
     DAC_State = UNKNOWN;
 
@@ -52,10 +46,10 @@ void R9DAC::standby()
         DAC_State = STANDBY;
     }
 #else
-    if (0 <= pin_RFswitch)
-        digitalWrite(pin_RFswitch, HIGH);
-    if (0 <= pin_RFamp)
-        digitalWrite(pin_RFamp, LOW);
+    if (gpio_out_valid(pin_RFswitch))
+        gpio_out_write(pin_RFswitch, HIGH);
+    if (gpio_out_valid(pin_RFamp))
+        gpio_out_write(pin_RFamp, LOW);
 #endif
 }
 
@@ -68,10 +62,10 @@ void R9DAC::resume()
         DAC_State = RUNNING;
     }
 #else
-    if (0 <= pin_RFswitch)
-        digitalWrite(pin_RFswitch, LOW);
-    if (0 <= pin_RFamp)
-        digitalWrite(pin_RFamp, HIGH);
+    if (gpio_out_valid(pin_RFswitch))
+        gpio_out_write(pin_RFswitch, LOW);
+    if (gpio_out_valid(pin_RFamp))
+        gpio_out_write(pin_RFamp, HIGH);
 #endif
 }
 

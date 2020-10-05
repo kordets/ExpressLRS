@@ -12,7 +12,6 @@
 
 #include "platform.h"
 #include "targets.h"
-#include <Arduino.h>
 #include <Servo.h>
 
 #define LPF_SMOOTHING_FACTOR 3

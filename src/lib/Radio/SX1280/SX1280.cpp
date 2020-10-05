@@ -51,15 +51,15 @@ void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
     firmwareRev += buffer[1];
     DEBUG_PRINTF("SX1280 fw rev %u\n", firmwareRev);
 
-    if (-1 < _DIO1)
-        attachInterrupt(digitalPinToInterrupt(_DIO1), _rxtx_isr_handler, RISING);
+    if (gpio_in_valid(_DIO1))
+        gpio_in_isr(_DIO1, _rxtx_isr_handler, RISING);
 }
 
 void SX1280Driver::End(void)
 {
     StopContRX();
-    if (-1 < _DIO1)
-        detachInterrupt(_DIO1);
+    if (gpio_in_valid(_DIO1))
+        gpio_in_isr_remove(_DIO1);
 }
 
 int16_t SX1280Driver::MeasureNoiseFloor(uint32_t num_meas, uint32_t freq)

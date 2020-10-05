@@ -4,6 +4,7 @@
 #include <HardwareSerial.h>
 #include "platform.h"
 #include "targets.h"
+#include "gpio.h"
 
 class HwSerial : public HardwareSerial
 {
@@ -33,7 +34,7 @@ public:
     }
 
 private:
-    int32_t duplex_pin;
+    struct gpio_out duplex_pin;
 };
 
 extern HwSerial CrsfSerial;

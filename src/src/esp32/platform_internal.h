@@ -1,6 +1,7 @@
 #ifndef __PLATFORM_H_
 #define __PLATFORM_H_
 
+#include "gpio.h"
 #include <stdint.h>
 #include <esp_attr.h>
 #include <Stream.h>

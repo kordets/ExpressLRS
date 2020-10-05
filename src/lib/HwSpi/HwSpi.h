@@ -1,6 +1,7 @@
 #pragma once
 
-#include <Arduino.h>
+#include "platform.h"
+#include "gpio.h"
 #include <SPI.h>
 
 class HwSpi : public SPIClass
@@ -10,22 +11,20 @@ public:
 
     void prepare(uint32_t speed, int sck, int miso, int mosi, int ss)
     {
-        SS = ss;
-        pinMode(ss, OUTPUT);
-        digitalWrite(ss, HIGH);
+        SS = gpio_out_setup(ss, HIGH);
         platform_init(speed, sck, miso, mosi);
     }
 
     void set_ss(uint8_t state)
     {
-        digitalWrite(SS, state);
+        gpio_out_write(SS, state);
     }
 
     void ICACHE_RAM_ATTR write(uint8_t data);
     void ICACHE_RAM_ATTR write(uint8_t *data, uint8_t numBytes);
 
 private:
-    int SS;
+    struct gpio_out SS;
 
     void platform_init(uint32_t speed, int sck, int miso, int mosi);
 };

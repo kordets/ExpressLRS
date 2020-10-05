@@ -1,4 +1,6 @@
 #include "RadioInterface.h"
+#include "platform.h"
+#include <Arduino.h>
 
 volatile enum isr_states DRAM_ATTR RadioInterface::p_state_isr;
 
@@ -17,73 +19,42 @@ void (*RadioInterface::TXdoneCallback4)() = RadioInterface::tx_nullCallback;
 void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
                              int busy, int txpin, int rxpin)
 {
-    _RST = rst;
-    _DIO1 = dio1;
-    _DIO2 = dio2,
-    _DIO3 = dio3,
-    _BUSY = busy;
+    _RST = gpio_out_setup(rst, HIGH);
+    _DIO1 = gpio_in_setup(dio1, 0);
+    _DIO2 = gpio_in_setup(dio2, 0),
+    _DIO3 = gpio_in_setup(dio3, 0),
+    _BUSY = gpio_in_setup(busy, 0);
 #if TX_MODULE
-    _TXen = txpin;
-    _RXen = rxpin;
-#endif // TX_MODULE
-
-    if (-1 < rst) {
-        pinMode(rst, OUTPUT);
-        digitalWrite(rst, HIGH);
-    }
-    if (-1 < dio1)
-        pinMode(dio1, INPUT);
-    if (-1 < dio2)
-        pinMode(dio2, INPUT);
-    if (-1 < dio3)
-        pinMode(dio3, INPUT);
-    if (-1 < busy)
-        pinMode(busy, INPUT);
-
-#if TX_MODULE
-    if (-1 < txpin) {
-        pinMode(txpin, OUTPUT);
-        digitalWrite(txpin, LOW);
-    }
-    if (-1 < rxpin) {
-        pinMode(rxpin, OUTPUT);
-        digitalWrite(rxpin, LOW);
-    }
+    _TXen = gpio_out_setup(txpin, LOW);
+    _RXen = gpio_out_setup(rxpin, LOW);
 #endif // TX_MODULE
 }
 
 void RadioInterface::Reset(void)
 {
-    if (0 > _RST) return;
+    if (!gpio_out_valid(_RST)) return;
 
     delay(100);
-    digitalWrite(_RST, LOW);
+    gpio_out_write(_RST, LOW);
     delay(100);
-    digitalWrite(_RST, HIGH);
+    gpio_out_write(_RST, HIGH);
 
     WaitOnBusy();
 }
 
 void ICACHE_RAM_ATTR RadioInterface::WaitOnBusy() const
 {
-    if (0 > _BUSY) return;
-    while (unlikely(digitalRead(_BUSY)));
-#if 0
-#ifdef __NOP
-        __NOP();
-#else
-        _NOP();
-#endif
-#endif
+    if (!gpio_in_valid(_BUSY)) return;
+    while (unlikely(gpio_in_read(_BUSY)));
 }
 
 void ICACHE_RAM_ATTR RadioInterface::TxEnable() const
 {
     p_state_isr = TX_DONE;
 #if TX_MODULE
-    if (0 > _RXen) return;
-    digitalWrite(_RXen, LOW);
-    digitalWrite(_TXen, HIGH);
+    if (!gpio_out_valid(_RXen)) return;
+    gpio_out_write(_RXen, LOW);
+    gpio_out_write(_TXen, HIGH);
 #endif // TX_MODULE
 }
 
@@ -91,9 +62,9 @@ void ICACHE_RAM_ATTR RadioInterface::RxEnable() const
 {
     p_state_isr = RX_DONE;
 #if TX_MODULE
-    if (0 > _RXen) return;
-    digitalWrite(_TXen, LOW);
-    digitalWrite(_RXen, HIGH);
+    if (!gpio_out_valid(_RXen)) return;
+    gpio_out_write(_TXen, LOW);
+    gpio_out_write(_RXen, HIGH);
 #endif // TX_MODULE
 }
 
@@ -101,8 +72,8 @@ void ICACHE_RAM_ATTR RadioInterface::TxRxDisable() const
 {
     p_state_isr = NONE;
 #if TX_MODULE
-    if (0 > _RXen) return;
-    digitalWrite(_RXen, LOW);
-    digitalWrite(_TXen, LOW);
+    if (!gpio_out_valid(_RXen)) return;
+    gpio_out_write(_RXen, LOW);
+    gpio_out_write(_TXen, LOW);
 #endif // TX_MODULE
 }

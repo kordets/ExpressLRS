@@ -23,7 +23,7 @@
 //#define DEBUG_SERIAL CrsfSerial
 //#define DEBUG_SERIAL Serial1 // TX1 as output
 #else
-#define DEBUG_SERIAL CrsfSerial
+//#define DEBUG_SERIAL CrsfSerial
 #endif
 
 #endif // ifndef DEBUG_SERIAL

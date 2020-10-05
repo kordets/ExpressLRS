@@ -25,7 +25,6 @@ Button::Button(int debounce)
     longPressDelay = 500;
     longPressInterval = 500;
 
-    buttonPin = -1;
     p_inverted = 0;
 }
 
@@ -41,8 +40,7 @@ void Button::set_press_delay_long(uint32_t delay, uint32_t interval)
 
 void Button::init(int Pin, bool inverted, int debounce)
 {
-    pinMode(Pin, (inverted ? INPUT_PULLUP : INPUT));
-    buttonPin = Pin;
+    buttonPin = gpio_in_setup(Pin, (inverted ? 1 : 0));
 
     buttonPrevState = false;
     buttonIsDown = false;
@@ -65,14 +63,14 @@ void Button::handle(uint32_t now)
 
 void Button::sampleButton(uint32_t now)
 {
-    if (buttonPin < 0)
+    if (!gpio_in_valid(buttonPin))
         return;
 
     uint32_t interval = 10;
     if (now >= p_nextSamplingTime)
     {
         uint32_t press_time = now - buttonLastPressed;
-        const bool currState = !!digitalRead(buttonPin) ^ p_inverted;
+        const bool currState = !!gpio_in_read(buttonPin) ^ p_inverted;
 
         if (currState == false && buttonPrevState == true)
         { //button release

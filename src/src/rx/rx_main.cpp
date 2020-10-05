@@ -26,8 +26,6 @@ void ICACHE_RAM_ATTR LostConnection();
 #define PRINT_FREQ_ERROR               0
 //#define NUM_FAILS_TO_RESYNC            100
 
-#define USE_TIMER_KICK  1   // TODO: Need testing!!
-
 ///////////////////
 
 #if RADIO_SX128x
@@ -259,12 +257,14 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
         /* Adjust the timer */
 #if !USE_TIMER_KICK
         if ((TIMER_OFFSET_LIMIT < diff_us) || (diff_us < 0))
-#endif
             TxTimer.reset(diff_us - TIMER_OFFSET);
+#else
+        TxTimer.setTime(interval+TIMER_OFFSET);
+#endif
     }
     else
     {
-        TxTimer.setTime(); // Reset timer interval
+        TxTimer.setTime(0); // Reset timer interval
     }
 
     fhss_config_rx |= RadioFreqErrorCorr();
@@ -607,15 +607,16 @@ void setup()
     uint8_t UID[6] = {MY_UID};
 
 #if (DBG_PIN_TMR_ISR_FAST != UNDEF_PIN)
-    pinMode(DBG_PIN_TMR_ISR, OUTPUT);
-    digitalWriteFast(DBG_PIN_TMR_ISR_FAST, 0);
+    gpio_out_setup(DBG_PIN_TMR_ISR, 0);
+    //digitalWriteFast(DBG_PIN_TMR_ISR_FAST, 0);
 #endif
 #if (DBG_PIN_RX_ISR != UNDEF_PIN)
-    pinMode(DBG_PIN_RX_ISR, OUTPUT);
-    digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
+    gpio_out_setup(DBG_PIN_RX_ISR, 0);
+    //digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
 #endif
 
     connectionState = STATE_disconnected;
+    tentative_cnt = 0;
     CRCCaesarCipher = CalcCRC16(UID, sizeof(UID), 0);
 
 #if !SERVO_OUTPUTS_ENABLED
