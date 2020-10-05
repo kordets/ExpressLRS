@@ -42,7 +42,7 @@ void SX1280Driver::Begin(void)
     RadioHalSpi::Begin(SX128X_SPI_SPEED);
 
     Reset();
-    delay(100);
+    //delay(100);
 
     uint8_t buffer[2] = {0, 0};
     ReadRegister(REG_LR_FIRMWARE_VERSION_MSB, buffer, sizeof(buffer));
@@ -51,8 +51,8 @@ void SX1280Driver::Begin(void)
     firmwareRev += buffer[1];
     DEBUG_PRINTF("SX1280 fw rev %u\n", firmwareRev);
 
-    //attachInterrupt(digitalPinToInterrupt(_BUSY), this->busyISR, CHANGE); //not used atm
-    attachInterrupt(digitalPinToInterrupt(_DIO1), _rxtx_isr_handler, RISING);
+    if (-1 < _DIO1)
+        attachInterrupt(digitalPinToInterrupt(_DIO1), _rxtx_isr_handler, RISING);
 }
 
 void SX1280Driver::End(void)
@@ -184,7 +184,7 @@ void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
     }
     currOpmode = OPmode;
 
-    WaitOnBusy();
+    //WaitOnBusy(); // TODO FIXME: Should not be needed!!
 }
 
 void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
@@ -495,6 +495,7 @@ void ICACHE_RAM_ATTR SX1280Driver::WriteRegister(uint16_t address, uint8_t *buff
 }
 void ICACHE_RAM_ATTR SX1280Driver::ReadRegister(uint16_t address, uint8_t *buffer, uint8_t size)
 {
+    WaitOnBusy();
     readRegisterAddr(SX1280_RADIO_READ_REGISTER, address, buffer, size);
 }
 

@@ -10,6 +10,9 @@
 #define __section(S) __attribute__((section(S)))
 #endif
 
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+
 #define ICACHE_RAM_ATTR
 #define DRAM_ATTR //DRAM_FORCE_ATTR
 #define DRAM_FORCE_ATTR __section(".data")

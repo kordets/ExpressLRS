@@ -4,6 +4,9 @@
 #include <Arduino.h>
 #include <c_types.h>
 
+#define likely(x) (x)
+#define unlikely(x) (x)
+
 #define DRAM_ATTR
 #define DRAM_FORCE_ATTR DRAM_ATTR
 #define DMA_ATTR WORD_ALIGNED_ATTR

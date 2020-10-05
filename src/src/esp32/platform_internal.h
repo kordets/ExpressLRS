@@ -7,6 +7,9 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
+#define likely(x) (x)
+#define unlikely(x) (x)
+
 #if !defined(ICACHE_RAM_ATTR)
 #define ICACHE_RAM_ATTR IRAM_ATTR
 #endif // !defined(ICACHE_RAM_ATTR)

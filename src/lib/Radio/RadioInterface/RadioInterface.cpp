@@ -68,11 +68,13 @@ void RadioInterface::Reset(void)
 void ICACHE_RAM_ATTR RadioInterface::WaitOnBusy() const
 {
     if (0 > _BUSY) return;
-    while (digitalRead(_BUSY) == HIGH)
+    while (unlikely(digitalRead(_BUSY)));
+#if 0
 #ifdef __NOP
         __NOP();
 #else
         _NOP();
+#endif
 #endif
 }
 
