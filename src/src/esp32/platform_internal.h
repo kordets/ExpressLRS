@@ -7,6 +7,7 @@
 #include <Stream.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <Arduino.h>
 
 #define likely(x) (x)
 #define unlikely(x) (x)

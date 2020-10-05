@@ -3,6 +3,7 @@
 #include "debug_elrs.h"
 #include "common.h"
 #include "POWERMGNT.h"
+#include "gpio.h"
 #include <EEPROM.h>
 
 #define NEW_BUTTON 1
@@ -228,7 +229,7 @@ void platform_setup(void)
                GPIO_PIN_RFamp_APC1); // used to control ADC which sets PA output
 #endif // TARGET_R9M_TX
 #if (GPIO_PIN_BUZZER != UNDEF_PIN)
-    buzzer = gpio_out_setup(GPIO_PIN_BUZZER, OUTPUT);
+    buzzer = gpio_out_setup(GPIO_PIN_BUZZER, LOW);
 
 #define STARTUP_BEEPS 0
 

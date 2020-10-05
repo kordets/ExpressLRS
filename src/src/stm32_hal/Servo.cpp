@@ -4,10 +4,15 @@
 #include "priorities.h"
 #include <Arduino.h>
 
-
+#ifdef TIM4
 #define TIMx            TIM4
 #define TIMx_IRQn       TIM4_IRQn
 //#define TIMx_IRQx_FUNC  TIM4_IRQHandler
+#elif defined(TIM6)
+#define TIMx            TIM6
+#define TIMx_IRQn       TIM6_IRQn
+//#define TIMx_IRQx_FUNC  TIM6_IRQHandler
+#endif
 
 #ifdef TIMx_IRQx_FUNC
 // Hardware timer IRQ handler - dispatch software timers
