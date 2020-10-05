@@ -1,7 +1,7 @@
 #include "HwTimer.h"
 #include "internal.h"
 #include "irq.h"
-
+#include "priorities.h"
 #include <Arduino.h>
 
 #if defined(STM32L4xx)
@@ -94,7 +94,8 @@ static void timer_init(void)
     //TIMx->RCR = 0;
     TIMx->EGR = TIM_EGR_UG;
     //TIMx->DIER = TIM_IT_UPDATE;
-    NVIC_SetPriority(TIMx_IRQn, 4);
+    NVIC_SetPriority(TIMx_IRQn,
+        NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_TIM, 0));
     NVIC_EnableIRQ(TIMx_IRQn);
     irq_restore(flag);
 }

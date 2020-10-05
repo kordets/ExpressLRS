@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include "stm32_def.h"
+#include "priorities.h"
 
 #ifdef STM32L4xx
 
@@ -98,7 +99,7 @@ uint32_t is_enabled_pclock(uint32_t periph_base)
 uint32_t
 get_pclock_frequency(uint32_t periph_base)
 {
-    return CONFIG_CLOCK_FREQ;
+    return CONFIG_CLOCK_FREQ / 2;
 }
 
 // Enable a GPIO peripheral clock
@@ -126,22 +127,17 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
     if (mode == GPIO_INPUT) {
         init.Mode = GPIO_MODE_INPUT;
     } else if (mode == GPIO_OUTPUT) {
-        // push-pull, 0b00 | max speed 2 MHz, 0b01
         init.Mode = GPIO_MODE_OUTPUT_PP;
     } else if (mode == (GPIO_OUTPUT | GPIO_OPEN_DRAIN)) {
-        // Open-drain, 0b01 | max speed 2 MHz, 0b01
         init.Mode = GPIO_MODE_OUTPUT_OD;
     } else if (mode == GPIO_ANALOG) {
         init.Mode = GPIO_MODE_ANALOG;
     } else {
         init.Alternate = (mode >> 4);
         init.Speed = GPIO_SPEED_FREQ_HIGH;
-        // Alternate config
         if (mode & GPIO_OPEN_DRAIN) {
-            // output open-drain mode, 10MHz
             init.Mode = GPIO_MODE_AF_OD;
         } else {
-            // output push-pull mode, 10MHz
             init.Mode = GPIO_MODE_AF_PP;
         }
     }
@@ -183,7 +179,7 @@ void timer_init(void)
     */
 
     // Enable SysTick
-    NVIC_SetPriority(SysTick_IRQn, 2);
+    NVIC_SetPriority(SysTick_IRQn, ISR_PRIO_TICKS);
     SysTick->LOAD = (uint32_t)(SystemCoreClock / 1000UL) - 1;
     SysTick->VAL = 0UL;
     SysTick->CTRL = (SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk);
@@ -245,8 +241,8 @@ void SystemClock_Config(void)
                                     | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
         Error_Handler();
     }
@@ -262,6 +258,9 @@ void SystemClock_Config(void)
     }
 
     SystemCoreClockUpdate();
+
+    /* Enable SYSCFG Clock */
+    __HAL_RCC_SYSCFG_CLK_ENABLE();
 }
 
 void hw_init(void)

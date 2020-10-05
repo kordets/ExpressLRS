@@ -10,10 +10,19 @@
 #include "helpers.h"
 #include "irq.h"
 #include "stm32_def.h"
+#include "priorities.h"
 #include <string.h> // ffs
 #include <Arduino.h>
 
-GPIO_TypeDef *const digital_regs[] = {
+#if defined(STM32L4xx)
+#define IMR IMR1
+#define EMR EMR1
+#define RTSR RTSR1
+#define FTSR FTSR1
+#define PR PR1
+#endif
+
+GPIO_TypeDef * __section(".data") digital_regs[] = {
     ['A' - 'A'] = GPIOA,
     GPIOB,
     GPIOC,
@@ -143,11 +152,8 @@ typedef struct
     isr_cb_t callback;
 } gpio_irq_conf_str;
 
-/* Private_Defines */
-#define NB_EXTI (16)
-
 /* Private Variables */
-static gpio_irq_conf_str gpio_irq_conf[NB_EXTI] = {
+static gpio_irq_conf_str gpio_irq_conf[GPIO_NUM_PINS] = {
 #if defined(STM32F0xx) || defined(STM32G0xx) || defined(STM32L0xx)
     {.irqnb = EXTI0_1_IRQn, .callback = NULL},  //GPIO_PIN_0
     {.irqnb = EXTI0_1_IRQn, .callback = NULL},  //GPIO_PIN_1
@@ -205,11 +211,11 @@ void pinMode(uint32_t pin, uint8_t mode)
 
 void digitalWrite(uint32_t pin, uint8_t val)
 {
-    if (GPIO('X', 15) <= pin)
-        return;
+    //if (GPIO('X', 15) <= pin)
+    //    return;
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
-    if (!regs)
-        Error_Handler();
+    //if (!regs)
+    //    Error_Handler();
     uint32_t bit = GPIO2BIT(pin);
     // toggle => regs->ODR ^= bit;
     if (val)
@@ -220,26 +226,14 @@ void digitalWrite(uint32_t pin, uint8_t val)
 
 uint8_t digitalRead(uint32_t pin)
 {
-    if (GPIO('X', 15) <= pin)
-        return 0xff;
+    //if (GPIO('X', 15) <= pin)
+    //    return 0xff;
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
-    if (!regs)
-        Error_Handler();
+    //if (!regs)
+    //    Error_Handler();
     uint32_t bit = GPIO2BIT(pin);
     return !!(regs->ODR & bit);
 }
-
-#define GPIO_MODE_IT  (1 << 0)
-#define GPIO_MODE_EVT (1 << 1)
-
-
-#if defined(STM32L4xx)
-#define IMR IMR1
-#define EMR EMR1
-#define RTSR RTSR1
-#define FTSR FTSR1
-#define PR PR1
-#endif
 
 void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t it_mode)
 {
@@ -269,11 +263,22 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t it_mode)
 
     /* Configure the External Interrupt or event for the current IO */
 #ifdef AFIO_BASE
-    uint32_t EXTICR = AFIO->EXTICR[index >> 0x2];
+    __IO uint32_t * exticr_reg = &AFIO->EXTICR[index >> 2u];
+    //uint32_t EXTICR = AFIO->EXTICR[index >> 0x2];
+    //CLEAR_BIT(EXTICR, (0x0FU) << (0x4 * (index & 0x03)));
+    //SET_BIT(EXTICR, port_idx << (0x4 * (index & 0x03)));
+    //AFIO->EXTICR[index >> 2U] = EXTICR;
+#elif defined(SYSCFG_BASE)
+    __IO uint32_t * exticr_reg = &SYSCFG->EXTICR[index >> 2u];
+    //uint32_t EXTICR = SYSCFG->EXTICR[index >> 2u];
+    //EXTICR &= ~(0x0FuL << (4u * (index & 0x03u)));
+    //EXTICR |= (port_idx << (0x4 * (index & 0x03)));
+    //SYSCFG->EXTICR[index >> 2u] = EXTICR;
+#endif
+    uint32_t EXTICR = *exticr_reg;
     CLEAR_BIT(EXTICR, (0x0FU) << (0x4 * (index & 0x03)));
     SET_BIT(EXTICR, port_idx << (0x4 * (index & 0x03)));
-    AFIO->EXTICR[index >> 2U] = EXTICR;
-#endif
+    *exticr_reg = EXTICR;
 
     /* Configure the interrupt mask */
     if ((it_mode & GPIO_MODE_IT) == GPIO_MODE_IT) {
@@ -307,16 +312,9 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t it_mode)
     write_u32(&gpio_irq_conf[index].callback, (uint32_t)callback);
 
     // Enable and set EXTI Interrupt
-#if (__CORTEX_M == 0x00U)
-#define EXTI_IRQ_PRIO 3
-#else
-#define EXTI_IRQ_PRIO 5
-#endif /* __CORTEX_M */
-#define EXTI_IRQ_SUBPRIO 0
-
     NVIC_SetPriority(
         gpio_irq_conf[index].irqnb,
-        NVIC_EncodePriority(NVIC_GetPriorityGrouping(), EXTI_IRQ_PRIO, EXTI_IRQ_SUBPRIO));
+        NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_EXTI, 0));
     NVIC_EnableIRQ(gpio_irq_conf[index].irqnb);
     // Clear pending IRQ
     EXTI->PR = (1 << index);
@@ -328,7 +326,7 @@ void detachInterrupt(uint32_t pin)
         Error_Handler();
     uint32_t index = GPIO2IDX(pin);
     irqstatus_t irq = irq_save();
-    write_u32(&gpio_irq_conf[index].callback, NULL);
+    write_u32(&gpio_irq_conf[index].callback, 0);
     irq_restore(irq);
 }
 

@@ -16,6 +16,7 @@
 #endif
 
 #define _NOP() asm ("nop")
+
 #define barrier() __asm__ __volatile__("": : :"memory")
 
 static inline void write_u32(void *addr, uint32_t val) {
@@ -46,12 +47,13 @@ static inline uint8_t read_u8(const void *addr) {
     return val;
 }
 
-extern GPIO_TypeDef *const digital_regs[];
+extern GPIO_TypeDef * digital_regs[];
 
-#define GPIO(PORT, NUM) (((PORT) - 'A') * 16 + (NUM))
-#define GPIO2PORT(PIN)  ((PIN) / 16)
+#define GPIO_NUM_PINS   16
+#define GPIO(PORT, NUM) (((PORT) - 'A') * GPIO_NUM_PINS + (NUM))
+#define GPIO2PORT(PIN)  ((PIN) / GPIO_NUM_PINS)
 #define GPIO2BIT(PIN)   (1U << GPIO2IDX(PIN))
-#define GPIO2IDX(PIN)   ((PIN) % 16)
+#define GPIO2IDX(PIN)   ((PIN) % GPIO_NUM_PINS)
 
 #define GPIO_INPUT        0
 #define GPIO_OUTPUT       1

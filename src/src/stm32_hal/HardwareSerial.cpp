@@ -7,6 +7,7 @@
 #include "irq.h"
 #include "debug_elrs.h"
 #include "targets.h"
+#include "priorities.h"
 
 #if defined(STM32F1xx)
 #include <stm32f1xx_ll_bus.h>
@@ -260,7 +261,8 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
         LL_DMA_DisableIT_HT(dmaptr, dma_ch_rx);
         LL_DMA_DisableIT_TC(dmaptr, dma_ch_rx);
         /* Set interrupt configuration */
-        NVIC_SetPriority((IRQn_Type)dma_irq_rx, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
+        NVIC_SetPriority((IRQn_Type)dma_irq_rx,
+            NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART_DMA, 0));
         NVIC_EnableIRQ((IRQn_Type)dma_irq_rx);
         /* Enable DMA */
         LL_DMA_EnableChannel(dmaptr, dma_ch_rx);
@@ -294,7 +296,8 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
         LL_DMA_DisableIT_HT(dmaptr, dma_ch_tx);
         LL_DMA_EnableIT_TC(dmaptr, dma_ch_tx);
         /* Set interrupt configuration */
-        NVIC_SetPriority((IRQn_Type)dma_irq_tx, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
+        NVIC_SetPriority((IRQn_Type)dma_irq_tx,
+            NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART_DMA, 0));
         NVIC_EnableIRQ((IRQn_Type)dma_irq_tx);
     #endif // UART_USE_DMA_TX
 
@@ -323,7 +326,8 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     }
     enable_receiver();
 
-    NVIC_SetPriority((IRQn_Type)usart_irq, 1);
+    NVIC_SetPriority((IRQn_Type)usart_irq,
+        NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART, 0));
     NVIC_EnableIRQ((IRQn_Type)usart_irq);
 
     uart_config_afio((uint32_t)uart, rx_pin, tx_pin);
