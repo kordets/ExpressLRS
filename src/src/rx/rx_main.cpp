@@ -26,6 +26,8 @@ void ICACHE_RAM_ATTR LostConnection();
 #define PRINT_FREQ_ERROR               0
 //#define NUM_FAILS_TO_RESYNC            100
 
+#define USE_TIMER_KICK  1   // TODO: Need testing!!
+
 ///////////////////
 
 #if RADIO_SX128x
@@ -255,7 +257,9 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
         }
 
         /* Adjust the timer */
+#if !USE_TIMER_KICK
         if ((TIMER_OFFSET_LIMIT < diff_us) || (diff_us < 0))
+#endif
             TxTimer.reset(diff_us - TIMER_OFFSET);
     }
     else
@@ -324,7 +328,9 @@ void ICACHE_RAM_ATTR LostConnection()
     servo_out_fail_safe();
 #endif
 
+    uint32_t irq = _SAVE_IRQ();
     TxTimer.stop(); // Stop sync timer
+    _RESTORE_IRQ(irq);
 
     // Reset FHSS
     FHSSresetFreqCorrection();
@@ -354,14 +360,17 @@ void ICACHE_RAM_ATTR TentativeConnection(int32_t freqerror)
     connectionState = STATE_tentative;
     DEBUG_PRINTF("tentative\n");
     TxTimer.start();     // Start local sync timer
+#if !USE_TIMER_KICK
     TxTimer.setTime(80); // Trigger isr right after reception
+#endif
+    led_set_state(0); // turn on led
 }
 
 void ICACHE_RAM_ATTR GotConnection()
 {
     connectionState = STATE_connected; //we got a packet, therefore no lost connection
 
-    led_set_state(0); // turn on led
+    //led_set_state(0); // turn on led
     DEBUG_PRINTF("connected\n");
 
     platform_connection_state(connectionState);
@@ -506,20 +515,17 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
     digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
 #endif
 
-    /* TODO: Need testing!! */
-    //TxTimer.triggerSoon(); // Trigger FHSS ISR
-}
-
-void forced_start(void)
-{
-    DEBUG_PRINTF("Manual Start\n");
-    Radio.RXnb(GetInitialFreq());
+#if USE_TIMER_KICK
+    TxTimer.triggerSoon(); // Trigger FHSS ISR
+#endif
 }
 
 void forced_stop(void)
 {
-    Radio.StopContRX();
+    uint32_t irq = _SAVE_IRQ();
     TxTimer.stop();
+    Radio.StopContRX();
+    _RESTORE_IRQ(irq);
 }
 
 static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
@@ -529,8 +535,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
         return; // No need to modify, rate is same
 
     // Stop ongoing actions before configuring next rate
-    TxTimer.stop();
-    Radio.StopContRX();
+    forced_stop();
 
     ExpressLRS_currAirRate = config;
     current_rate_config = rate;
@@ -565,8 +570,8 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     crsf.LinkStatistics.uplink_RSSI_2 = 0;
     crsf.LinkStatistics.rf_Mode = config->rate_osd_num;
 #endif
+    //TxTimer.setTime();
     Radio.RXnb();
-    TxTimer.init();
 }
 
 /* FC sends v1 MSPs */
@@ -641,6 +646,7 @@ void setup()
 
     // Set call back for timer ISR
     TxTimer.callbackTock = &HWtimerCallback;
+    TxTimer.init();
     // Init first scan index
     scanIndex = RATE_DEFAULT;
 #if SERVO_OUTPUTS_ENABLED

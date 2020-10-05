@@ -107,6 +107,5 @@ static inline uint8_t get_elrs_airRateOsd(void) {
 #define TLMratioEnumToValue(TLM) (256U >> (TLM))
 
 #if defined(RX_MODULE)
-void forced_start(void);
 void forced_stop(void);
 #endif /* RX_MODULE */

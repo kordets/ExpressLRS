@@ -75,5 +75,7 @@ void ICACHE_RAM_ATTR HwTimer::setTime(uint32_t time)
 
 void ICACHE_RAM_ATTR HwTimer::triggerSoon(void)
 {
-    timerWrite(HWtimerInterval - TIMER_SOON);
+    uint32_t interval = timerAlarmRead(timer);
+    interval -= TIMER_SOON;
+    timerWrite(timer, interval);
 }

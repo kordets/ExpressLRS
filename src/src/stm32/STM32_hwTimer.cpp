@@ -25,11 +25,9 @@ static void TimerCallback(HardwareTimer *)
 
 void HwTimer::init()
 {
-    noInterrupts();
     stop();
     timer_tx.attachInterrupt(TimerCallback);
     timer_tx.setMode(2, TIMER_OUTPUT_COMPARE);
-    interrupts();
 }
 
 void HwTimer::start()

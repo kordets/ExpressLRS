@@ -38,7 +38,6 @@ Button button;
 void button_event_short(uint32_t ms)
 {
     (void)ms;
-    forced_start();
 }
 
 void button_event_long(uint32_t ms)

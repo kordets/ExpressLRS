@@ -97,7 +97,6 @@ void button_event_short(uint32_t ms)
     (void)ms;
 #if defined(TX_MODULE)
 #elif defined(RX_MODULE)
-    forced_start();
 #endif /* RX_MODULE */
 }
 

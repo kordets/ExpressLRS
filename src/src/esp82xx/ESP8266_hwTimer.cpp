@@ -23,19 +23,15 @@ void ICACHE_RAM_ATTR HwTimer::start()
 {
     if (running)
         return;
-    noInterrupts();
     running = true;
     reset(0);
     timer1_enable(TIM_DIV16, TIM_EDGE, TIM_LOOP); //5MHz ticks
-    interrupts();
 }
 
 void ICACHE_RAM_ATTR HwTimer::stop()
 {
-    noInterrupts();
     running = false;
     timer1_disable();
-    interrupts();
 }
 
 void ICACHE_RAM_ATTR HwTimer::pause()

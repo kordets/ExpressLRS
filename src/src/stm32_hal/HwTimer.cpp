@@ -77,13 +77,15 @@ void timer_enable(void)
 
 void timer_disable(void)
 {
+    //irqstatus_t flag = irq_save();
     TIMx->CR1 = 0;
     TIMx->DIER = 0;
+    TIMx->SR  &= ~(TIM_SR_UIF);
+    //irq_restore(flag);
 }
 
 static void timer_init(void)
 {
-    irqstatus_t flag = irq_save();
     enable_pclock((uint32_t)TIMx);
     timer_disable();
     // Set clock prescaler to 1us or 2us
@@ -97,7 +99,6 @@ static void timer_init(void)
     NVIC_SetPriority(TIMx_IRQn,
         NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_TIM, 0));
     NVIC_EnableIRQ(TIMx_IRQn);
-    irq_restore(flag);
 }
 
 /****************************************************************
@@ -132,6 +133,7 @@ void HwTimer::reset(int32_t offset)
 {
     if (running)
     {
+        /* Reset counter and set next alarm time */
 #if COUNT_DOWN
         timer_counter_set(HWtimerInterval - offset);
 #else
@@ -158,6 +160,7 @@ void HwTimer::triggerSoon(void)
     timer_counter_set(TIMER_SOON);
 #endif
 #else
+    /* Generate soft trigger to run ISR asap */
     EXTI->SWIER |= (0x1 << 3);
 #endif
 }
