@@ -11,7 +11,7 @@ public:
 protected:
     RadioHalSpi(HwSpi &spi, uint32_t read = 0, uint32_t write = 0)
             : spi_bus(spi), p_write(write), p_read(read) {}
-    void Begin(uint32_t speed);
+    void Begin(uint32_t speed, int sck, int miso, int mosi, int ss);
 
     uint8_t ICACHE_RAM_ATTR readRegister(uint8_t reg) const;
     void ICACHE_RAM_ATTR writeRegister(uint8_t reg, uint8_t data) const;

@@ -4,15 +4,12 @@
 HwSpi::HwSpi() : SPIClass()
 {
     SS = GPIO_PIN_NSS;
-    MOSI = GPIO_PIN_MOSI;
-    MISO = GPIO_PIN_MISO;
-    SCK = GPIO_PIN_SCK;
 }
 
-void HwSpi::platform_init(uint32_t speed)
+void HwSpi::platform_init(uint32_t speed, int sck, int miso, int mosi)
 {
     // sck, miso, mosi, ss (ss can be any GPIO)
-    SPIClass::begin(SCK, MISO, MOSI, -1);
+    SPIClass::begin(sck, miso, mosi, -1);
     SPIClass::setDataMode(SPI_MODE0); // mode0 by default
     SPIClass::setFrequency(speed);
 }

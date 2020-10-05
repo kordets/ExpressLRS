@@ -85,7 +85,7 @@ void init_globals(void) {
 
 ///////////////////////////////////////
 
-static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff);
+static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff, uint32_t rx_us);
 static void ICACHE_RAM_ATTR HandleTLM();
 
 int8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
@@ -201,8 +201,9 @@ static void process_rx_buffer()
     }
 }
 
-static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff)
+static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff, uint32_t rx_us)
 {
+    (void)rx_us;
     volatile_memcpy(rx_buffer, buff, sizeof(rx_buffer));
     rx_buffer_handle = 1;
 
@@ -609,7 +610,7 @@ void setup()
     Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1, GPIO_PIN_DIO2,
                   GPIO_PIN_BUSY, GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
     Radio.SetSyncWord(getSyncWord());
-    Radio.Begin();
+    Radio.Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, GPIO_PIN_NSS);
 
     PowerMgmt.Begin();
     PowerMgmt.setPower(power);

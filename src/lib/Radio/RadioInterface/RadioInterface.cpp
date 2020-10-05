@@ -4,7 +4,7 @@ volatile enum isr_states DRAM_ATTR RadioInterface::p_state_isr;
 
 /////////////////////////////////////////////////////////////////
 
-void (*RadioInterface::RXdoneCallback1)(uint8_t *) = RadioInterface::rx_nullCallback;
+void (*RadioInterface::RXdoneCallback1)(uint8_t *, uint32_t) = RadioInterface::rx_nullCallback;
 //void (*RadioInterface::RXdoneCallback2)(uint8_t *) = RadioInterface::rx_nullCallback;
 
 void (*RadioInterface::TXdoneCallback1)() = RadioInterface::tx_nullCallback;
@@ -24,32 +24,26 @@ void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
     _BUSY = busy;
     _TXen = txpin;
     _RXen = rxpin;
-}
 
-void RadioInterface::InitPins(void)
-{
-    p_state_isr = NONE;
-
-    if (-1 < _RST) {
-        pinMode(_RST, OUTPUT);
-        digitalWrite(_RST, HIGH);
+    if (-1 < rst) {
+        pinMode(rst, OUTPUT);
+        digitalWrite(rst, HIGH);
     }
-    if (-1 < _BUSY)
-        pinMode(_BUSY, INPUT);
-    if (-1 < _DIO1)
-        pinMode(_DIO1, INPUT);
-    if (-1 < _DIO2)
-        pinMode(_DIO2, INPUT);
-    if (-1 < _DIO3)
-        pinMode(_DIO3, INPUT);
-
-    if (-1 < _TXen) {
-        pinMode(_TXen, OUTPUT);
-        digitalWrite(_TXen, LOW);
+    if (-1 < dio1)
+        pinMode(dio1, INPUT);
+    if (-1 < dio2)
+        pinMode(dio2, INPUT);
+    if (-1 < dio3)
+        pinMode(dio3, INPUT);
+    if (-1 < busy)
+        pinMode(busy, INPUT);
+    if (-1 < txpin) {
+        pinMode(txpin, OUTPUT);
+        digitalWrite(txpin, LOW);
     }
-    if (-1 < _RXen) {
-        pinMode(_RXen, OUTPUT);
-        digitalWrite(_RXen, LOW);
+    if (-1 < rxpin) {
+        pinMode(rxpin, OUTPUT);
+        digitalWrite(rxpin, LOW);
     }
 }
 

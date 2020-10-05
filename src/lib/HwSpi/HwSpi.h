@@ -8,14 +8,12 @@ class HwSpi : public SPIClass
 public:
     HwSpi();
 
-    void prepare(uint32_t speed)
+    void prepare(uint32_t speed, int sck, int miso, int mosi, int ss)
     {
-        pinMode(MOSI, OUTPUT);
-        pinMode(MISO, INPUT);
-        pinMode(SCK, OUTPUT);
-        pinMode(SS, OUTPUT);
-        digitalWrite(SS, HIGH);
-        platform_init(speed);
+        SS = ss;
+        pinMode(ss, OUTPUT);
+        digitalWrite(ss, HIGH);
+        platform_init(speed, sck, miso, mosi);
     }
 
     void set_ss(uint8_t state)
@@ -27,9 +25,9 @@ public:
     void ICACHE_RAM_ATTR write(uint8_t *data, uint8_t numBytes);
 
 private:
-    int SS, MOSI, MISO, SCK;
+    int SS;
 
-    void platform_init(uint32_t speed);
+    void platform_init(uint32_t speed, int sck, int miso, int mosi);
 };
 
 extern HwSpi RadioSpi;

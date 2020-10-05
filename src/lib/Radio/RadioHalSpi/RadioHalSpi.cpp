@@ -1,8 +1,8 @@
 #include "RadioHalSpi.h"
 
-void RadioHalSpi::Begin(uint32_t speed)
+void RadioHalSpi::Begin(uint32_t speed, int sck, int miso, int mosi, int ss)
 {
-    spi_bus.prepare(speed);
+    spi_bus.prepare(speed, sck, miso, mosi, ss);
 }
 
 uint8_t ICACHE_RAM_ATTR RadioHalSpi::readRegister(uint8_t reg) const

@@ -8,13 +8,13 @@ static SX1280Driver * instance = NULL;
 static void ICACHE_RAM_ATTR _rxtx_isr_handler(void)
 {
     uint16_t irqs;
-    instance->LastPacketIsrMicros = micros();
+    uint32_t rx_us = micros();
     irqs = instance->GetIRQFlags();
     instance->ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
 
     switch (RadioInterface::p_state_isr) {
         case RX_DONE:
-            instance->RXnbISR(irqs);
+            instance->RXnbISR(rx_us, irqs);
             break;
         case TX_DONE:
             instance->TXnbISR(irqs);
@@ -35,11 +35,11 @@ SX1280Driver::SX1280Driver(HwSpi &spi, uint8_t payload_len):
     RX_buffer_size = payload_len;
 }
 
-void SX1280Driver::Begin(void)
+void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
 {
-    RadioInterface::InitPins();
+    TxRxDisable();
     // initialize low-level drivers
-    RadioHalSpi::Begin(SX128X_SPI_SPEED);
+    RadioHalSpi::Begin(SX128X_SPI_SPEED, sck, miso, mosi, ss);
 
     Reset();
     //delay(100);
@@ -369,7 +369,7 @@ void ICACHE_RAM_ATTR SX1280Driver::TXnb(const uint8_t *data, uint8_t length, uin
 
 static uint8_t DMA_ATTR RXdataBuffer[16];
 
-void ICACHE_RAM_ATTR SX1280Driver::RXnbISR(uint16_t irqs)
+void ICACHE_RAM_ATTR SX1280Driver::RXnbISR(uint32_t rx_us, uint16_t irqs)
 {
     int32_t FIFOaddr;
     // Ignore if not a RX DONE ISR, CRC fail or timeout
@@ -382,7 +382,7 @@ void ICACHE_RAM_ATTR SX1280Driver::RXnbISR(uint16_t irqs)
     if (FIFOaddr < 0) // RX len is not correct!
         return;
     ReadBuffer(FIFOaddr, RXdataBuffer, RX_buffer_size);
-    RXdoneCallback1(RXdataBuffer);
+    RXdoneCallback1(RXdataBuffer, rx_us);
 }
 
 void ICACHE_RAM_ATTR SX1280Driver::RXnb(uint32_t freq)
@@ -406,7 +406,7 @@ int8_t ICACHE_RAM_ATTR SX1280Driver::GetLastPacketRSSI()
 {
     uint8_t buff[2] = {0};
     ReadCommand(SX1280_RADIO_GET_RSSIINST, buff, sizeof(buff));
-    LastRadioStatus = buff[0];      // [0] = status
+    //LastRadioStatus = buff[0];      // [0] = status
     return (-((int)buff[1])) / 2;   // [1] = rssiInst
 };
 
@@ -426,7 +426,7 @@ uint16_t ICACHE_RAM_ATTR SX1280Driver::GetIRQFlags()
     uint16_t irqs;
     uint8_t buff[3] = {0};
     ReadCommand(SX1280_RADIO_GET_IRQSTATUS, buff, sizeof(buff));
-    LastRadioStatus = buff[0]; // [0] = status
+    //LastRadioStatus = buff[0]; // [0] = status
     irqs = buff[1];
     irqs <<= 8;
     irqs += buff[2];
@@ -460,7 +460,7 @@ int32_t ICACHE_RAM_ATTR SX1280Driver::GetRxBufferAddr(void)
     uint8_t status[3];
     ReadCommand(SX1280_RADIO_GET_RXBUFFERSTATUS, status, sizeof(status));
     // [0] status, [1] rxPayloadLength, [2] rxStartBufferPointer
-    LastRadioStatus = status[0];              // [0] = status
+    //LastRadioStatus = status[0];              // [0] = status
     //return (status[1] == sizeof(RXdataBuffer)) ? status[2] : -1;
     return status[2];
 }
@@ -469,8 +469,7 @@ void ICACHE_RAM_ATTR SX1280Driver::GetLastRssiSnr(void)
 {
     uint8_t buff[9] = {0};
     ReadCommand(SX1280_RADIO_GET_PACKETSTATUS, buff, sizeof(buff));
-    LastRadioStatus = buff[0];              // [0] = status
-    LastPacketRssiRaw = buff[1];            // [1] = rssiSync
+    //LastRadioStatus = buff[0];              // [0] = status
     LastPacketRSSI = -((int)buff[1]) / 2;
     LastPacketSNR = buff[2] / 4;            // [2] = snr
 }

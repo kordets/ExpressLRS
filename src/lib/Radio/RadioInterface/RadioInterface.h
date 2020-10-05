@@ -29,9 +29,9 @@ public:
                  int busy, int txpin, int rxpin);
 
     ////////// Callback Function Pointers //////////
-    static void rx_nullCallback(uint8_t *){};
+    static void rx_nullCallback(uint8_t *, uint32_t){};
     static void tx_nullCallback(void){};
-    static void (*RXdoneCallback1)(uint8_t *buff);
+    static void (*RXdoneCallback1)(uint8_t *buff, uint32_t rx_us);
     //static void (*RXdoneCallback2)(uint8_t *buff);
     static void (*TXdoneCallback1)(void);
     static void (*TXdoneCallback2)(void);
@@ -41,16 +41,11 @@ public:
     static volatile enum isr_states DRAM_ATTR p_state_isr;
 
     ////////// Packet Stats //////////
-    volatile uint32_t LastPacketIsrMicros = 0;
     volatile int16_t LastPacketRSSI;
-    volatile uint8_t LastPacketRssiRaw;
     volatile int8_t LastPacketSNR;
-    volatile uint8_t NonceTX = 0;
-    volatile uint8_t NonceRX = 0;
     volatile uint8_t RX_buffer_size;
 
 protected:
-    void InitPins(void);
     void Reset(void);
     void ICACHE_RAM_ATTR WaitOnBusy() const;
     void ICACHE_RAM_ATTR TxEnable() const;

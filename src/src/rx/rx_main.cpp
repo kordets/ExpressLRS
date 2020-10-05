@@ -376,7 +376,7 @@ void ICACHE_RAM_ATTR GotConnection()
     platform_connection_state(connectionState);
 }
 
-void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
+void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t current_us)
 {
     /* Processing takes:
         R9MM: ~160us
@@ -391,7 +391,6 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer)
 
     //DEBUG_PRINTF("I");
     const connectionState_e _conn_state = connectionState;
-    const uint32_t current_us = Radio.LastPacketIsrMicros;
     const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_PAYLOAD, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_PAYLOAD] << 8) + rx_buffer[OTA_PACKET_PAYLOAD+1];
     const uint8_t type = RcChannels_packetTypeGet(rx_buffer);
@@ -639,7 +638,7 @@ void setup()
     Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1, GPIO_PIN_DIO2,
                   GPIO_PIN_BUSY, GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
     Radio.SetSyncWord(getSyncWord());
-    Radio.Begin();
+    Radio.Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, GPIO_PIN_NSS);
     Radio.SetOutputPower(0b1111); // default RX to max power for tlm
     Radio.RXdoneCallback1 = ProcessRFPacketCallback;
     Radio.TXdoneCallback1 = tx_done_cb;

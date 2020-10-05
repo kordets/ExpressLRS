@@ -4,14 +4,11 @@
 HwSpi::HwSpi() : SPIClass()
 {
     SS = GPIO_PIN_NSS;
-    MOSI = GPIO_PIN_MOSI;
-    MISO = GPIO_PIN_MISO;
-    SCK = GPIO_PIN_SCK;
 }
 
-void HwSpi::platform_init(uint32_t speed)
+void HwSpi::platform_init(uint32_t speed, int sck, int miso, int mosi)
 {
-    SPIClass::begin();
+    SPIClass::begin(); // TODO: check pins!
     setBitOrder(MSBFIRST);
     setDataMode(SPI_MODE0);
     setFrequency(speed);

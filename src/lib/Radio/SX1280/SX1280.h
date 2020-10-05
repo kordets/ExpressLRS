@@ -25,11 +25,11 @@ public:
     SX1280_RadioLoRaCodingRates_t currCR = SX1280_LORA_CR_4_7;
 
     /////////////Packet Stats//////////
-    volatile uint8_t LastRadioStatus = 0;
+    //volatile uint8_t LastRadioStatus = 0;
 
     ////////////////Configuration Functions/////////////
     SX1280Driver(HwSpi &spi, uint8_t payload_len = RX_BUFFER_LEN);
-    void Begin(void);
+    void Begin(int sck, int miso, int mosi, int ss);
     void End(void);
     int16_t MeasureNoiseFloor(uint32_t num_meas, uint32_t freq);
     void SetMode(SX1280_RadioOperatingModes_t OPmode);
@@ -53,7 +53,7 @@ public:
 
     // Internal ISR callbacks, don't use these!
     void ICACHE_RAM_ATTR TXnbISR(uint16_t irqs);
-    void ICACHE_RAM_ATTR RXnbISR(uint16_t irqs);
+    void ICACHE_RAM_ATTR RXnbISR(uint32_t rx_us, uint16_t irqs);
 
     uint16_t ICACHE_RAM_ATTR GetIRQFlags();
     void ICACHE_RAM_ATTR ClearIrqStatus(uint16_t irqMask);

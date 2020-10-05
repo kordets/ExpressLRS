@@ -16,11 +16,11 @@ static SX127xDriver * DMA_ATTR instance = NULL;
 
 static void ICACHE_RAM_ATTR _rxtx_isr_handler_dio0(void)
 {
-    instance->LastPacketIsrMicros = micros();
+    uint32_t rx_us = micros();
     uint8_t irqs = instance->GetIRQFlags();
     enum isr_states state = RadioInterface::p_state_isr;
     if (state == RX_DONE) {
-        instance->RXnbISR(irqs);
+        instance->RXnbISR(rx_us, irqs);
     } else if (state == TX_DONE) {
         instance->TXnbISR(irqs);
     } else {
@@ -58,21 +58,19 @@ SX127xDriver::SX127xDriver(HwSpi &spi, uint8_t payload_len):
     current_freq = 0;
     current_power = 0xF; // outside range to make sure the power is initialized
 
-    LastPacketRSSI = LastPacketRssiRaw = 0;
+    LastPacketRSSI = 0;
     LastPacketSNR = 0;
-    NonceTX = 0;
-    NonceRX = 0;
     RX_buffer_size = payload_len;
 }
 
-void SX127xDriver::Begin(void)
+void SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
 {
-    RadioInterface::InitPins();
+    TxRxDisable();
 
     Reset();
 
     // initialize low-level drivers
-    RadioHalSpi::Begin(SX127X_SPI_SPEED);
+    RadioHalSpi::Begin(SX127X_SPI_SPEED, sck, miso, mosi, ss);
 
     if (CheckChipVersion() != ERR_NONE)
     {
@@ -239,7 +237,6 @@ uint8_t ICACHE_RAM_ATTR SX127xDriver::TX(uint8_t *data, uint8_t length)
             return (ERR_TX_TIMEOUT);
         }
     }
-    NonceTX++;
 
     return (ERR_NONE);
 }
@@ -255,7 +252,6 @@ void ICACHE_RAM_ATTR SX127xDriver::TXnbISR(uint8_t irqs)
     //the larger TX/RX modules require that the TX/RX enable pins are toggled
     TxRxDisable();
 
-    NonceTX++; // keep this before callbacks!
     TXdoneCallback1();
     TXdoneCallback2();
     TXdoneCallback3();
@@ -326,7 +322,7 @@ void ICACHE_RAM_ATTR SX127xDriver::RxConfig(uint32_t freq)
 
 static uint8_t DMA_ATTR RXdataBuffer[16];
 
-void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint8_t irqs)
+void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint32_t rx_us, uint8_t irqs)
 {
     // Ignore if CRC is invalid
     if ((!(irqs & SX127X_CLEAR_IRQ_FLAG_PAYLOAD_CRC_ERROR)) &&
@@ -336,9 +332,8 @@ void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint8_t irqs)
         readRegisterBurst((uint8_t)SX127X_REG_FIFO, RX_buffer_size, (uint8_t *)RXdataBuffer);
         // fetch RSSI and SNR
         GetLastRssiSnr();
-        NonceRX++;
         // Push to application if callback is set
-        RXdoneCallback1(RXdataBuffer);
+        RXdoneCallback1(RXdataBuffer, rx_us);
         //RXdoneCallback2();
     }
 }
@@ -386,8 +381,6 @@ uint8_t ICACHE_RAM_ATTR SX127xDriver::RX(uint32_t freq, uint8_t *data, uint8_t l
 
     readRegisterBurst((uint8_t)SX127X_REG_FIFO, length, data);
     GetLastRssiSnr();
-
-    NonceRX++;
 
     return (ERR_NONE);
 }
@@ -761,7 +754,6 @@ void ICACHE_RAM_ATTR SX127xDriver::GetLastRssiSnr()
     uint8_t resp[] = {0x0, 0x0 /*, 0x0*/};
     readRegisterBurst(SX127X_REG_PKT_SNR_VALUE, sizeof(resp), resp);
     LastPacketSNR = (int8_t)resp[0] / 4;
-    LastPacketRssiRaw = resp[1];
     LastPacketRSSI = -157 + resp[1];
 }
 

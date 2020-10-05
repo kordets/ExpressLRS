@@ -61,7 +61,7 @@ public:
     volatile uint8_t _syncWord;
 
     ////////////////Configuration Functions/////////////
-    void Begin(void);
+    void Begin(int sck, int miso, int mosi, int ss);
     void End(void);
     void Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
                 uint32_t freq, uint16_t PreambleLength,
@@ -94,7 +94,7 @@ public:
     /////////////Non-blocking RX related Functions///////////////
     void ICACHE_RAM_ATTR StopContRX();
     void ICACHE_RAM_ATTR RXnb(uint32_t freq = 0);
-    void ICACHE_RAM_ATTR RXnbISR(uint8_t irqs); //ISR for non-blocking RC routine
+    void ICACHE_RAM_ATTR RXnbISR(uint32_t rx_us, uint8_t irqs); //ISR for non-blocking RC routine
 
     uint8_t ICACHE_RAM_ATTR GetIRQFlags();
     void ICACHE_RAM_ATTR ClearIRQFlags();
