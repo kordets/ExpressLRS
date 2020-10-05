@@ -171,7 +171,11 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
 
     if (gpio == GPIO('A', 13) || gpio == GPIO('A', 14))
         // Disable SWD to free PA13, PA14
-        AFIO->MAPR = AFIO_MAPR_SWJ_CFG_DISABLE;
+        //AFIO->MAPR = AFIO_MAPR_SWJ_CFG_DISABLE;
+        __HAL_AFIO_REMAP_SWJ_DISABLE();
+    else if ((gpio == GPIO('A', 15)) || (gpio == GPIO('B', 3)) || (gpio == GPIO('B', 4)))
+        // Disable JTAG-DP
+        __HAL_AFIO_REMAP_SWJ_NOJTAG();
 }
 
 

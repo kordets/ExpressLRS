@@ -116,10 +116,6 @@ gpio_in_setup(uint32_t pin, int32_t pull_up)
     struct gpio_in g = {.regs = regs, .bit = GPIO2BIT(pin)};
     gpio_in_reset(g, pull_up);
     return g;
-    /*fail:
-    while (1)
-    {
-    }*/
 }
 
 void gpio_in_reset(struct gpio_in g, int32_t pull_up)
@@ -245,21 +241,11 @@ uint8_t digitalRead(uint32_t pin)
 #define PR PR1
 #endif
 
-void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
+void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t it_mode)
 {
-#ifdef AFIO_BASE
-    // Disconnect JTAG-DP + SW-DP signals.
-    // Warning: Need to reconnect under reset
-    if ((pin == PA13) || (pin == PA14)) {
-        __HAL_AFIO_REMAP_SWJ_DISABLE(); // JTAG-DP Disabled and SW-DP Disabled
-    }
-    if ((pin == PA15) || (pin == PB3) || (pin == PB4)) {
-        __HAL_AFIO_REMAP_SWJ_NOJTAG(); // JTAG-DP Disabled and SW-DP enabled
-    }
-#endif
-
+    uint32_t port_idx = GPIO2PORT(pin);
 #if 0
-    GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
+    GPIO_TypeDef *regs = digital_regs[port_idx];
     if (!regs)
         Error_Handler();
     uint32_t index = GPIO2IDX(pin);
@@ -274,68 +260,53 @@ void attachInterrupt(uint32_t pin, isr_cb_t callback, uint8_t type)
     HAL_GPIO_Init(regs, &init);
 
 #else
-
-    uint32_t port_idx = GPIO2PORT(pin);
-    if (!digital_regs[GPIO2PORT(pin)])
+    if (!digital_regs[port_idx])
         Error_Handler();
     if (GPIO('X', 15) <= pin)
         return;
     uint32_t index = GPIO2IDX(pin);
     uint32_t bit = GPIO2BIT(pin);
-    uint32_t it_mode = type + GPIO_MODE_IT;
 
     /* Configure the External Interrupt or event for the current IO */
-    uint32_t temp = AFIO->EXTICR[index >> 2U];
-    CLEAR_BIT(temp, (0x0FU) << (4U * (index & 0x03U)));
-    SET_BIT(temp, port_idx << (4U * (index & 0x03U)));
-    AFIO->EXTICR[index >> 2U] = temp;
+#ifdef AFIO_BASE
+    uint32_t EXTICR = AFIO->EXTICR[index >> 0x2];
+    CLEAR_BIT(EXTICR, (0x0FU) << (0x4 * (index & 0x03)));
+    SET_BIT(EXTICR, port_idx << (0x4 * (index & 0x03)));
+    AFIO->EXTICR[index >> 2U] = EXTICR;
+#endif
 
     /* Configure the interrupt mask */
-    if ((it_mode & GPIO_MODE_IT) == GPIO_MODE_IT)
-    {
+    if ((it_mode & GPIO_MODE_IT) == GPIO_MODE_IT) {
         SET_BIT(EXTI->IMR, bit);
-    }
-    else
-    {
+    } else {
         CLEAR_BIT(EXTI->IMR, bit);
     }
 
     /* Configure the event mask */
-    if ((it_mode & GPIO_MODE_EVT) == GPIO_MODE_EVT)
-    {
+    if ((it_mode & GPIO_MODE_EVT) == GPIO_MODE_EVT) {
         SET_BIT(EXTI->EMR, bit);
-    }
-    else
-    {
+    } else {
         CLEAR_BIT(EXTI->EMR, bit);
     }
 
     /* Enable or disable the rising trigger */
-    if ((it_mode & RISING) == RISING)
-    {
+    if ((it_mode & RISING) == RISING) {
         SET_BIT(EXTI->RTSR, bit);
-    }
-    else
-    {
+    } else {
         CLEAR_BIT(EXTI->RTSR, bit);
     }
 
     /* Enable or disable the falling trigger */
-    if ((it_mode & FALLING) == FALLING)
-    {
+    if ((it_mode & FALLING) == FALLING) {
         SET_BIT(EXTI->FTSR, bit);
-    }
-    else
-    {
+    } else {
         CLEAR_BIT(EXTI->FTSR, bit);
     }
-
 #endif
 
-    gpio_irq_conf[index].callback = callback;
+    write_u32(&gpio_irq_conf[index].callback, (uint32_t)callback);
 
     // Enable and set EXTI Interrupt
-
 #if (__CORTEX_M == 0x00U)
 #define EXTI_IRQ_PRIO 3
 #else
@@ -357,7 +328,7 @@ void detachInterrupt(uint32_t pin)
         Error_Handler();
     uint32_t index = GPIO2IDX(pin);
     irqstatus_t irq = irq_save();
-    gpio_irq_conf[index].callback = NULL;
+    write_u32(&gpio_irq_conf[index].callback, NULL);
     irq_restore(irq);
 }
 
@@ -366,12 +337,11 @@ void detachInterrupt(uint32_t pin)
 void GPIO_EXTI_IRQHandler(uint16_t pin)
 {
     /* EXTI line interrupt detected */
-    if (EXTI->PR & (1 << pin))
-    {
-        if (gpio_irq_conf[pin].callback != NULL)
-        {
+    uint16_t index = 0x1 << pin;
+    if (EXTI->PR & index) {
+        if (gpio_irq_conf[pin].callback != NULL) {
             gpio_irq_conf[pin].callback();
         }
-        EXTI->PR = (1 << pin);
+        EXTI->PR = index;
     }
 }

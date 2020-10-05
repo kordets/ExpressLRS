@@ -89,11 +89,13 @@ uint8_t digitalRead(uint32_t pin);
 
 #define digitalWriteFast(_pin, _val) digitalWrite((_pin), (_val))
 
-enum
-{
-    FALLING = 1 << 4,
-    RISING = 1 << 3,
-    CHANGE = (FALLING + RISING)
+enum {
+    GPIO_MODE_IT  = 1 << 0,
+    GPIO_MODE_EVT = 1 << 1,
+
+    FALLING = (GPIO_MODE_IT | (1 << 4)),
+    RISING  = (GPIO_MODE_IT | (1 << 3)),
+    CHANGE  = (FALLING | RISING),
 };
 
 typedef void (*isr_cb_t)(void);
