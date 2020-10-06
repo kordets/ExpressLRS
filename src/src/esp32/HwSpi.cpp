@@ -1,5 +1,6 @@
 #include "HwSpi.h"
 #include "targets.h"
+#include <Arduino.h>
 
 HwSpi::HwSpi() : SPIClass()
 {
@@ -13,14 +14,14 @@ void HwSpi::platform_init(uint32_t speed, int sck, int miso, int mosi)
     SPIClass::setFrequency(speed);
 }
 
-void HwSpi::write(uint8_t data)
+void ICACHE_RAM_ATTR HwSpi::write(uint8_t data)
 {
     taskDISABLE_INTERRUPTS();
     SPIClass::write(data);
     taskENABLE_INTERRUPTS();
 }
 
-void HwSpi::write(uint8_t *data, uint8_t numBytes)
+void ICACHE_RAM_ATTR HwSpi::write(uint8_t *data, uint8_t numBytes)
 {
     taskDISABLE_INTERRUPTS();
     SPIClass::writeBytes((uint8_t *)data, numBytes);

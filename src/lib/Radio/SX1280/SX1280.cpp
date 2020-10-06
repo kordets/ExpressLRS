@@ -3,13 +3,12 @@
 
 /////////////////////////////////////////////////////////////////
 
-static SX1280Driver * instance = NULL;
+static SX1280Driver * DRAM_ATTR instance = NULL;
 
 static void ICACHE_RAM_ATTR _rxtx_isr_handler(void)
 {
-    uint16_t irqs;
-    uint32_t rx_us = micros();
-    irqs = instance->GetIRQFlags();
+    uint32_t const rx_us = micros();
+    uint16_t const irqs = instance->GetIRQFlags();
     instance->ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
 
     switch (RadioInterface::p_state_isr) {
@@ -33,6 +32,17 @@ SX1280Driver::SX1280Driver(HwSpi &spi, uint8_t payload_len):
     current_freq = 0; //2400000000;
     current_power = -100;
     RX_buffer_size = payload_len;
+    currOpmode = SX1280_MODE_UNKNOWN_MAX;
+    currCR = SX1280_LORA_CR_4_7;
+    currSF = SX1280_LORA_SF6;
+#if RADIO_SX128x_BW800
+    currBW = SX1280_LORA_BW_0800;
+#else
+    currBW = SX1280_LORA_BW_1600;
+#endif
+
+    RXdoneCallback1 = RadioInterface::rx_nullCallback;
+    TXdoneCallback1 = RadioInterface::tx_nullCallback;
 }
 
 void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
@@ -41,8 +51,12 @@ void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
     // initialize low-level drivers
     RadioHalSpi::Begin(SX128X_SPI_SPEED, sck, miso, mosi, ss);
 
+    if (!gpio_in_valid(_BUSY)) {
+        // Error handler!
+    }
+
     Reset();
-    //delay(100);
+    WaitOnBusy();
 
     uint8_t buffer[2] = {0, 0};
     ReadRegister(REG_LR_FIRMWARE_VERSION_MSB, buffer, sizeof(buffer));
@@ -94,22 +108,6 @@ void SX1280Driver::Config(SX1280_RadioLoRaBandwidths_t bw,
                     SX1280_IRQ_RADIO_NONE,
                     SX1280_IRQ_RADIO_NONE);
     ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
-}
-
-void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power)
-{
-    power += 18;
-    if (power < 0) power = 0;           //  0 = -18dBm
-    else if (power > 31) power = 31;    // 31 = +13dBm
-
-    // Skip if already set
-    if (power == current_power)
-        return;
-
-    uint8_t buf[] = {(uint8_t)(power), SX1280_RADIO_RAMP_04_US};
-    WriteCommand(SX1280_RADIO_SET_TXPARAMS, buf, sizeof(buf));
-    //DEBUG_PRINTF("SetOutputPower: %d", (power - 18));
-    current_power = power;
 }
 
 void SX1280Driver::SetPacketParams(SX1280_RadioLoRaPacketLengthsModes_t HeaderType,
@@ -183,8 +181,6 @@ void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
         break;
     }
     currOpmode = OPmode;
-
-    //WaitOnBusy(); // TODO FIXME: Should not be needed!!
 }
 
 void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
@@ -217,20 +213,29 @@ void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
     currCR = cr;
 }
 
+void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power)
+{
+    power += 18;
+    if (power < 0) power = 0;           //  0 = -18dBm
+    else if (power > 31) power = 31;    // 31 = +13dBm
+
+    // Skip if already set
+    if (power == current_power)
+        return;
+
+    uint8_t buf[] = {(uint8_t)(power), SX1280_RADIO_RAMP_04_US};
+    WriteCommand(SX1280_RADIO_SET_TXPARAMS, buf, sizeof(buf));
+    //DEBUG_PRINTF("SetOutputPower: %d", (power - 18));
+    current_power = power;
+}
+
 void ICACHE_RAM_ATTR SX1280Driver::SetFrequency(uint32_t Reqfreq)
 {
     // Skip if already set
     if (current_freq == Reqfreq) return;
 
-#if 1
     //uint32_t freq = (uint32_t)((double)Reqfreq / (double)SX1280_FREQ_STEP);
     uint32_t freq = (uint32_t)(Reqfreq / SX1280_FREQ_STEP);
-#else
-    // 1024 * x / 203125
-    uint64_t freq = Reqfreq;
-    freq <<= 10; // * 1024
-    freq /= 203125;
-#endif
     uint8_t buf[3];
     buf[0] = (uint8_t)((freq >> 16) & 0xFF);
     buf[1] = (uint8_t)((freq >> 8) & 0xFF);

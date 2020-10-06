@@ -16,13 +16,9 @@ class SX1280Driver: public RadioInterface
 {
 public:
     ///////////Radio Variables////////
-#if RADIO_SX128x_BW800
-    SX1280_RadioLoRaBandwidths_t currBW = SX1280_LORA_BW_0800;
-#else
-    SX1280_RadioLoRaBandwidths_t currBW = SX1280_LORA_BW_1600;
-#endif
-    SX1280_RadioLoRaSpreadingFactors_t currSF = SX1280_LORA_SF6;
-    SX1280_RadioLoRaCodingRates_t currCR = SX1280_LORA_CR_4_7;
+    SX1280_RadioLoRaBandwidths_t currBW;
+    SX1280_RadioLoRaSpreadingFactors_t currSF;
+    SX1280_RadioLoRaCodingRates_t currCR;
 
     /////////////Packet Stats//////////
     //volatile uint8_t LastRadioStatus = 0;
@@ -38,10 +34,9 @@ public:
                 SX1280_RadioLoRaCodingRates_t cr,
                 uint32_t freq, uint16_t PreambleLength,
                 uint8_t crc = 0);
-    void ICACHE_RAM_ATTR SetFrequency(uint32_t freq);
-    void SetOutputPower(int8_t power);
     void SetSyncWord(uint8_t syncWord) {};
-
+    void ICACHE_RAM_ATTR SetOutputPower(int8_t power);
+    void ICACHE_RAM_ATTR SetFrequency(uint32_t freq);
     int32_t ICACHE_RAM_ATTR GetFrequencyError();
     void ICACHE_RAM_ATTR setPPMoffsetReg(int32_t error_hz, uint32_t frf = 0);
 
@@ -59,7 +54,7 @@ public:
     void ICACHE_RAM_ATTR ClearIrqStatus(uint16_t irqMask);
 
 private:
-    volatile SX1280_RadioOperatingModes_t currOpmode = SX1280_MODE_UNKNOWN_MAX;
+    volatile SX1280_RadioOperatingModes_t currOpmode;
 
     void ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
                          SX1280_RadioLoRaSpreadingFactors_t sf,

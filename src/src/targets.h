@@ -359,6 +359,9 @@ https://github.com/jaxxzer
 #define GPIO_PIN_BUZZER     UNDEF_PIN
 #endif
 
+#ifndef GPIO_PIN_RST
+#define GPIO_PIN_RST UNDEF_PIN
+#endif
 #ifndef GPIO_PIN_DIO0
 #error "DIO0 is mandatory!"
 #endif
@@ -372,6 +375,9 @@ https://github.com/jaxxzer
 #define GPIO_PIN_DIO3 UNDEF_PIN
 #endif
 #ifndef GPIO_PIN_BUSY
+#if RADIO_SX128x
+#error "BUSY pin is mandatory witth SX1280!"
+#endif // RADIO_SX128x
 #define GPIO_PIN_BUSY UNDEF_PIN
 #endif
 

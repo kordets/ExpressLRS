@@ -61,6 +61,9 @@ SX127xDriver::SX127xDriver(HwSpi &spi, uint8_t payload_len):
     LastPacketRSSI = 0;
     LastPacketSNR = 0;
     RX_buffer_size = payload_len;
+
+    RXdoneCallback1 = RadioInterface::rx_nullCallback;
+    TXdoneCallback1 = RadioInterface::tx_nullCallback;
 }
 
 void SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
@@ -253,9 +256,6 @@ void ICACHE_RAM_ATTR SX127xDriver::TXnbISR(uint8_t irqs)
     TxRxDisable();
 
     TXdoneCallback1();
-    TXdoneCallback2();
-    TXdoneCallback3();
-    TXdoneCallback4();
 }
 
 void ICACHE_RAM_ATTR SX127xDriver::TXnb(const uint8_t *data, uint8_t length, uint32_t freq)
@@ -334,7 +334,6 @@ void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint32_t rx_us, uint8_t irqs)
         GetLastRssiSnr();
         // Push to application if callback is set
         RXdoneCallback1(RXdataBuffer, rx_us);
-        //RXdoneCallback2();
     }
 }
 

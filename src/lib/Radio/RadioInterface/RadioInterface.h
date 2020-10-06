@@ -23,7 +23,7 @@ enum isr_states
 class RadioInterface : public RadioHalSpi
 {
 public:
-    RadioInterface(HwSpi &spi, uint32_t read = 0, uint32_t write = 0):
+    RadioInterface(HwSpi &spi, uint8_t read = 0, uint8_t write = 0):
         RadioHalSpi(spi, read, write) {}
 
     void SetPins(int rst, int dio1, int dio2, int dio3,
@@ -32,13 +32,10 @@ public:
     ////////// Callback Function Pointers //////////
     static void rx_nullCallback(uint8_t *, uint32_t){};
     static void tx_nullCallback(void){};
-    static void (*RXdoneCallback1)(uint8_t *buff, uint32_t rx_us);
-    //static void (*RXdoneCallback2)(uint8_t *buff);
-    static void (*TXdoneCallback1)(void);
-    static void (*TXdoneCallback2)(void);
-    static void (*TXdoneCallback3)(void);
-    static void (*TXdoneCallback4)(void);
+    void (*RXdoneCallback1)(uint8_t *buff, uint32_t rx_us);
+    void (*TXdoneCallback1)(void);
 
+    ////////// Static Variables //////////
     static volatile enum isr_states DRAM_ATTR p_state_isr;
 
     ////////// Packet Stats //////////
@@ -57,10 +54,10 @@ protected:
     gpio_out _RXen;
     gpio_out _TXen;
 #endif // TX_MODULE
+    gpio_out _RST;
     gpio_in _DIO1;
     gpio_in _DIO2;
     gpio_in _DIO3;
-    gpio_out _RST;
     gpio_in _BUSY;
 
     ////////// Config Variables //////////

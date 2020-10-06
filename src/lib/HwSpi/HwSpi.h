@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _HW_SPI_H__
+#define _HW_SPI_H__
 
 #include "platform.h"
 #include "gpio.h"
@@ -11,17 +12,17 @@ public:
 
     void prepare(uint32_t speed, int sck, int miso, int mosi, int ss)
     {
-        SS = gpio_out_setup(ss, HIGH);
+        SS = gpio_out_setup(ss, 1);
         platform_init(speed, sck, miso, mosi);
     }
 
-    void set_ss(uint8_t state)
+    void ICACHE_RAM_ATTR set_ss(uint8_t state)
     {
         gpio_out_write(SS, state);
     }
 
-    void ICACHE_RAM_ATTR write(uint8_t data);
-    void ICACHE_RAM_ATTR write(uint8_t *data, uint8_t numBytes);
+    void write(uint8_t data);
+    void write(uint8_t *data, uint8_t numBytes);
 
 private:
     struct gpio_out SS;
@@ -30,3 +31,5 @@ private:
 };
 
 extern HwSpi RadioSpi;
+
+#endif // _HW_SPI_H__
