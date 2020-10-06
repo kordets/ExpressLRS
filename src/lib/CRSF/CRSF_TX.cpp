@@ -64,8 +64,6 @@ void CRSF_TX::Begin(void)
     p_msp_packet.header.dest_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
     p_msp_packet.header.orig_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
 
-    setRcPacketRate(5000); // default to 200hz as per 'normal'
-
     CRSF::Begin();
     p_UartNextCheck = millis(); //  +UARTwdtInterval * 2;
 }
@@ -153,11 +151,11 @@ int CRSF_TX::sendSyncPacketToRadio()
         int32_t offset = (int32_t)(OpenTXsyncOffset - RequestedRCpacketAdvance);
 
         // Adjust radio timing if not in requested window or not sent within 200ms
-        if (/*(100 < offset) || // too early
-            (-50 > offset) || // too late*/
-            (OpenTXsyncPakcetInterval <= (current - OpenTXsynNextSend)))
+        if (OpenTXsyncPakcetInterval <= (current - OpenTXsynNextSend))
         {
             OpenTXsynNextSend = current;
+
+            //DEBUG_PRINTF("Sync: int=%u,off=%d\n", RequestedRCpacketInterval, offset);
 
             p_otx_sync_packet.packetRate =
                 __builtin_bswap32(RequestedRCpacketInterval);

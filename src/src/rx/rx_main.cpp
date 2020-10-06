@@ -35,7 +35,7 @@ SX127xDriver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 #endif
 CRSF_RX DRAM_FORCE_ATTR crsf(CrsfSerial); //pass a serial port object to the class for it to use
 
-volatile connectionState_e DRAM_ATTR connectionState;
+connectionState_e DRAM_ATTR connectionState;
 static volatile uint8_t DRAM_ATTR NonceRXlocal; // nonce that we THINK we are up to.
 static volatile uint8_t DRAM_ATTR TLMinterval;
 static volatile uint32_t DRAM_ATTR tlm_check_ratio;
@@ -53,7 +53,7 @@ static uint16_t DRAM_ATTR CRCCaesarCipher;
 static volatile uint8_t DRAM_ATTR update_servos;
 #endif
 #endif
-static EXTRACT_VOLATILE crsf_channels_t DRAM_ATTR CrsfChannels;
+static crsf_channels_t DRAM_ATTR CrsfChannels;
 
 ///////////////////////////////////////////////
 ////////////////  Filters  ////////////////////
@@ -68,8 +68,8 @@ static volatile uint32_t DRAM_ATTR LastValidPacket; //Time the last valid packet
 static uint32_t DRAM_ATTR SendLinkStatstoFCintervalNextSend;
 #endif
 static mspPacket_t DRAM_FORCE_ATTR msp_packet_tx;
-static volatile uint_fast8_t DRAM_ATTR tlm_msp_send;
-static volatile uint_fast8_t DRAM_ATTR uplink_Link_quality;
+static /*volatile*/ uint_fast8_t DRAM_ATTR tlm_msp_send;
+static /*volatile*/ uint_fast8_t DRAM_ATTR uplink_Link_quality;
 
 ///////////////////////////////////////////////////////////////
 ///////////// Variables for Sync Behaviour ////////////////////
@@ -302,7 +302,6 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
         gpio_out_write(dbg_pin_tmr, 1);
 #endif
-        //fhss_config_rx = 0;
         goto hw_tmr_isr_exit;
     }
 #if NUM_FAILS_TO_RESYNC
@@ -312,7 +311,6 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
             // consecutive losts => trigger connection lost to resync
             LostConnection();
             DEBUG_PRINTF("RESYNC!");
-            //fhss_config_rx = 0;
             goto hw_tmr_isr_exit;
         }
     }
@@ -677,7 +675,7 @@ static uint32_t led_toggle_ms = 0;
 void loop()
 {
     uint32_t now = millis();
-    const connectionState_e _conn_state = connectionState;
+    const connectionState_e _conn_state = (connectionState_e)read_u32(&connectionState);
 #if !SERVO_OUTPUTS_ENABLED
     uint8_t rx_buffer_handle = 0;
 #endif
@@ -686,8 +684,7 @@ void loop()
     /* update air rate config, timed to FHSS index 0 */
     if (updatedAirRate < get_elrs_airRateMax() && updatedAirRate != current_rate_config)
     {
-        //connectionState = STATE_disconnected; // Force resync
-        connectionState = STATE_lost; // Mark to lost to stay on received rate and force resync.
+        write_u32(&connectionState, (uint32_t)STATE_lost); // Mark to lost to stay on received rate and force resync.
         SetRFLinkRate(updatedAirRate); // configure air rate
         RFmodeNextCycle = now;
         return;

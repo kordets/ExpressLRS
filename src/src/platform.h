@@ -10,11 +10,36 @@
 #endif
 
 #define SERVO_WRITE_FROM_ISR 0
-#if SERVO_OUTPUTS_ENABLED && !SERVO_WRITE_FROM_ISR
-#define EXTRACT_VOLATILE volatile
-#else
-#define EXTRACT_VOLATILE
-#endif
+
+#define barrier() __asm__ __volatile__("": : :"memory")
+
+static inline void write_u32(void *addr, uint32_t val) {
+    barrier();
+    *(volatile uint32_t *)addr = val;
+}
+static inline void write_u16(void *addr, uint16_t val) {
+    barrier();
+    *(volatile uint16_t *)addr = val;
+}
+static inline void write_u8(void *addr, uint8_t val) {
+    barrier();
+    *(volatile uint8_t *)addr = val;
+}
+static inline uint32_t read_u32(const void *addr) {
+    uint32_t val = *(volatile const uint32_t *)addr;
+    barrier();
+    return val;
+}
+static inline uint16_t read_u16(const void *addr) {
+    uint16_t val = *(volatile const uint16_t *)addr;
+    barrier();
+    return val;
+}
+static inline uint8_t read_u8(const void *addr) {
+    uint8_t val = *(volatile const uint8_t *)addr;
+    barrier();
+    return val;
+}
 
 
 /** EEPROM storage key

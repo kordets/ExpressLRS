@@ -11,6 +11,7 @@
 #include "irq.h"
 #include "stm32_def.h"
 #include "priorities.h"
+#include "platform.h"
 #include <string.h> // ffs
 
 #if defined(STM32L4xx)

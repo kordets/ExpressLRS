@@ -91,7 +91,7 @@ void ICACHE_RAM_ATTR servo_out_fail_safe(void)
 }
 
 
-void ICACHE_RAM_ATTR servo_out_write(EXTRACT_VOLATILE crsf_channels_t const * const channels) {
+void ICACHE_RAM_ATTR servo_out_write(crsf_channels_t const * const channels) {
     /* set pwm outputs for servos */
     uint32_t now = millis();
 

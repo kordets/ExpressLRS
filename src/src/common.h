@@ -27,7 +27,7 @@ typedef enum
     STATE_tentative,
     STATE_connected,
 } connectionState_e;
-extern volatile connectionState_e connectionState;
+extern connectionState_e connectionState;
 
 uint8_t getSyncWord(void);
 
@@ -94,8 +94,8 @@ typedef struct expresslrs_mod_settings_s
     uint32_t syncInterval;
 } expresslrs_mod_settings_t;
 
-extern volatile const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
-extern volatile uint8_t current_rate_config;
+extern const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
+extern uint8_t current_rate_config;
 
 const expresslrs_mod_settings_t *get_elrs_airRateConfig(uint8_t rate);
 uint8_t get_elrs_airRateIndex(void * current);

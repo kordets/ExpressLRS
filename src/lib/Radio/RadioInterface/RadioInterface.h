@@ -36,12 +36,12 @@ public:
     void (*TXdoneCallback1)(void);
 
     ////////// Static Variables //////////
-    static volatile enum isr_states DRAM_ATTR p_state_isr;
+    static enum isr_states DRAM_ATTR p_state_isr;
 
     ////////// Packet Stats //////////
-    volatile int16_t LastPacketRSSI;
-    volatile int8_t LastPacketSNR;
-    volatile uint8_t RX_buffer_size;
+    int16_t LastPacketRSSI;
+    int8_t LastPacketSNR;
+    uint8_t RX_buffer_size;
 
 protected:
     void Reset(void);
@@ -61,8 +61,8 @@ protected:
     gpio_in _BUSY;
 
     ////////// Config Variables //////////
-    volatile uint32_t current_freq;
-    volatile int8_t current_power;
+    uint32_t current_freq;
+    int8_t current_power;
 
 private:
 };

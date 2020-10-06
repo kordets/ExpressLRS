@@ -40,8 +40,8 @@ public:
     void ICACHE_RAM_ATTR triggerSoon(void);
 
 private:
-    volatile uint32_t HWtimerInterval;
-    volatile bool running = false;
+    uint32_t HWtimerInterval;
+    bool running = false;
 };
 
 extern HwTimer TxTimer;

@@ -4,7 +4,7 @@
 #include "platform.h"
 #include <stdint.h>
 
-extern int_fast32_t volatile DRAM_ATTR FreqCorrection;
+extern int_fast32_t DRAM_ATTR FreqCorrection;
 #define FreqCorrectionMax 100000
 #define FreqCorrectionMin -100000
 #define FreqCorrectionStep 61 //min freq step is ~ 61hz

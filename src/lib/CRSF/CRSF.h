@@ -264,18 +264,18 @@ public:
     static void (*connected)();
 
     // Protocol funcs
-    void LinkStatisticsExtract(volatile uint8_t const *const data,
+    void LinkStatisticsExtract(uint8_t const *const data,
                                int8_t snr,
                                uint8_t rssi);
     void ICACHE_RAM_ATTR LinkStatisticsPack(uint8_t *const output,
                                             uint_fast8_t ul_lq);
 
-    void ICACHE_RAM_ATTR GpsStatsExtract(volatile uint8_t const *const data);
+    void ICACHE_RAM_ATTR GpsStatsExtract(uint8_t const *const data);
     uint8_t ICACHE_RAM_ATTR GpsStatsPack(uint8_t *const output);
 
-    volatile crsfPayloadLinkstatistics_s LinkStatistics; // Link Statisitics Stored as Struct
-    volatile crsf_sensor_battery_s TLMbattSensor;
-    volatile crsf_sensor_gps_s TLMGPSsensor;
+    crsfPayloadLinkstatistics_s LinkStatistics; // Link Statisitics Stored as Struct
+    crsf_sensor_battery_s TLMbattSensor;
+    crsf_sensor_gps_s TLMGPSsensor;
 
 protected:
     uint8_t *ParseInByte(uint8_t inChar);

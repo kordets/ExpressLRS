@@ -51,10 +51,6 @@ RadioHalSpi::readRegisterAddr(uint8_t reg, uint16_t addr,
 {
     uint8_t hdr[] = {(uint8_t)(reg | p_write), (uint8_t)(addr >> 8), (uint8_t)addr, 0};
     spi_bus.set_ss(LOW);
-    //spi_bus.write(reg | p_write);
-    //spi_bus.write((uint8_t)(addr >> 8));
-    //spi_bus.write((uint8_t)addr);
-    //spi_bus.write(0); // 1 NOP before data
     spi_bus.write(hdr, sizeof(hdr));
     spi_bus.transfer(data, numBytes);
     spi_bus.set_ss(HIGH);
@@ -66,9 +62,6 @@ RadioHalSpi::writeRegisterAddr(uint8_t reg, uint16_t addr,
 {
     uint8_t hdr[] = {(uint8_t)(reg | p_write), (uint8_t)(addr >> 8), (uint8_t)addr};
     spi_bus.set_ss(LOW);
-    //spi_bus.write(reg | p_write);
-    //spi_bus.write((uint8_t)(addr >> 8));
-    //spi_bus.write((uint8_t)addr);
     spi_bus.write(hdr, sizeof(hdr));
     spi_bus.write(data, numBytes);
     spi_bus.set_ss(HIGH);
@@ -80,9 +73,6 @@ RadioHalSpi::readRegisterOffset(uint8_t reg, uint8_t offset,
 {
     uint8_t hdr[] = {(uint8_t)(reg | p_write), offset, 0};
     spi_bus.set_ss(LOW);
-    //spi_bus.write(reg | p_write);
-    //spi_bus.write(offset);
-    //spi_bus.write(0); // 1 NOP before data
     spi_bus.write(hdr, sizeof(hdr));
     spi_bus.transfer(data, numBytes);
     spi_bus.set_ss(HIGH);
@@ -94,8 +84,6 @@ RadioHalSpi::writeRegisterOffset(uint8_t reg, uint8_t offset,
 {
     uint8_t hdr[] = {(uint8_t)(reg | p_write), offset};
     spi_bus.set_ss(LOW);
-    //spi_bus.write(reg | p_write);
-    //spi_bus.write(offset);
     spi_bus.write(hdr, sizeof(hdr));
     spi_bus.write(data, numBytes);
     spi_bus.set_ss(HIGH);

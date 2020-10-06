@@ -21,7 +21,7 @@ public:
     SX1280_RadioLoRaCodingRates_t currCR;
 
     /////////////Packet Stats//////////
-    //volatile uint8_t LastRadioStatus = 0;
+    //uint8_t LastRadioStatus = 0;
 
     ////////////////Configuration Functions/////////////
     SX1280Driver(HwSpi &spi, uint8_t payload_len = RX_BUFFER_LEN);
@@ -54,7 +54,7 @@ public:
     void ICACHE_RAM_ATTR ClearIrqStatus(uint16_t irqMask);
 
 private:
-    volatile SX1280_RadioOperatingModes_t currOpmode;
+    SX1280_RadioOperatingModes_t currOpmode;
 
     void ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
                          SX1280_RadioLoRaSpreadingFactors_t sf,

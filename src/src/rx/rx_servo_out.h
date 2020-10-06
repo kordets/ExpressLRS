@@ -6,6 +6,6 @@
 
 void servo_out_init(void);
 void servo_out_fail_safe(void);
-void ICACHE_RAM_ATTR servo_out_write(EXTRACT_VOLATILE crsf_channels_t const * const output);
+void ICACHE_RAM_ATTR servo_out_write(crsf_channels_t const * const output);
 
 #endif /* RX_SERVO_OUT_H_ */

@@ -41,7 +41,7 @@ void CRSF::Begin()
     _dev->flush_read();
 }
 
-void CRSF::LinkStatisticsExtract(volatile uint8_t const *const input,
+void CRSF::LinkStatisticsExtract(uint8_t const *const input,
                                  int8_t snr,
                                  uint8_t rssi)
 {
@@ -83,7 +83,7 @@ void ICACHE_RAM_ATTR CRSF::LinkStatisticsPack(uint8_t *const output,
     output[5] = CRSF_FRAMETYPE_LINK_STATISTICS << 2;
 }
 
-void ICACHE_RAM_ATTR CRSF::GpsStatsExtract(volatile uint8_t const *const input)
+void ICACHE_RAM_ATTR CRSF::GpsStatsExtract(uint8_t const *const input)
 {
     uint8_t type = input[5] >> 2;
     if ((type & 0xf) != CRSF_FRAMETYPE_GPS)

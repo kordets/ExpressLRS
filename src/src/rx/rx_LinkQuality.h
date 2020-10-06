@@ -1,8 +1,8 @@
 #ifndef _RX_LINK_QUALITY_H__
 #define _RX_LINK_QUALITY_H__
 
-/*volatile*/ uint8_t linkQualityArray[100];
-/*volatile*/ uint8_t linkQualityArrayIndex;
+uint8_t linkQualityArray[100];
+uint8_t linkQualityArrayIndex;
 
 void ICACHE_RAM_ATTR LQ_nextPacket()
 {
@@ -24,7 +24,7 @@ void ICACHE_RAM_ATTR LQ_packetNack(void)
 
 uint_fast8_t ICACHE_RAM_ATTR LQ_getlinkQuality()
 {
-    uint_fast8_t LQ = 0, size = sizeof(linkQualityArray);
+    int_fast8_t LQ = 0, size = sizeof(linkQualityArray);
     while (0 <= (--size)) {
         LQ += linkQualityArray[size];
     }

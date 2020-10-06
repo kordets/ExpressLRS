@@ -50,7 +50,7 @@ uint8_t DRAM_ATTR currentSwitches[N_SWITCHES];
 
 // Packed OTA packet buffer
 // NOTE! ESP32 requires aligned buffer
-volatile uint8_t DMA_ATTR packed_buffer[OTA_PACKET_SIZE];
+uint8_t DMA_ATTR packed_buffer[OTA_PACKET_SIZE];
 
 // bitmap of changed switches
 uint16_t DRAM_ATTR p_auxChannelsChanged;
@@ -128,7 +128,7 @@ channels_pack(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4)
  * Convert received OTA packet data to CRSF packet for FC
  */
 void ICACHE_RAM_ATTR RcChannels_channels_extract(uint8_t const *const input,
-                                                  EXTRACT_VOLATILE crsf_channels_t &PackedRCdataOut)
+                                                 crsf_channels_t &PackedRCdataOut)
 {
     uint16_t switchValue;
     uint8_t switchIndex;
@@ -319,7 +319,7 @@ RcChannels_tlm_ota_send(uint8_t *const output,
 }
 
 uint8_t ICACHE_RAM_ATTR
-RcChannels_tlm_uplink_receive(volatile uint8_t *const input)
+RcChannels_tlm_uplink_receive(uint8_t *const input)
 {
     TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)input;
     tlm_ptr->flags >>= 2; // remove pkt_type
@@ -327,7 +327,7 @@ RcChannels_tlm_uplink_receive(volatile uint8_t *const input)
 }
 
 uint8_t ICACHE_RAM_ATTR
-RcChannels_tlm_downlink_receive(volatile uint8_t const *const input,
+RcChannels_tlm_downlink_receive(uint8_t const *const input,
                                 mspPacket_t &packet)
 {
     if (packet.iterated())

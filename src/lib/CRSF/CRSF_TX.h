@@ -24,8 +24,12 @@ typedef struct elrs_lua_packet_s
 class CRSF_TX : public CRSF
 {
 public:
-    CRSF_TX(HwSerial *dev) : CRSF(dev) {}
-    CRSF_TX(HwSerial &dev) : CRSF(dev) {}
+    CRSF_TX(HwSerial *dev) : CRSF(dev) {
+        setRcPacketRate(5000); // default to 200hz as per 'normal'
+    }
+    CRSF_TX(HwSerial &dev) : CRSF(dev) {
+        setRcPacketRate(5000); // default to 200hz as per 'normal'
+    }
 
     void Begin(void);
 
@@ -51,7 +55,7 @@ public:
     void ICACHE_RAM_ATTR UpdateOpenTxSyncOffset(uint32_t current_us) // called from timer
     {
 #if (FEATURE_OPENTX_SYNC)
-        OpenTXsyncOffset = current_us - RCdataLastRecv;
+        OpenTXsyncOffset = (int32_t)(current_us - RCdataLastRecv);
 #endif
     }
 
@@ -74,8 +78,8 @@ private:
 #define OpenTXsyncPakcetInterval 200 // in ms
 #define RequestedRCpacketAdvance 500 // 800 timing adcance in us
 
-    volatile uint32_t RCdataLastRecv;
-    volatile int32_t OpenTXsyncOffset;
+    uint32_t RCdataLastRecv;
+    int32_t OpenTXsyncOffset;
     uint32_t RequestedRCpacketInterval;
     uint32_t OpenTXsynNextSend;
 #endif /* FEATURE_OPENTX_SYNC */

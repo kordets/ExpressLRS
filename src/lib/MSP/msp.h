@@ -79,15 +79,15 @@ typedef struct PACKED
 
 typedef struct
 {
-    mspPacketType_e volatile type;
-    uint8_t volatile WORD_ALIGNED_ATTR payload[MSP_PORT_INBUF_SIZE];
-    uint16_t volatile function;
-    uint16_t volatile payloadSize;
-    uint16_t volatile payloadIterator;
-    uint8_t volatile flags;
-    uint8_t volatile sequence_nbr;
-    uint8_t volatile crc;
-    bool volatile error;
+    mspPacketType_e type;
+    uint8_t WORD_ALIGNED_ATTR payload[MSP_PORT_INBUF_SIZE];
+    uint16_t function;
+    uint16_t payloadSize;
+    uint16_t payloadIterator;
+    uint8_t flags;
+    uint8_t sequence_nbr;
+    uint8_t crc;
+    bool error;
 
     inline uint8_t iterated()
     {

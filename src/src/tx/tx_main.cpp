@@ -38,10 +38,10 @@ SX127xDriver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 CRSF_TX DRAM_FORCE_ATTR crsf(CrsfSerial);
 POWERMGNT DRAM_FORCE_ATTR PowerMgmt(Radio);
 
-static /*volatile*/ uint32_t DRAM_ATTR _rf_rxtx_counter;
-static volatile uint8_t DMA_ATTR rx_buffer[OTA_PACKET_SIZE];
+static uint32_t DRAM_ATTR _rf_rxtx_counter;
+static uint8_t DMA_ATTR rx_buffer[OTA_PACKET_SIZE];
 static volatile uint8_t DRAM_ATTR rx_buffer_handle;
-static /*volatile*/ uint8_t red_led_state;
+static uint8_t red_led_state;
 
 static uint16_t DRAM_ATTR CRCCaesarCipher;
 
@@ -49,21 +49,21 @@ struct platform_config pl_config;
 
 /////////// SYNC PACKET ////////
 static uint32_t DRAM_ATTR SyncPacketNextSend;
-static /*volatile*/ uint32_t DRAM_ATTR sync_send_interval; // Default is send always
+static uint32_t DRAM_ATTR sync_send_interval; // Default is send always
 
 /////////// CONNECTION /////////
 static uint32_t DRAM_ATTR LastPacketRecvMillis;
-volatile connectionState_e DRAM_ATTR connectionState;
+connectionState_e DRAM_ATTR connectionState;
 
 //////////// TELEMETRY /////////
-static /*volatile*/ uint32_t DRAM_ATTR expected_tlm_counter;
+static uint32_t DRAM_ATTR expected_tlm_counter;
 static uint32_t DRAM_ATTR recv_tlm_counter;
-static /*volatile*/ uint32_t DRAM_ATTR tlm_check_ratio;
-static /*volatile*/ uint_fast8_t DRAM_ATTR TLMinterval;
+static uint32_t DRAM_ATTR tlm_check_ratio;
+static uint_fast8_t DRAM_ATTR TLMinterval;
 static mspPacket_t msp_packet_tx;
 static mspPacket_t msp_packet_rx;
 static MSP msp_packet_parser;
-static /*volatile*/ uint_fast8_t DRAM_ATTR tlm_msp_send;
+static uint8_t DRAM_ATTR tlm_msp_send;
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static LPF DRAM_ATTR LPF_dyn_tx_power(3);
 static uint32_t DRAM_ATTR dyn_tx_updated;
@@ -119,7 +119,7 @@ uint8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
             DEBUG_PRINTF("TLM disabled\n");
         }
         TLMinterval = value;
-        tlm_check_ratio = ratio;
+        write_u32(&tlm_check_ratio, ratio);
         return 1;
     }
     return 0;
@@ -166,7 +166,7 @@ static void process_rx_buffer()
     const uint32_t ms = millis();
     const uint16_t crc = CalcCRC16((uint8_t*)rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_DATA] << 8) + rx_buffer[OTA_PACKET_DATA+1];
-    const uint8_t  type = RcChannels_packetTypeGet(rx_buffer);
+    const uint8_t  type = RcChannels_packetTypeGet((uint8_t*)rx_buffer);
 
     if (crc_in != crc)
     {
@@ -187,12 +187,12 @@ static void process_rx_buffer()
         case DL_PACKET_TLM_MSP:
         {
             //DEBUG_PRINTF("DL MSP junk\n");
-            RcChannels_tlm_downlink_receive(rx_buffer, msp_packet_rx);
+            RcChannels_tlm_downlink_receive((uint8_t*)rx_buffer, msp_packet_rx);
             break;
         }
         case DL_PACKET_TLM_LINK:
         {
-            crsf.LinkStatisticsExtract(rx_buffer,
+            crsf.LinkStatisticsExtract((uint8_t*)rx_buffer,
                                        Radio.LastPacketSNR,
                                        Radio.LastPacketRSSI);
 
@@ -210,7 +210,7 @@ static void process_rx_buffer()
         }
         case DL_PACKET_GPS:
         {
-            crsf.GpsStatsExtract(rx_buffer);
+            crsf.GpsStatsExtract((uint8_t*)rx_buffer);
             break;
         }
         case DL_PACKET_FREE1:
@@ -222,7 +222,7 @@ static void process_rx_buffer()
 static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff, uint32_t rx_us)
 {
     (void)rx_us;
-    volatile_memcpy(rx_buffer, buff, sizeof(rx_buffer));
+    memcpy(rx_buffer, buff, sizeof(rx_buffer));
     rx_buffer_handle = 1;
 
     //DEBUG_PRINTF(" R ");
@@ -476,7 +476,7 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
 
     tx_tlm_change_interval(TLMinterval, init);
 
-    sync_send_interval = config->syncInterval;
+    write_u32(&sync_send_interval, config->syncInterval);
 
     platform_connection_state(connectionState);
 
@@ -516,7 +516,7 @@ static void msp_data_cb(uint8_t const *const input)
 
    DEBUG_PRINTF("MSP from radio: ");
 
-    if (tlm_msp_send) {
+    if (read_u8(&tlm_msp_send)) {
         DEBUG_PRINTF(" msp packet reserved, ignore\n");
         return;
     } else if (sizeof(msp_packet_tx.payload) < payloadSize) {
@@ -539,7 +539,7 @@ static void msp_data_cb(uint8_t const *const input)
                     (void*)&input[1], // skip flags
                     payloadSize);
 
-    tlm_msp_send = 1; // rdy for sending
+    write_u8(&tlm_msp_send, 1); // rdy for sending
 }
 
 #ifdef CTRL_SERIAL
@@ -549,7 +549,7 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
 
     DEBUG_PRINTF("CTRL_SERIAL MSP: ");
 
-    if (tlm_msp_send) {
+    if (read_u8(&tlm_msp_send)) {
         DEBUG_PRINTF(" msp packet reserved, ignore\n");
         return;
     }
@@ -571,7 +571,7 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
     msp_packet_tx.addByte(msp_packet_tx.crc);
     msp_packet_tx.setIteratorToSize();
 
-    tlm_msp_send = 1; // rdy for sending
+    write_u8(&tlm_msp_send, 1); // rdy for sending
 }
 #endif
 
@@ -661,11 +661,10 @@ void loop()
             TlmSentToRadioTime = current_ms;
 
             // Calc LQ based on good tlm packets and receptions done
-            uint8_t const rx_cnt = expected_tlm_counter;
+            uint8_t const rx_cnt = read_u32(&expected_tlm_counter);
+            write_u32(&expected_tlm_counter, 0);
             uint32_t const tlm_cnt = recv_tlm_counter;
-            // Clear RX counter
-            expected_tlm_counter = 0;
-            recv_tlm_counter = 0;
+            recv_tlm_counter = 0; // Clear RX counter
 
             if (rx_cnt)
                 crsf.LinkStatistics.downlink_Link_quality = (tlm_cnt * 100u) / rx_cnt;

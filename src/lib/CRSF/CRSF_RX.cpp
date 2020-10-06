@@ -98,7 +98,7 @@ void CRSF_RX::processPacket(uint8_t const *data)
             TLMbattSensor.capacity <<= 8;
             TLMbattSensor.capacity += data[7];
 
-            TLMbattSensor.remaining = 0;
+            TLMbattSensor.remaining = data[8];
             break;
         }
 

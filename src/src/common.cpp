@@ -4,8 +4,8 @@
 #include "FHSS.h"
 #include "crc.h"
 
-volatile uint8_t current_rate_config;
-volatile const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
+uint8_t current_rate_config;
+const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
 
 //
 // https://semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R000000HUhK/6T9Vdb3_ldnElA8drIbPYjs1wBbhlWUXej8ZMXtZXOM

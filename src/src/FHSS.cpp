@@ -15,18 +15,12 @@
 #define FHSS_MY_STEP 1
 #endif
 
-#if NR_SEQUENCE_ENTRIES <= 256
-uint_fast8_t volatile DRAM_ATTR FHSSptr;
-#elif NR_SEQUENCE_ENTRIES <= 65536
-uint_fast16_t volatile DRAM_ATTR FHSSptr;
-#else
-#error "FHSS sequence len invalid!"
-#endif
-int_fast32_t volatile DRAM_ATTR FreqCorrection;
+uint32_t DRAM_ATTR FHSSptr;
+int_fast32_t DRAM_ATTR FreqCorrection;
 
 void ICACHE_RAM_ATTR FHSSsetCurrIndex(uint32_t value)
 { // set the current index of the FHSS pointer
-    FHSSptr = value % sizeof(FHSSsequence);
+    write_u32(&FHSSptr, value % sizeof(FHSSsequence));
 }
 
 uint32_t ICACHE_RAM_ATTR FHSSgetCurrIndex()

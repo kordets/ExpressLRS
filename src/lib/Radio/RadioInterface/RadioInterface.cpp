@@ -2,7 +2,7 @@
 #include "platform.h"
 #include <Arduino.h>
 
-volatile enum isr_states DRAM_ATTR RadioInterface::p_state_isr;
+enum isr_states DRAM_ATTR RadioInterface::p_state_isr;
 
 /////////////////////////////////////////////////////////////////
 

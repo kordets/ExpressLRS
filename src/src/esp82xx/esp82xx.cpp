@@ -31,7 +31,7 @@ void beginWebsever(int state)
     forced_stop();
 
     BeginWebUpdate();
-    connectionState = STATE_fw_upgrade;
+    write_u32(&connectionState, (uint32_t)STATE_fw_upgrade);
     webUpdateLedFlashIntervalNext = 0;
 }
 
