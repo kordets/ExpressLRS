@@ -647,13 +647,13 @@ void setup()
 #elif !RADIO_SX128x
     Radio.RFmodule = RFMOD_SX1276;
 #endif
+    Radio.RXdoneCallback1 = ProcessRFPacketCallback;
+    Radio.TXdoneCallback1 = tx_done_cb;
     Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1, GPIO_PIN_DIO2,
                   GPIO_PIN_BUSY, GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
     Radio.SetSyncWord(getSyncWord());
     Radio.Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, GPIO_PIN_NSS);
     Radio.SetOutputPower(0b1111); // default RX to max power for tlm
-    Radio.RXdoneCallback1 = ProcessRFPacketCallback;
-    Radio.TXdoneCallback1 = tx_done_cb;
 
     // Set call back for timer ISR
     TxTimer.callbackTock = &HWtimerCallback;

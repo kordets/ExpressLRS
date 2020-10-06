@@ -14,7 +14,7 @@ uint32_t webUpdateLedFlashIntervalNext = 0;
 struct gpio_out led_pin; // Invert led
 #endif
 
-void Printf::_putchar(char character)
+void ICACHE_RAM_ATTR Printf::_putchar(char character)
 {
 #ifdef DEBUG_SERIAL
     DEBUG_SERIAL.print(character);
