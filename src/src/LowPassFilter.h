@@ -1,5 +1,6 @@
 #pragma once
 #include "stdint.h"
+#include "platform.h"
 
 /////////// Super Simple Fixed Point Lowpass ////////////////
 
@@ -13,7 +14,7 @@ public:
         init(0);
     }
 
-    int32_t update(int32_t Indata)
+    int32_t ICACHE_RAM_ATTR update(int32_t Indata)
     {
         int RawData;
         RawData = Indata;
@@ -27,7 +28,7 @@ public:
         return SmoothDataINT;
     }
 
-    void init(int32_t Indata)
+    void ICACHE_RAM_ATTR init(int32_t Indata)
     {
         SmoothDataINT = Indata;
         SmoothDataFP = Indata << FP_Shift;

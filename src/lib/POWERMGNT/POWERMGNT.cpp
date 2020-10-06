@@ -68,14 +68,14 @@ void POWERMGNT::setPower(PowerLevels_e power)
     p_set_power(power);
 }
 
-void POWERMGNT::pa_off(void) const
+void ICACHE_RAM_ATTR POWERMGNT::pa_off(void) const
 {
 #ifdef TARGET_R9M_TX
     r9dac.standby();
 #endif
 }
 
-void POWERMGNT::pa_on(void) const
+void ICACHE_RAM_ATTR POWERMGNT::pa_on(void) const
 {
 #ifdef TARGET_R9M_TX
     r9dac.resume();

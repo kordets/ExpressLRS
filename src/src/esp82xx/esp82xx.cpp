@@ -23,9 +23,9 @@ void ICACHE_RAM_ATTR Printf::_putchar(char character)
 #endif
 }
 
-void beginWebsever(void)
+void beginWebsever(int state)
 {
-    if (connectionState != STATE_disconnected)
+    if (state != STATE_disconnected)
         return;
 
     forced_stop();
@@ -41,14 +41,14 @@ void beginWebsever(void)
 /* Button is inverted */
 ClickButton clickButton(GPIO_PIN_BUTTON, true, 40,  0,  1000);
 
-void button_handle(void)
+void button_handle(int state)
 {
     uint32_t ms = millis();
     clickButton.update(ms);
     if (clickButton.clicks <= -(BUTTON_RESET_INTERVAL_RX / 1000)) {
         ESP.restart();
     } else if (clickButton.clicks <= -(WEB_UPDATE_PRESS_INTERVAL / 1000)) {
-        beginWebsever();
+        beginWebsever(state);
     }
 }
 
@@ -83,7 +83,7 @@ void platform_loop(int state)
     else
     {
 #if (GPIO_PIN_BUTTON != UNDEF_PIN)
-        button_handle();
+        button_handle(state);
 #endif
     }
 }
@@ -93,7 +93,8 @@ void platform_connection_state(int state)
 #ifdef AUTO_WIFI_ON_BOOT
     if (state == STATE_search_iteration_done && millis() < 30000)
     {
-        beginWebsever();
+        /* state is disconnect at this point and update can be started */
+        beginWebsever(STATE_disconnected);
     }
 #endif /* AUTO_WIFI_ON_BOOT */
 }

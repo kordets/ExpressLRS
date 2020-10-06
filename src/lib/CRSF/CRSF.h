@@ -267,7 +267,8 @@ public:
     void LinkStatisticsExtract(volatile uint8_t const *const data,
                                int8_t snr,
                                uint8_t rssi);
-    void ICACHE_RAM_ATTR LinkStatisticsPack(uint8_t *const output);
+    void ICACHE_RAM_ATTR LinkStatisticsPack(uint8_t *const output,
+                                            uint_fast8_t ul_lq);
 
     void ICACHE_RAM_ATTR GpsStatsExtract(volatile uint8_t const *const data);
     uint8_t ICACHE_RAM_ATTR GpsStatsPack(uint8_t *const output);

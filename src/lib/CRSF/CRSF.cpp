@@ -61,7 +61,8 @@ void CRSF::LinkStatisticsExtract(volatile uint8_t const *const input,
     }
 }
 
-void ICACHE_RAM_ATTR CRSF::LinkStatisticsPack(uint8_t *const output)
+void ICACHE_RAM_ATTR CRSF::LinkStatisticsPack(uint8_t *const output,
+                                              uint_fast8_t ul_lq)
 {
     // NOTE: output is only 5 bytes + 6bits (MSB)!!
 
@@ -77,7 +78,7 @@ void ICACHE_RAM_ATTR CRSF::LinkStatisticsPack(uint8_t *const output)
     output[0] = openTxRSSI;
     output[1] = (TLMbattSensor.voltage & 0xFF00) >> 8;
     output[2] = LinkStatistics.uplink_SNR;
-    output[3] = LinkStatistics.uplink_Link_quality;
+    output[3] = ul_lq;
     output[4] = (TLMbattSensor.voltage & 0x00FF);
     output[5] = CRSF_FRAMETYPE_LINK_STATISTICS << 2;
 }

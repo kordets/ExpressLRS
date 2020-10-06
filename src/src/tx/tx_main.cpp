@@ -38,10 +38,10 @@ SX127xDriver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
 CRSF_TX DRAM_FORCE_ATTR crsf(CrsfSerial);
 POWERMGNT DRAM_FORCE_ATTR PowerMgmt(Radio);
 
-static volatile uint32_t DRAM_ATTR _rf_rxtx_counter;
+static /*volatile*/ uint32_t DRAM_ATTR _rf_rxtx_counter;
 static volatile uint8_t DMA_ATTR rx_buffer[OTA_PACKET_SIZE];
 static volatile uint8_t DRAM_ATTR rx_buffer_handle;
-static volatile uint8_t red_led_state;
+static /*volatile*/ uint8_t red_led_state;
 
 static uint16_t DRAM_ATTR CRCCaesarCipher;
 
@@ -49,21 +49,21 @@ struct platform_config pl_config;
 
 /////////// SYNC PACKET ////////
 static uint32_t DRAM_ATTR SyncPacketNextSend;
-static volatile uint32_t DRAM_ATTR sync_send_interval; // Default is send always
+static /*volatile*/ uint32_t DRAM_ATTR sync_send_interval; // Default is send always
 
 /////////// CONNECTION /////////
 static uint32_t DRAM_ATTR LastPacketRecvMillis;
 volatile connectionState_e DRAM_ATTR connectionState;
 
 //////////// TELEMETRY /////////
-static volatile uint32_t DRAM_ATTR expected_tlm_counter;
+static /*volatile*/ uint32_t DRAM_ATTR expected_tlm_counter;
 static uint32_t DRAM_ATTR recv_tlm_counter;
-static volatile uint32_t DRAM_ATTR tlm_check_ratio;
-static volatile uint_fast8_t DRAM_ATTR TLMinterval;
+static /*volatile*/ uint32_t DRAM_ATTR tlm_check_ratio;
+static /*volatile*/ uint_fast8_t DRAM_ATTR TLMinterval;
 static mspPacket_t msp_packet_tx;
 static mspPacket_t msp_packet_rx;
 static MSP msp_packet_parser;
-static volatile uint_fast8_t DRAM_ATTR tlm_msp_send;
+static /*volatile*/ uint_fast8_t DRAM_ATTR tlm_msp_send;
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static LPF DRAM_ATTR LPF_dyn_tx_power(3);
 static uint32_t DRAM_ATTR dyn_tx_updated;
@@ -88,7 +88,7 @@ void init_globals(void) {
 static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff, uint32_t rx_us);
 static void ICACHE_RAM_ATTR HandleTLM();
 
-int8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
+uint8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
 {
     uint32_t ratio = 0;
     if (value == TLM_RATIO_DEFAULT)
@@ -120,9 +120,9 @@ int8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
         }
         TLMinterval = value;
         tlm_check_ratio = ratio;
-        return 0;
+        return 1;
     }
-    return -1;
+    return 0;
 }
 
 void tx_tlm_disable_enable(uint8_t enable)
@@ -143,12 +143,30 @@ int8_t tx_tlm_toggle(void)
 
 ///////////////////////////////////////
 
+static void stop_processing(void)
+{
+    uint32_t irq = _SAVE_IRQ();
+    TxTimer.stop();
+    Radio.StopContRX();
+    _RESTORE_IRQ(irq);
+}
+
+void platform_radio_force_stop(void)
+{
+    uint32_t irq = _SAVE_IRQ();
+    TxTimer.stop();
+    Radio.End();
+    _RESTORE_IRQ(irq);
+}
+
+///////////////////////////////////////
+
 static void process_rx_buffer()
 {
-    uint32_t ms = millis();
+    const uint32_t ms = millis();
     const uint16_t crc = CalcCRC16((uint8_t*)rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_DATA] << 8) + rx_buffer[OTA_PACKET_DATA+1];
-    uint8_t type = RcChannels_packetTypeGet(rx_buffer);
+    const uint8_t  type = RcChannels_packetTypeGet(rx_buffer);
 
     if (crc_in != crc)
     {
@@ -213,7 +231,8 @@ static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff, uint32_t rx_us)
 static void ICACHE_RAM_ATTR HandleTLM()
 {
     //DEBUG_PRINTF("X ");
-    if (tlm_check_ratio && (_rf_rxtx_counter & tlm_check_ratio) == 0)
+    uint32_t const tlm_ratio = tlm_check_ratio;
+    if (tlm_ratio && (_rf_rxtx_counter & tlm_ratio) == 0)
     {
         // receive tlm package
         PowerMgmt.pa_off();
@@ -225,22 +244,12 @@ static void ICACHE_RAM_ATTR HandleTLM()
 
 ///////////////////////////////////////
 
-static void ICACHE_RAM_ATTR HandleFHSS_TX()
-{
-    // Called from HW ISR context
-    if ((_rf_rxtx_counter % ExpressLRS_currAirRate->FHSShopInterval) == 0)
-    {
-        // it is time to hop
-        FHSSincCurrIndex();
-    }
-    _rf_rxtx_counter++;
-}
-
-static void ICACHE_RAM_ATTR GenerateSyncPacketData(uint8_t *const output)
+static void ICACHE_RAM_ATTR
+GenerateSyncPacketData(uint8_t *const output, uint32_t rxtx_counter)
 {
     ElrsSyncPacket_s * sync = (ElrsSyncPacket_s*)output;
     sync->fhssIndex = FHSSgetCurrIndex();
-    sync->rxtx_counter = _rf_rxtx_counter;
+    sync->rxtx_counter = rxtx_counter;
 #if RX_UPDATE_AIR_RATE
     sync->air_rate = current_rate_config;
 #endif
@@ -253,19 +262,20 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
 {
     // Called by HW timer
     uint32_t freq;
+    uint32_t const rxtx_counter = _rf_rxtx_counter;
+    uint32_t const tlm_ratio = tlm_check_ratio;
     // esp requires word aligned buffer
     uint32_t __tx_buffer[(OTA_PACKET_SIZE + sizeof(uint32_t) - 1) / sizeof(uint32_t)];
     uint8_t *tx_buffer = (uint8_t *)__tx_buffer;
+    uint16_t crc;
     uint8_t index = OTA_PACKET_DATA;
 
     crsf.UpdateOpenTxSyncOffset(current_us); // tells the crsf that we want to send data now - this allows opentx packet syncing
 
     // Check if telemetry RX ongoing
-    if (tlm_check_ratio && (_rf_rxtx_counter & tlm_check_ratio) == 0)
-    {
+    if (tlm_ratio && (rxtx_counter & tlm_ratio) == 0) {
         // Skip TX because TLM RX is ongoing
-        HandleFHSS_TX();
-        return;
+        goto send_to_rf_exit;
     }
 
     freq = FHSSgetCurrFreq();
@@ -274,7 +284,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     if ((FHSSgetCurrSequenceIndex() == 0) &&
         (sync_send_interval <= (uint32_t)(current_us - SyncPacketNextSend)))
     {
-        GenerateSyncPacketData(tx_buffer);
+        GenerateSyncPacketData(tx_buffer, rxtx_counter);
         SyncPacketNextSend = current_us;
     }
     else if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
@@ -302,11 +312,11 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
 
 #if OTA_PACKET_10B
     tx_buffer[index++] = FHSSgetCurrIndex();
-    tx_buffer[index++] = _rf_rxtx_counter;
+    tx_buffer[index++] = rxtx_counter;
 #endif // OTA_PACKET_10B
 
     // Calculate the CRC
-    uint16_t crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
+    crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
     tx_buffer[index++] = (crc >> 8);
     tx_buffer[index++] = (crc & 0xFF);
     // Enable PA
@@ -316,8 +326,16 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     //if (random(0, 99) < 55) tx_buffer[1] = 0;
     // Send data to rf
     Radio.TXnb(tx_buffer, index, freq);
+
+send_to_rf_exit:
+    // Check if hopping is needed
+    if ((rxtx_counter % ExpressLRS_currAirRate->FHSShopInterval) == 0) {
+        // it is time to hop
+        FHSSincCurrIndex();
+    }
     // Increase TX counter
-    HandleFHSS_TX();
+    _rf_rxtx_counter++;
+
     //DEBUG_PRINTF(" T");
 }
 
@@ -339,7 +357,7 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
 
             // set air rate
             if (get_elrs_airRateMax() > value)
-                modified |= SetRFLinkRate(value) ? (1 << 1) : 0;
+                modified |= (SetRFLinkRate(value) << 1);
             DEBUG_PRINTF("Rate: %u\n", ExpressLRS_currAirRate->rate);
             break;
 
@@ -347,11 +365,7 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
             // set TLM interval
             if (len != 1)
                 return -1;
-
-            if (tx_tlm_change_interval(value) >= 0)
-            {
-                modified = (1 << 2);
-            }
+            modified = (tx_tlm_change_interval(value) << 2);
             break;
 
         case 3:
@@ -403,8 +417,7 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
     {
         // Stop timer before save if not already done
         if ((modified & (1 << 1)) == 0) {
-            TxTimer.stop();
-            Radio.StopContRX();
+            stop_processing();
         }
 
         // Save modified values
@@ -444,11 +457,9 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
     if (config == NULL || config == ExpressLRS_currAirRate)
         return 0; // No need to modify, rate is same
 
-    if (!init)
-    {
+    if (!init) {
         // Stop timer and put radio into sleep
-        TxTimer.stop();
-        Radio.StopContRX();
+        stop_processing();
     }
 
     LPF_dyn_tx_power.init(-55);
@@ -483,7 +494,7 @@ static void hw_timer_stop(void)
 {
     red_led_state = 0;
     platform_set_led(0);
-    TxTimer.stop();
+    platform_radio_force_stop();
 }
 
 static void rc_data_cb(crsf_channels_t const *const channels)
@@ -563,12 +574,6 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
     tlm_msp_send = 1; // rdy for sending
 }
 #endif
-
-void platform_radio_force_stop(void)
-{
-    TxTimer.stop();
-    Radio.End();
-}
 
 void setup()
 {
@@ -656,9 +661,11 @@ void loop()
             TlmSentToRadioTime = current_ms;
 
             // Calc LQ based on good tlm packets and receptions done
-            uint8_t rx_cnt = expected_tlm_counter;
-            uint32_t tlm_cnt = recv_tlm_counter;
-            expected_tlm_counter = recv_tlm_counter = 0; // Clear RX counter
+            uint8_t const rx_cnt = expected_tlm_counter;
+            uint32_t const tlm_cnt = recv_tlm_counter;
+            // Clear RX counter
+            expected_tlm_counter = 0;
+            recv_tlm_counter = 0;
 
             if (rx_cnt)
                 crsf.LinkStatistics.downlink_Link_quality = (tlm_cnt * 100u) / rx_cnt;

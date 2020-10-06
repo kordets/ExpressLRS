@@ -208,8 +208,7 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
     }
     else
     {
-        crsf.LinkStatistics.uplink_Link_quality = uplink_Link_quality;
-        crsf.LinkStatisticsPack(tx_buffer);
+        crsf.LinkStatisticsPack(tx_buffer, lq);
         RcChannels_packetTypeSet(tx_buffer, DL_PACKET_TLM_LINK);
     }
 
@@ -238,8 +237,9 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     gpio_out_write(dbg_pin_tmr, 1);
 #endif
     rx_hw_isr_running = 1;
-    uint_fast8_t fhss_config_rx = 0, tlm_send, tlm_ratio = tlm_check_ratio;
-    uint32_t __rx_last_valid_us = rx_last_valid_us;
+    const uint32_t __rx_last_valid_us = rx_last_valid_us;
+    const uint_fast8_t tlm_ratio = tlm_check_ratio;
+    uint_fast8_t fhss_config_rx = 0;
     rx_last_valid_us = 0;
 
 #if PRINT_TIMER && PRINT_HW_ISR
@@ -267,7 +267,6 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
         if ((TIMER_OFFSET_LIMIT < diff_us) || (diff_us < 0))
             TxTimer.reset(diff_us - TIMER_OFFSET);
 #else // USE_TIMER_KICK
-        //TxTimer.setTime(interval+200 /*TIMER_OFFSET*/);
         TxTimer.reset(-TIMER_OFFSET);
 #endif // USE_TIMER_KICK
     }
@@ -287,15 +286,14 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     //DEBUG_PRINTF(" nonce %u", NonceRXlocal);
 #endif
 
-    tlm_send = ((0 < tlm_ratio) && ((NonceRXlocal & tlm_ratio) == 0));
     uint_fast8_t lq = LQ_getlinkQuality();
     uplink_Link_quality = lq;
     LQ_nextPacket();
 
-    if (tlm_send)
+    if ((0 < tlm_ratio) && ((NonceRXlocal & tlm_ratio) == 0))
     {
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
-    gpio_out_write(dbg_pin_tmr, 0);
+        gpio_out_write(dbg_pin_tmr, 0);
 #endif
         // Adds packet to LQ otherwise an artificial drop in LQ is seen due to sending TLM.
         LQ_packetAck();
@@ -304,7 +302,8 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
         gpio_out_write(dbg_pin_tmr, 1);
 #endif
-        fhss_config_rx = 0;
+        //fhss_config_rx = 0;
+        goto hw_tmr_isr_exit;
     }
 #if NUM_FAILS_TO_RESYNC
     else if (!__rx_last_valid_us)
@@ -313,14 +312,18 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
             // consecutive losts => trigger connection lost to resync
             LostConnection();
             DEBUG_PRINTF("RESYNC!");
+            //fhss_config_rx = 0;
+            goto hw_tmr_isr_exit;
         }
     }
 #endif
 
+    /* Configure next reception if needed */
     if (fhss_config_rx) {
-        Radio.RXnb(FHSSgetCurrFreq()); // 260us => 148us => ~67us
+        Radio.RXnb(FHSSgetCurrFreq());
     }
 
+hw_tmr_isr_exit:
 #if (PRINT_TIMER && PRINT_HW_ISR) || PRINT_FREQ_ERROR
     DEBUG_PRINTF(" took %u\n", (micros() - us));
 #endif
@@ -328,6 +331,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
     gpio_out_write(dbg_pin_tmr, 0);
 #endif
+    return;
 }
 
 void ICACHE_RAM_ATTR LostConnection()
