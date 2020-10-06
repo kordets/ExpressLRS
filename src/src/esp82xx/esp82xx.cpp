@@ -1,14 +1,18 @@
 #include "targets.h"
 #include "debug_elrs.h"
-#include "button.h"
 #include "common.h"
 #include "ESP8266_WebUpdate.h"
+#include "gpio.h"
 
 #include <Arduino.h>
 
 #define WEB_UPDATE_LED_FLASH_INTERVAL 25
 
 uint32_t webUpdateLedFlashIntervalNext = 0;
+
+#if (GPIO_PIN_LED != UNDEF_PIN)
+struct gpio_out led_pin; // Invert led
+#endif
 
 void Printf::_putchar(char character)
 {
@@ -32,22 +36,23 @@ void beginWebsever(void)
 }
 
 #if (GPIO_PIN_BUTTON != UNDEF_PIN)
-#include "button.h"
-Button button;
+#include "ClickButton.h"
 
-void button_event_short(uint32_t ms)
-{
-    (void)ms;
-}
+/* Button is inverted */
+ClickButton clickButton(GPIO_PIN_BUTTON, true, 40,  0,  1000);
 
-void button_event_long(uint32_t ms)
+void button_handle(void)
 {
-    if (ms > BUTTON_RESET_INTERVAL_RX)
+    uint32_t ms = millis();
+    clickButton.update(ms);
+    if (clickButton.clicks <= -(BUTTON_RESET_INTERVAL_RX / 1000)) {
         ESP.restart();
-    else if (ms > WEB_UPDATE_PRESS_INTERVAL)
+    } else if (clickButton.clicks <= -(WEB_UPDATE_PRESS_INTERVAL / 1000)) {
         beginWebsever();
+    }
 }
-#endif
+
+#endif // GPIO_PIN_BUTTON
 
 void platform_setup(void)
 {
@@ -56,12 +61,7 @@ void platform_setup(void)
     WiFi.forceSleepBegin();
 
 #if (GPIO_PIN_LED != UNDEF_PIN)
-    pinMode(GPIO_PIN_LED, OUTPUT);
-#endif
-#if (GPIO_PIN_BUTTON != UNDEF_PIN)
-    button.buttonShortPress = button_event_short;
-    button.buttonLongPress = button_event_long;
-    button.init(GPIO_PIN_BUTTON, true);
+    led_pin = gpio_out_setup(GPIO_PIN_LED, 1);
 #endif
 }
 
@@ -75,7 +75,7 @@ void platform_loop(int state)
         {
 #if (GPIO_PIN_LED != UNDEF_PIN)
             // toggle led
-            digitalWrite(GPIO_PIN_LED, !digitalRead(GPIO_PIN_LED));
+            gpio_out_toggle_noirq(led_pin);
 #endif
             webUpdateLedFlashIntervalNext = now;
         }
@@ -83,7 +83,7 @@ void platform_loop(int state)
     else
     {
 #if (GPIO_PIN_BUTTON != UNDEF_PIN)
-        button.handle();
+        button_handle();
 #endif
     }
 }
@@ -101,7 +101,7 @@ void platform_connection_state(int state)
 void platform_set_led(bool state)
 {
 #if (GPIO_PIN_LED != UNDEF_PIN)
-    digitalWrite(GPIO_PIN_LED, (uint32_t)(!state)); // Invert led
+    gpio_out_write(led_pin, !state);
 #endif
 }
 

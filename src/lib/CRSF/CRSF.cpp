@@ -14,12 +14,14 @@ void (*CRSF::connected)() = &nullCallback;    // called when CRSF stream is rega
 uint8_t DMA_ATTR SerialInBuffer[CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX)];
 
 //#define DBF_PIN_CRSF_PACKET 2
+#ifdef DBF_PIN_CRSF_PACKET
+struct gpio_out crsf_packet;
+#endif
 
 void CRSF::Begin()
 {
 #ifdef DBF_PIN_CRSF_PACKET
-    pinMode(DBF_PIN_CRSF_PACKET, OUTPUT);
-    digitalWrite(DBF_PIN_CRSF_PACKET, 0);
+    crsf_packet = gpio_out_setup(DBF_PIN_CRSF_PACKET, 0);
 #endif
 
     GoodPktsCount = 0;
@@ -181,7 +183,7 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
             CRSFframeActive = true;
             SerialInPacketLen = 0;
 #ifdef DBF_PIN_CRSF_PACKET
-            digitalWrite(DBF_PIN_CRSF_PACKET, 1);
+            gpio_out_write(crsf_packet, 1);
 #endif
         }
         else
@@ -232,7 +234,7 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
                 }
 
 #ifdef DBF_PIN_CRSF_PACKET
-                digitalWrite(DBF_PIN_CRSF_PACKET, 0);
+                gpio_out_write(crsf_packet, 0);
 #endif
 
                 // packet handled, start next

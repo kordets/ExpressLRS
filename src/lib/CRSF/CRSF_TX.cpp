@@ -3,6 +3,9 @@
 #include <string.h>
 
 //#define DBF_PIN_CRSF_BYTES_IN 4
+#ifdef DBF_PIN_CRSF_BYTES_IN
+struct gpio_out crsf_byte_in;
+#endif
 
 void paramNullCallback(uint8_t const *, uint16_t){};
 void (*CRSF_TX::ParamWriteCallback)(uint8_t const *msg, uint16_t len) = &paramNullCallback;
@@ -25,8 +28,7 @@ crsf_msp_packet_radio_s DMA_ATTR p_msp_packet;
 void CRSF_TX::Begin(void)
 {
 #ifdef DBF_PIN_CRSF_BYTES_IN
-    pinMode(DBF_PIN_CRSF_BYTES_IN, OUTPUT);
-    digitalWrite(DBF_PIN_CRSF_BYTES_IN, 0);
+    crsf_byte_in = gpio_out_setup(DBF_PIN_CRSF_BYTES_IN, 0);
 #endif
 
     /* Initialize used messages */
@@ -222,7 +224,7 @@ uint8_t CRSF_TX::handleUartIn(volatile uint8_t &rx_data_rcvd) // Merge with RX v
     for (split_cnt = 0; (rx_data_rcvd == 0) && _dev->available() && (split_cnt < 16); split_cnt++)
     {
 #ifdef DBF_PIN_CRSF_BYTES_IN
-        digitalWrite(DBF_PIN_CRSF_BYTES_IN, 1);
+        gpio_out_write(crsf_byte_in, 1);
 #endif
         uint8_t *ptr = ParseInByte(_dev->read());
         if (ptr)
@@ -252,7 +254,7 @@ uint8_t CRSF_TX::handleUartIn(volatile uint8_t &rx_data_rcvd) // Merge with RX v
         }
 
 #ifdef DBF_PIN_CRSF_BYTES_IN
-        digitalWrite(DBF_PIN_CRSF_BYTES_IN, 0);
+        gpio_out_write(crsf_byte_in, 0);
 #endif
     }
 

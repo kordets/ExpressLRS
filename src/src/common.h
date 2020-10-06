@@ -15,8 +15,8 @@
 #endif
 #include <stdint.h>
 
-#define BUTTON_RESET_INTERVAL_RX  4000u // Hold button for 4 sec to reboot RX
-#define WEB_UPDATE_PRESS_INTERVAL 2000u // hold button for 2 sec to enable webupdate mode
+#define BUTTON_RESET_INTERVAL_RX  4000 // Hold button for 4 sec to reboot RX
+#define WEB_UPDATE_PRESS_INTERVAL 2000 // hold button for 2 sec to enable webupdate mode
 
 typedef enum
 {

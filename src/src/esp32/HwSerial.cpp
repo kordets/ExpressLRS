@@ -23,8 +23,6 @@
 #define UART_TXD_IDX (U2TXD_OUT_IDX)
 #endif
 
-//#define DBG_PIN_UART_TX 15
-
 /********************************************************************************
  *                                   PUBLIC
  ********************************************************************************/
@@ -37,10 +35,6 @@ HwSerial::HwSerial(int uart_nr, int32_t pin) : HardwareSerial(uart_nr)
 
 void HwSerial::Begin(uint32_t baud, uint32_t config)
 {
-#ifdef DBG_PIN_UART_TX
-    pinMode(DBG_PIN_UART_TX, OUTPUT);
-    digitalWrite(DBG_PIN_UART_TX, 0);
-#endif
     HardwareSerial::begin(baud, config, GPIO_PIN_RCSIGNAL_RX, GPIO_PIN_RCSIGNAL_TX, true);
     enable_receiver();
 }
@@ -63,17 +57,10 @@ void ICACHE_RAM_ATTR HwSerial::enable_receiver(void)
     //gpio_pulldown_en((gpio_num_t)GPIO_PIN_RCSIGNAL_RX);
     //uart_enable_rx_intr((uart_port_t)CRSF_SERIAL_NBR);
     yield();
-
-#ifdef DBG_PIN_UART_TX
-    digitalWrite(DBG_PIN_UART_TX, 0);
-#endif
 }
 
 void ICACHE_RAM_ATTR HwSerial::enable_transmitter(void)
 {
-#ifdef DBG_PIN_UART_TX
-    digitalWrite(DBG_PIN_UART_TX, 1);
-#endif
     delayMicroseconds(20);
     /* Detach RX pin */
     //uart_disable_rx_intr((uart_port_t)CRSF_SERIAL_NBR);

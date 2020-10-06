@@ -1,13 +1,14 @@
 #ifndef _GPIO_H__
 #define _GPIO_H__
 
+#include "PinNames.h"
 #include <stdint.h> // uint32_t
 
-#define GPIO_PIN_IVALID ((uint32_t)-1)
+#define GPIO_PIN_IVALID NC
 
 struct gpio_out
 {
-    uint32_t pin;
+    PinName pin;
 };
 struct gpio_out gpio_out_setup(uint32_t pin, uint32_t val);
 void gpio_out_reset(struct gpio_out g, uint32_t val);
@@ -20,7 +21,7 @@ static inline uint8_t gpio_out_valid(struct gpio_out g) {
 
 struct gpio_in
 {
-    uint32_t pin;
+    PinName pin;
 };
 struct gpio_in gpio_in_setup(uint32_t pin, int32_t pull_up);
 void gpio_in_reset(struct gpio_in g, int32_t pull_up);

@@ -6,6 +6,7 @@
 #include <EEPROM.h>
 #include "wifi_logger.h"
 #include "printf.h"
+#include "gpio.h"
 
 #ifdef TARGET_EXPRESSLRS_PCB_TX_V3
 #include "soc/soc.h"
@@ -17,6 +18,11 @@
 #include "soc/timer_group_reg.h"
 
 SemaphoreHandle_t DRAM_ATTR irqMutex;
+
+#if (GPIO_PIN_LED != UNDEF_PIN)
+struct gpio_out led_out;
+#endif
+
 
 void Printf::_putchar(char character)
 {
@@ -109,8 +115,7 @@ void platform_setup(void)
     EEPROM.begin(sizeof(struct platform_config));
 
 #if (GPIO_PIN_LED != UNDEF_PIN)
-    pinMode(GPIO_PIN_LED, OUTPUT);
-    platform_set_led(0);
+    led_out = gpio_out_setup(GPIO_PIN_LED, 0);
 #endif
 
 #if WIFI_LOGGER || WIFI_UPDATER || ESP_NOW
@@ -162,7 +167,7 @@ void platform_connection_state(int state)
 void platform_set_led(bool state)
 {
 #if (GPIO_PIN_LED != UNDEF_PIN)
-    digitalWrite(GPIO_PIN_LED, (uint32_t)(state));
+    gpio_out_write(led_out, state);
 #else
     (void)state;
 #endif

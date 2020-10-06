@@ -1,5 +1,4 @@
 #include "ClickButton.h"
-#include <Arduino.h>
 
 #define STATE_LAST      1  // b0001 = 1 << 0 = 1
 #define DEBOUNCED_STATE 2  // b0010 = 1 << 1 = 2
@@ -7,15 +6,15 @@
 #define STATE_CHANGED   8  // b1000 = 1 << 3 = 8
 
 ClickButton::ClickButton(uint8_t const buttonPin,
-                         uint8_t const activeType,
+                         uint8_t const inverted,
                          uint32_t const _debounceTime,
                          uint32_t const _multiclickTime,
                          uint32_t const _longClickTime)
 {
-    _pin            = gpio_in_setup(buttonPin, (activeType) ? 0 : 1);
-    _activeState    = activeType ? HIGH : LOW;
+    _inverted       = !!inverted;
+    _pin            = gpio_in_setup(buttonPin, _inverted);
     _clickCount     = 0;
-    _lastBounceTime = 0; //millis()
+    _lastBounceTime = 0;
 
     clicks          = 0;
     debounceTime    = _debounceTime;            // Debounce timer in ms
@@ -23,13 +22,6 @@ ClickButton::ClickButton(uint8_t const buttonPin,
     longClickTime   = _longClickTime;           // time until long clicks register
 
     _state = _btnStateLast = 0;
-}
-
-
-void ClickButton::update(void)
-{
-    uint32_t now = millis();
-    update(now);
 }
 
 
@@ -42,7 +34,7 @@ void ClickButton::update(uint32_t const & time_ms)
     }
 
     // Read the state of the switch
-    uint8_t _btnState = (gpio_in_read(_pin) == _activeState);
+    uint8_t _btnState = !!gpio_in_read(_pin) ^ _inverted;
 
     if (_btnState != _btnStateLast) {
         // If the reading is different from last reading, reset the debounce counter

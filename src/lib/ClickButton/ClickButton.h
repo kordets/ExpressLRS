@@ -1,21 +1,20 @@
 #ifndef ClickButton_H
 #define ClickButton_H
 
-#include <stdint.h>
 #include "gpio.h"
+#include <stdint.h>
 
 class ClickButton {
  public:
     ClickButton(uint8_t const buttonPin,
-                uint8_t const activeState = false,
+                uint8_t const inverted = 0,
                 uint32_t const _debounceTime = 50,
                 uint32_t const _multiclickTime = 500,
                 uint32_t const _longClickTime = 800);
 
-    void update(void);
     void update(uint32_t const & millis);
     uint8_t getActiveState(void) const {
-        return _activeState;
+        return _inverted;
     }
     void reset(void) {
         clicks          = 0;
@@ -35,7 +34,7 @@ class ClickButton {
   private:
     uint32_t _lastBounceTime;  // the last time the button input pin was toggled, due to noise or a press
     gpio_in  _pin;             // Arduino pin connected to the button
-    uint8_t  _activeState;     // Type of button: Active-low = 0 or active-high = 1
+    uint8_t  _inverted;        // Type of button: Active-low = 0 or active-high = 1
     uint8_t  _clickCount;      // Number of button clicks within multiclickTime milliseconds
     uint8_t  _state;
     uint8_t  _btnStateLast = 0;

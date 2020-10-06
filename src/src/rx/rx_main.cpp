@@ -82,6 +82,14 @@ static volatile uint32_t DRAM_ATTR updatedAirRate = 0xff;
 #endif
 
 ///////////////////////////////////////
+#if (DBG_PIN_TMR_ISR != UNDEF_PIN)
+struct gpio_out dbg_pin_tmr;
+#endif
+#if (DBG_PIN_RX_ISR != UNDEF_PIN)
+struct gpio_out dbg_pin_rx;
+#endif
+
+///////////////////////////////////////
 
 static bool DRAM_ATTR ledState;
 inline void led_set_state(bool state)
@@ -226,8 +234,8 @@ void tx_done_cb(void)
 void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 {
     //DEBUG_PRINTF("H");
-#if (DBG_PIN_TMR_ISR_FAST != UNDEF_PIN)
-    digitalWriteFast(DBG_PIN_TMR_ISR_FAST, 1);
+#if (DBG_PIN_TMR_ISR != UNDEF_PIN)
+    gpio_out_write(dbg_pin_tmr, 1);
 #endif
     rx_hw_isr_running = 1;
     uint_fast8_t fhss_config_rx = 0, tlm_send, tlm_ratio = tlm_check_ratio;
@@ -286,15 +294,15 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 
     if (tlm_send)
     {
-#if (DBG_PIN_TMR_ISR_FAST != UNDEF_PIN)
-        digitalWriteFast(DBG_PIN_TMR_ISR_FAST, 0);
+#if (DBG_PIN_TMR_ISR != UNDEF_PIN)
+    gpio_out_write(dbg_pin_tmr, 0);
 #endif
         // Adds packet to LQ otherwise an artificial drop in LQ is seen due to sending TLM.
         LQ_packetAck();
 
         HandleSendTelemetryResponse(lq);
-#if (DBG_PIN_TMR_ISR_FAST != UNDEF_PIN)
-        digitalWriteFast(DBG_PIN_TMR_ISR_FAST, 1);
+#if (DBG_PIN_TMR_ISR != UNDEF_PIN)
+        gpio_out_write(dbg_pin_tmr, 1);
 #endif
         fhss_config_rx = 0;
     }
@@ -317,8 +325,8 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     DEBUG_PRINTF(" took %u\n", (micros() - us));
 #endif
     rx_hw_isr_running = 0;
-#if (DBG_PIN_TMR_ISR_FAST != UNDEF_PIN)
-    digitalWriteFast(DBG_PIN_TMR_ISR_FAST, 0);
+#if (DBG_PIN_TMR_ISR != UNDEF_PIN)
+    gpio_out_write(dbg_pin_tmr, 0);
 #endif
 }
 
@@ -390,8 +398,8 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
         // Skip if hw isr is triggered already (e.g. TX has some weird latency)
         return;
 
-#if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
-    digitalWriteFast(DBG_PIN_RX_ISR_FAST, 1);
+#if (DBG_PIN_RX_ISR != UNDEF_PIN)
+    gpio_out_write(dbg_pin_rx, 1);
 #endif
 
     //DEBUG_PRINTF("I");
@@ -406,8 +414,8 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
 
     if (crc_in != crc)
     {
-#if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
-        digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
+#if (DBG_PIN_RX_ISR != UNDEF_PIN)
+        gpio_out_write(dbg_pin_rx, 0);
 #endif
         DEBUG_PRINTF(" !");
         return;
@@ -469,12 +477,12 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
                 update_servos = 1;
 #endif
 #else // !SERVO_OUTPUTS_ENABLED
-#if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
-                digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
+#if (DBG_PIN_RX_ISR != UNDEF_PIN)
+                gpio_out_write(dbg_pin_rx, 0);
 #endif
                 crsf.sendRCFrameToFC(&CrsfChannels);
-#if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
-                digitalWriteFast(DBG_PIN_RX_ISR_FAST, 1);
+#if (DBG_PIN_RX_ISR != UNDEF_PIN)
+                gpio_out_write(dbg_pin_rx, 1);
 #endif
 #endif // SERVO_OUTPUTS_ENABLED
             }
@@ -515,8 +523,8 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
 #if PRINT_TIMER && PRINT_RX_ISR
     DEBUG_PRINTF(" took %u\n", (micros() - current_us));
 #endif
-#if (DBG_PIN_RX_ISR_FAST != UNDEF_PIN)
-    digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
+#if (DBG_PIN_RX_ISR != UNDEF_PIN)
+    gpio_out_write(dbg_pin_rx, 0);
 #endif
 
 #if USE_TIMER_KICK
@@ -611,13 +619,11 @@ void setup()
 {
     uint8_t UID[6] = {MY_UID};
 
-#if (DBG_PIN_TMR_ISR_FAST != UNDEF_PIN)
-    gpio_out_setup(DBG_PIN_TMR_ISR, 0);
-    //digitalWriteFast(DBG_PIN_TMR_ISR_FAST, 0);
+#if (DBG_PIN_TMR_ISR != UNDEF_PIN)
+    dbg_pin_tmr = gpio_out_setup(DBG_PIN_TMR_ISR, 0);
 #endif
 #if (DBG_PIN_RX_ISR != UNDEF_PIN)
-    gpio_out_setup(DBG_PIN_RX_ISR, 0);
-    //digitalWriteFast(DBG_PIN_RX_ISR_FAST, 0);
+    dbg_pin_rx = gpio_out_setup(DBG_PIN_RX_ISR, 0);
 #endif
 
     connectionState = STATE_disconnected;

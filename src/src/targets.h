@@ -221,10 +221,8 @@
 //#define GPIO_PIN_DEBUG_RX    PA3 // USART2, PIN1
 //#define GPIO_PIN_DEBUG_TX    PA2 // USART2, PIN2
 
-//#define DBG_PIN_TMR_ISR       PB6  // SCL
-//#define DBG_PIN_TMR_ISR_FAST  PB_6 // SCL
-//#define DBG_PIN_RX_ISR        PB7  // SDA
-//#define DBG_PIN_RX_ISR_FAST   PB_7 // SDA
+//#define DBG_PIN_TMR_ISR      PB6  // SCL
+//#define DBG_PIN_RX_ISR       PB7  // SDA
 
 
 /******************************************************************************************/
@@ -239,7 +237,7 @@ https://github.com/jaxxzer
 
 #define GPIO_PIN_NSS         PB12
 #define GPIO_PIN_DIO0        PA15
-#define GPIO_PIN_DIO1        -1 //PA1 // NOT CORRECT!!! PIN STILL NEEDS TO BE FOUND BUT IS CURRENTLY UNUSED
+//#define GPIO_PIN_DIO1        -1 //PA1 // NOT CORRECT!!! PIN STILL NEEDS TO BE FOUND BUT IS CURRENTLY UNUSED
 #define GPIO_PIN_MOSI        PB15
 #define GPIO_PIN_MISO        PB14
 #define GPIO_PIN_SCK         PB13
@@ -301,7 +299,7 @@ https://github.com/jaxxzer
 
 #define BUFFER_OE     PA5  //CONFIRMED
 #define SPORT         PB10 //CONFIRMED connected to tx3 and rx3 through 40ohn resistor. Needs BufferOE. inverted
-#define GPIO_PIN_DIO1 PA1  //Not Needed, HEARTBEAT pin
+//#define GPIO_PIN_DIO1 PA1  //Not Needed, HEARTBEAT pin
 
 #define GPIO_PIN_RFamp_APC1       PA6 //CONFIRMED SANDRO// APC2 is connected through a I2C dac and is handled elsewhere
 #define GPIO_PIN_RFswitch_CONTROL PB3 //CONFIRMED SANDRO HIGH = RX, LOW = TX
@@ -310,9 +308,6 @@ https://github.com/jaxxzer
 // low  low  -30
 // low  high -40
 // high high -40
-
-class R9DAC;
-extern R9DAC r9dac;
 
 // Serial1 is connected to internal ESP module if in use
 #define CTRL_SERIAL Serial1
@@ -388,14 +383,10 @@ extern R9DAC r9dac;
 #endif
 
 #ifndef DBG_PIN_TMR_ISR
-#define DBG_PIN_TMR_ISR         UNDEF_PIN
-#undef DBG_PIN_TMR_ISR_FAST
-#define DBG_PIN_TMR_ISR_FAST    UNDEF_PIN
+#define DBG_PIN_TMR_ISR UNDEF_PIN
 #endif
 #ifndef DBG_PIN_RX_ISR
-#define DBG_PIN_RX_ISR          UNDEF_PIN
-#undef DBG_PIN_RX_ISR_FAST
-#define DBG_PIN_RX_ISR_FAST     UNDEF_PIN
+#define DBG_PIN_RX_ISR  UNDEF_PIN
 #endif
 
 #ifndef SERVO_PIN_CH1

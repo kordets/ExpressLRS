@@ -6,8 +6,6 @@
 #include "gpio.h"
 #include <EEPROM.h>
 
-#define NEW_BUTTON 1
-
 uint8_t rate_config_dips = 0xff;
 
 #if (GPIO_PIN_LED != UNDEF_PIN)
@@ -46,11 +44,8 @@ static inline void PLAY_SOUND(uint32_t wait = 244, uint32_t cnt = 50)
 #define PLAY_SOUND(_x, _y)
 #endif
 
-#if defined(TARGET_R9M_TX)
-#include "DAC.h"
-R9DAC r9dac;
+#if defined(TX_MODULE)
 extern POWERMGNT PowerMgmt;
-
 static uint32_t tone_play_cnt = 0;
 static uint32_t tone_last_played = 0;
 void play_tone_loop(uint32_t ms)
@@ -62,17 +57,25 @@ void play_tone_loop(uint32_t ms)
         tone_last_played = ms;
     }
 }
+
+#if defined(TARGET_R9M_TX)
+#include "DAC.h"
+R9DAC r9dac;
 #endif /* TARGET_R9M_TX */
+#endif /* TX_MODULE */
+
 
 #if (GPIO_PIN_BUTTON != UNDEF_PIN)
-#if defined(TX_MODULE) && NEW_BUTTON
 #include "ClickButton.h"
 
-ClickButton clickButton(GPIO_PIN_BUTTON, LOW, 40,  400,  600);
+/* Button is inverted */
+ClickButton clickButton(GPIO_PIN_BUTTON, true, 40,  400,  600);
 
 void button_handle(void)
 {
-    clickButton.update();
+    uint32_t ms = millis();
+    clickButton.update(ms);
+#if defined(TX_MODULE)
     if (clickButton.clicks == 1 && clickButton.lastClickLong) {
         tone_play_cnt = PowerMgmt.loopPower() + 1;
         clickButton.reset();
@@ -81,43 +84,13 @@ void button_handle(void)
         tone_play_cnt = tx_tlm_toggle() + 1;
         clickButton.reset();
     }
-}
-
-#else // NEW_BUTTON
-
-#define TX_CHANGE_POWER_TIME 2000
-
-#include "button.h"
-Button button;
-
-void button_handle(void)
-{
-    button.handle();
-}
-
-void button_event_short(uint32_t ms)
-{
-    (void)ms;
-#if defined(TX_MODULE)
 #elif defined(RX_MODULE)
-#endif /* RX_MODULE */
-}
-
-void button_event_long(uint32_t ms)
-{
-#if defined(TX_MODULE)
-    if (ms > TX_CHANGE_POWER_TIME)
-    {
-        uint8_t val = PowerMgmt.loopPower() + 1;
-        tone_play_cnt = val;
-    }
-#elif defined(RX_MODULE)
-    if (ms > BUTTON_RESET_INTERVAL_RX)
+    if (clickButton.clicks <= -(BUTTON_RESET_INTERVAL_RX / 600)) {
         platform_restart();
-#endif /* RX_MODULE */
+        clickButton.reset();
+    }
+#endif // RX_MODULE
 }
-
-#endif // NEW_BUTTON
 #endif // GPIO_PIN_BUTTON
 
 /******************* CONFIG *********************/
@@ -204,47 +177,16 @@ void platform_setup(void)
     led_red = gpio_out_setup(GPIO_PIN_LED_GREEN, LOW);
 #endif
 
-#if (GPIO_PIN_BUTTON != UNDEF_PIN)
-    /*************** CONFIGURE BUTTON *******************/
-#if defined(TX_MODULE) && NEW_BUTTON
-#else // NEW_BUTTON
-    //button.set_press_delay_short();
-    //button.buttonShortPress = button_event_short;
-    button.buttonLongPress = button_event_long;
-#if defined(TX_MODULE)
-    button.set_press_delay_long(TX_CHANGE_POWER_TIME, 1000);
-#elif defined(RX_MODULE)
-    button.set_press_delay_long(BUTTON_RESET_INTERVAL_RX, 1000);
-#endif
-    // R9M TX appears to be active high
-    button.init(GPIO_PIN_BUTTON, true);
-#endif // NEW_BUTTON
-#endif
-
 #if defined(TX_MODULE)
     /*************** CONFIGURE TX *******************/
 
 #if defined(TARGET_R9M_TX)
-    r9dac.init(GPIO_PIN_SDA, GPIO_PIN_SCL, 0b0001100, GPIO_PIN_RFswitch_CONTROL,
-               GPIO_PIN_RFamp_APC1); // used to control ADC which sets PA output
+    // DAC is used to control ADC which sets PA output
+    r9dac.init(GPIO_PIN_SDA, GPIO_PIN_SCL, 0b0001100,
+               GPIO_PIN_RFswitch_CONTROL, GPIO_PIN_RFamp_APC1);
 #endif // TARGET_R9M_TX
 #if (GPIO_PIN_BUZZER != UNDEF_PIN)
     buzzer = gpio_out_setup(GPIO_PIN_BUZZER, LOW);
-
-#define STARTUP_BEEPS 0
-
-#if STARTUP_BEEPS
-    // Annoying startup beeps
-    const int beepFreq[] = {659, 659, 659, 523, 659, 783, 392};
-    const int beepDurations[] = {150, 300, 300, 100, 300, 550, 575};
-
-    for (int i = 0; i < 7; i++)
-    {
-        tone(GPIO_PIN_BUZZER, beepFreq[i], beepDurations[i]);
-        delay(beepDurations[i]);
-        noTone(GPIO_PIN_BUZZER);
-    }
-#endif // STARTUP_BEEPS
 #endif // GPIO_PIN_BUZZER
 
 #elif defined(RX_MODULE)
@@ -282,16 +224,16 @@ void platform_mode_notify(uint8_t mode)
 
 void platform_loop(int state)
 {
-    (void)state;
 #if (GPIO_PIN_BUTTON != UNDEF_PIN)
 #if defined(TX_MODULE)
     button_handle();
     play_tone_loop(millis());
 #elif defined(RX_MODULE)
     if (state == STATE_disconnected)
-        button.handle();
+        button_handle();
 #endif /* RX_MODULE */
 #endif // GPIO_PIN_BUTTON
+    (void)state;
 }
 
 void platform_connection_state(int state)
