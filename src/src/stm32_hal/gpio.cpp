@@ -118,6 +118,13 @@ void gpio_out_write(struct gpio_out g, uint32_t val)
         regs->BSRR = g.bit << 16;
 }
 
+uint8_t gpio_out_read(struct gpio_out g)
+{
+    GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
+    return !!(regs->ODR & g.bit);
+}
+
+
 struct gpio_in
 gpio_in_setup(uint32_t pin, int32_t pull_up)
 {
