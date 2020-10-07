@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define noInterrupts() __disable_irq()
 #define interrupts() __enable_irq()
