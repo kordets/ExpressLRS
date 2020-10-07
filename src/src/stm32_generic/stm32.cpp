@@ -10,22 +10,13 @@ uint8_t rate_config_dips = 0xff;
 
 #if (GPIO_PIN_LED != UNDEF_PIN)
 struct gpio_out led_red;
-#if defined(TARGET_R9M_RX) || defined(TARGET_R9M_TX)
-// Led is inverted
-#define LED_STATE_RED(_x) gpio_out_write(led_red, (_x))
-#else // others
-#define LED_STATE_RED(_x) gpio_out_write(led_red, !(_x))
-#endif
-#else
-#define LED_STATE_RED(_x) (void)(_x);
-#endif
-
+#endif // GPIO_PIN_LED
 #if (GPIO_PIN_LED_GREEN != UNDEF_PIN)
 struct gpio_out led_green;
-#define LED_STATE_GREEN(_x) gpio_out_write(led_green, (_x))
+#define LED_STATE_GREEN(_x) gpio_out_write(led_green, ((!!(_x)) ^ GPIO_PIN_LED_GREEN_INV))
 #else
 #define LED_STATE_GREEN(_x) (void)(_x);
-#endif
+#endif // GPIO_PIN_LED_GREEN
 
 #if (GPIO_PIN_BUZZER != UNDEF_PIN)
 struct gpio_out buzzer;
@@ -171,10 +162,10 @@ void platform_setup(void)
 
     /*************** CONFIGURE LEDs *******************/
 #if (GPIO_PIN_LED != UNDEF_PIN)
-    led_red = gpio_out_setup(GPIO_PIN_LED, LOW);
+    led_red = gpio_out_setup(GPIO_PIN_LED, (0 ^ GPIO_PIN_LED_RED_INV));
 #endif
 #if (GPIO_PIN_LED_GREEN != UNDEF_PIN)
-    led_red = gpio_out_setup(GPIO_PIN_LED_GREEN, LOW);
+    led_green = gpio_out_setup(GPIO_PIN_LED_GREEN, (0  ^ GPIO_PIN_LED_GREEN_INV));
 #endif
 
 #if defined(TX_MODULE)
@@ -236,10 +227,10 @@ void platform_loop(int state)
     (void)state;
 }
 
-void platform_connection_state(int state)
+void platform_connection_state(int const state)
 {
     bool connected = (state == STATE_connected);
-    LED_STATE_GREEN(connected ? HIGH : LOW);
+    LED_STATE_GREEN(connected);
 #if defined(TX_MODULE)
     //platform_set_led(!connected);
 #endif
@@ -247,7 +238,9 @@ void platform_connection_state(int state)
 
 void platform_set_led(bool state)
 {
-    LED_STATE_RED((uint32_t)state);
+#if (GPIO_PIN_LED != UNDEF_PIN)
+    gpio_out_write(led_red, (state ^ GPIO_PIN_LED_RED_INV));
+#endif
 }
 
 void platform_restart(void)

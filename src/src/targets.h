@@ -113,7 +113,7 @@
 #define GPIO_PIN_RCSIGNAL_RX PA10 // USART1
 #define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
 
-#define GPIO_PIN_LED_RED     PB15
+#define GPIO_PIN_LED         PB15
 
 
 #elif defined(TARGET_SX1280_RX_NANO_v05)
@@ -131,7 +131,7 @@
 #define GPIO_PIN_RCSIGNAL_RX PB7  // USART1, AFAIO
 #define GPIO_PIN_RCSIGNAL_TX PB6  // USART1, AFAIO
 
-#define GPIO_PIN_LED_RED     PB5
+#define GPIO_PIN_LED         PB5
 
 
 /******************************************************************************************/
@@ -253,7 +253,6 @@ https://github.com/jaxxzer
 #  define GPIO_PIN_LED_GREEN PB3
 #  define GPIO_PIN_BUTTON    PC13 // pullup e.g. LOW when pressed
 #endif
-#define GPIO_PIN_LED         GPIO_PIN_LED_RED
 
 #define GPIO_PIN_DEBUG_RX    PA3 // confirmed, USART2
 #define GPIO_PIN_DEBUG_TX    PA2 // confirmed, USART2
@@ -274,6 +273,9 @@ https://github.com/jaxxzer
 #define SERVO_PIN_CH4 PA10
 #endif
 
+// Invert RED led (used to indicate failure)
+#define GPIO_PIN_LED_RED_INV    1
+#define GPIO_PIN_LED_GREEN_INV  0
 
 #elif defined(TARGET_R9M_TX)
 #define GPIO_PIN_NSS         PB12
@@ -288,8 +290,7 @@ https://github.com/jaxxzer
 #define GPIO_PIN_RCSIGNAL_TX PB10 // USART3 TX for S.Port, needs BUFFER_OE
 #define GPIO_PIN_LED_RED     PA11 // Red LED
 #define GPIO_PIN_LED_GREEN   PA12 // Green LED
-#define GPIO_PIN_LED         GPIO_PIN_LED_RED
-#define GPIO_PIN_BUTTON      PA8       // pullup e.g. LOW when pressed
+#define GPIO_PIN_BUTTON      PA8  // pullup e.g. LOW when pressed
 #define GPIO_PIN_BUZZER      PB1  // confirmed
 #define GPIO_PIN_DIP1        PA12 // dip switch 1
 #define GPIO_PIN_DIP2        PA11 // dip switch 2
@@ -311,6 +312,9 @@ https://github.com/jaxxzer
 
 // Serial1 is connected to internal ESP module if in use
 #define CTRL_SERIAL Serial1
+
+#define GPIO_PIN_LED_RED_INV    0
+#define GPIO_PIN_LED_GREEN_INV  0
 #endif
 
 
@@ -346,8 +350,14 @@ https://github.com/jaxxzer
 #ifndef GPIO_PIN_LED_RED
 #define GPIO_PIN_LED_RED    UNDEF_PIN
 #endif
+#ifndef GPIO_PIN_LED_RED_INV
+#define GPIO_PIN_LED_RED_INV 0
+#endif
 #ifndef GPIO_PIN_LED_GREEN
 #define GPIO_PIN_LED_GREEN  UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_LED_GREEN_INV
+#define GPIO_PIN_LED_GREEN_INV 0
 #endif
 #ifndef GPIO_PIN_LED
 #define GPIO_PIN_LED        GPIO_PIN_LED_RED

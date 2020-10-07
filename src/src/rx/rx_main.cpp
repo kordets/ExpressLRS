@@ -354,7 +354,7 @@ void ICACHE_RAM_ATTR LostConnection()
 
     connectionState = STATE_lost; //set lost connection
 
-    led_set_state(1);             // turn off led
+    led_set_state(0);             // turn off led
     Radio.RXnb(GetInitialFreq()); // in conn lost state we always want to listen on freq index 0
     DEBUG_PRINTF("lost conn\n");
 
@@ -378,14 +378,14 @@ void ICACHE_RAM_ATTR TentativeConnection(int32_t freqerror)
 #if !USE_TIMER_KICK
     TxTimer.setTime(80); // Trigger isr right after reception
 #endif
-    led_set_state(0); // turn on led
+    led_set_state(1); // turn on led
 }
 
 void ICACHE_RAM_ATTR GotConnection()
 {
     connectionState = STATE_connected; //we got a packet, therefore no lost connection
 
-    //led_set_state(0); // turn on led
+    led_set_state(1); // turn on led
     DEBUG_PRINTF("connected\n");
 
     platform_connection_state(connectionState);
