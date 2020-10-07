@@ -33,8 +33,8 @@ public:
     uint32_t write(const uint8_t *buff, uint32_t len);
     void setTimeout(unsigned long) {}
 
-    void enable_receiver(void);
-    void enable_transmitter(void);
+    void hw_enable_receiver(void);
+    void hw_enable_transmitter(void);
 
     uint8_t rx_head;
     uint8_t rx_tail;

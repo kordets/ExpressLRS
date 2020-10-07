@@ -98,6 +98,8 @@ int8_t DMA_transmit(HardwareSerial * ptr, uint8_t dma_ch)
             /* Set source address */
             LL_DMA_SetMemoryAddress(dma, dma_ch, data);
             LL_DMA_SetDataLength(dma, dma_ch, len);
+            /* enable tx */
+            ptr->hw_enable_transmitter();
             /* Start transfer */
             LL_DMA_EnableChannel(dma, dma_ch);
             return 0;
@@ -141,7 +143,7 @@ void USART_IDLE_IRQ_handler(uint32_t index)
     if ((SR & USART_SR_TXE) && (CR1 & USART_CR1_TXEIE)) {
         //  Check if data available
         if (serial->tx_head <= serial->tx_tail)
-            serial->enable_receiver();
+            serial->hw_enable_receiver();
         else
             uart->TxDataReg = serial->tx_buffer[serial->tx_tail++];
     }
@@ -158,7 +160,7 @@ void USARTx_DMA_handler(uint32_t index)
     if (sr & mask) {
         LL_DMA_DisableChannel(dma, channel);
         if (serial && DMA_transmit(serial, channel) < 0)
-            serial->enable_receiver();
+            serial->hw_enable_receiver();
         dma->IFCR = mask;
     }
 }
@@ -319,12 +321,12 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     DR_TX = USART_CR1_UE | USART_CR1_TE;
     DR_RX |= ((p_use_dma) ? USART_CR1_IDLEIE : USART_CR1_RXNEIE);
     DR_TX |= ((p_use_dma) ? 0 : USART_CR1_TXEIE);
-    if ((BUFFER_OE == UNDEF_PIN) || (!p_duplex_pin.regs)) {
+    if ((BUFFER_OE == UNDEF_PIN) || (!gpio_out_valid(p_duplex_pin))) {
         // Full duplex
         DR_RX |= USART_CR1_TE;
         DR_TX |= DR_RX;
     }
-    enable_receiver();
+    hw_enable_receiver();
 
     NVIC_SetPriority((IRQn_Type)usart_irq,
         NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART, 0));
@@ -336,15 +338,16 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
 void HardwareSerial::end(void)
 {
     USART_TypeDef * uart = (USART_TypeDef *)p_usart;
-
+    if (p_use_dma) {
 #if UART_USE_DMA_RX
-    LL_DMA_DisableChannel((DMA_TypeDef *)dma_unit_rx, dma_ch_rx);
-    NVIC_DisableIRQ((IRQn_Type)dma_irq_rx);
+        LL_DMA_DisableChannel((DMA_TypeDef *)dma_unit_rx, dma_ch_rx);
+        NVIC_DisableIRQ((IRQn_Type)dma_irq_rx);
 #endif
 #if UART_USE_DMA_TX
-    LL_DMA_DisableChannel((DMA_TypeDef *)dma_unit_tx, dma_ch_tx);
-    NVIC_DisableIRQ((IRQn_Type)dma_irq_tx);
+        LL_DMA_DisableChannel((DMA_TypeDef *)dma_unit_tx, dma_ch_tx);
+        NVIC_DisableIRQ((IRQn_Type)dma_irq_tx);
 #endif
+    }
     uart->CR1 = 0;
     NVIC_DisableIRQ((IRQn_Type)usart_irq);
 }
@@ -371,8 +374,14 @@ int HardwareSerial::read(void)
 void HardwareSerial::flush(void)
 {
     // Wait until data is sent
-    //while (output.size())
-        ;
+#if BUFFER_OE != UNDEF_PIN && 1
+    /*if (gpio_out_valid(p_duplex_pin)) {
+        while (gpio_out_read(p_duplex_pin))
+            ;
+    }*/
+#endif
+    //while(read_u8(&tx_head) != read_u8(&tx_tail))
+    //    ;
 }
 
 #if 0
@@ -385,7 +394,7 @@ size_t HardwareSerial::write(uint8_t data)
         // push data into tx_buffer...
         irq_restore(flag);
     }
-    enable_transmitter();
+    hw_enable_transmitter();
     return 1;
 }
 #endif
@@ -397,8 +406,8 @@ uint32_t HardwareSerial::write(const uint8_t *buff, uint32_t len)
         if (!LL_DMA_IsEnabledChannel(DMA1, dma_ch_tx))
             DMA_transmit(this, dma_ch_tx);
     } else {
-        //USART_TypeDef * uart = (USART_TypeDef *)p_usart;
         //irqstatus_t flag = irq_save();
+
         // push data into tx_buffer...
         uint8_t tmax = read_u8(&tx_head), tpos = read_u8(&tx_tail);
         if (tpos >= tmax) {
@@ -418,40 +427,42 @@ uint32_t HardwareSerial::write(const uint8_t *buff, uint32_t len)
             memmove(&tx_buffer[0], &tx_buffer[tpos], tmax);
             write_u8(&tx_tail, 0);
             write_u8(&tx_head, tmax);
-            //enable_transmitter();
         }
 
         memcpy(&tx_buffer[tmax], buff, len);
         write_u8(&tx_head, (tmax + len));
 
         //irq_restore(flag);
+        hw_enable_transmitter();
+
+        /* flush... */
+        //while(read_u8(&tx_head) != read_u8(&tx_tail));
     }
-    enable_transmitter();
     return len;
 }
 
-void HardwareSerial::enable_receiver(void)
+void HardwareSerial::hw_enable_receiver(void)
 {
     USART_TypeDef * uart = (USART_TypeDef *)p_usart;
 #if BUFFER_OE != UNDEF_PIN
-    if (p_duplex_pin.regs) {
-        // flush();
+    if (gpio_out_valid(p_duplex_pin)) {
+        // Wait until transfer is completed
+        while (!(uart->SR & USART_SR_TC));
         gpio_out_write(p_duplex_pin, 0);
     }
 #endif // BUFFER_OE
     uart->CR1 = DR_RX;
 }
 
-void HardwareSerial::enable_transmitter(void)
+void HardwareSerial::hw_enable_transmitter(void)
 {
     USART_TypeDef * uart = (USART_TypeDef *)p_usart;
+    uart->CR1 = DR_TX;
 #if BUFFER_OE != UNDEF_PIN
-    if (p_duplex_pin.regs) {
-        //delayMicroseconds(20); // TODO: Check if this is really needed!
+    if (gpio_out_valid(p_duplex_pin)) {
         gpio_out_write(p_duplex_pin, 1);
     }
 #endif // BUFFER_OE
-    uart->CR1 = DR_TX;
 }
 
 #if defined(TARGET_R9M_TX)
