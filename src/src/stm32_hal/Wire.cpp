@@ -39,6 +39,9 @@ void* i2c_setup(uint32_t rate, uint8_t own_addr, uint8_t index)
         default:
             return NULL;
     }
+
+    enable_pclock((uint32_t)handle->Instance);
+
 #if defined(STM32F1xx) && defined(I2C_DUTYCYCLE_2)
     handle->Init.ClockSpeed = rate;
     handle->Init.DutyCycle = (100000 < rate) ? I2C_DUTYCYCLE_16_9 : I2C_DUTYCYCLE_2;
@@ -89,10 +92,11 @@ void I2C::begin()
     else if (scl_pin == GPIO('B', 10) && sda_pin == GPIO('B', 11))
         index = 1;
     if (index < 2) {
-        i2c = i2c_setup(100000, 0x33, index);
         // TODO: Setup gpio AFIO!
-        //gpio_peripheral(scl_pin, GPIO_FUNCTION(7), 1);
-        //gpio_peripheral(sda_pin, GPIO_FUNCTION(7), 0);
+        gpio_peripheral(scl_pin, GPIO_FUNCTION(4) | GPIO_OPEN_DRAIN, 0);
+        gpio_peripheral(sda_pin, GPIO_FUNCTION(4) | GPIO_OPEN_DRAIN, 0);
+
+        i2c = i2c_setup(100000, 0x33, index);
     }
 }
 
