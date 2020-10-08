@@ -59,7 +59,7 @@ connectionState_e DRAM_ATTR connectionState;
 static uint32_t DRAM_ATTR expected_tlm_counter;
 static uint32_t DRAM_ATTR recv_tlm_counter;
 static uint32_t DRAM_ATTR tlm_check_ratio;
-static uint_fast8_t DRAM_ATTR TLMinterval;
+static uint32_t DRAM_ATTR TLMinterval;
 static mspPacket_t msp_packet_tx;
 static mspPacket_t msp_packet_rx;
 static MSP msp_packet_parser;
@@ -118,7 +118,7 @@ uint8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
             connectionState = STATE_connected;
             DEBUG_PRINTF("TLM disabled\n");
         }
-        TLMinterval = value;
+        write_u32(&TLMinterval, value);
         write_u32(&tlm_check_ratio, ratio);
         return 1;
     }
@@ -221,11 +221,13 @@ static void process_rx_buffer()
 
 static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff, uint32_t rx_us)
 {
-    (void)rx_us;
-    memcpy(rx_buffer, buff, sizeof(rx_buffer));
-    rx_buffer_handle = 1;
+    if (buff) {
+        (void)rx_us;
+        memcpy(rx_buffer, buff, sizeof(rx_buffer));
+        rx_buffer_handle = 1;
 
-    //DEBUG_PRINTF(" R ");
+        //DEBUG_PRINTF(" R ");
+    }
 }
 
 static void ICACHE_RAM_ATTR HandleTLM()
@@ -258,7 +260,7 @@ GenerateSyncPacketData(uint8_t *const output, uint32_t rxtx_counter)
     sync->pkt_type = UL_PACKET_SYNC;
 }
 
-static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
+static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
 {
     // Called by HW timer
     uint32_t freq;
@@ -266,7 +268,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t current_us)
     uint32_t const tlm_ratio = tlm_check_ratio;
     // esp requires word aligned buffer
     uint32_t __tx_buffer[(OTA_PACKET_SIZE + sizeof(uint32_t) - 1) / sizeof(uint32_t)];
-    uint8_t *tx_buffer = (uint8_t *)__tx_buffer;
+    uint8_t * const tx_buffer = (uint8_t *)__tx_buffer;
     uint16_t crc;
     uint8_t index = OTA_PACKET_DATA;
 

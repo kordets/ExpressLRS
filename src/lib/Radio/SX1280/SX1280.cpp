@@ -381,7 +381,7 @@ void ICACHE_RAM_ATTR SX1280Driver::RXnbISR(uint32_t rx_us, uint16_t irqs)
     // Ignore if not a RX DONE ISR, CRC fail or timeout
     if (!(irqs & SX1280_IRQ_RX_DONE) ||
             (irqs & (SX1280_IRQ_CRC_ERROR | SX1280_IRQ_RX_TX_TIMEOUT))) {
-        //RXdoneCallback1(NULL, rx_us); // Error!
+        RXdoneCallback1(NULL, rx_us); // Error!
         return;
     }
     currOpmode = SX1280_MODE_FS;

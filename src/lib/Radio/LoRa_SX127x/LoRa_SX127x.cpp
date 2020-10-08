@@ -314,7 +314,7 @@ static uint8_t DMA_ATTR RXdataBuffer[16];
 
 void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint32_t rx_us, uint8_t irqs)
 {
-    //uint8_t * ptr = NULL;
+    uint8_t * ptr = NULL;
     // Ignore if CRC is invalid
     if ((!(irqs & SX127X_CLEAR_IRQ_FLAG_PAYLOAD_CRC_ERROR)) &&
         (irqs & SX127X_CLEAR_IRQ_FLAG_RX_DONE))
@@ -324,10 +324,9 @@ void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint32_t rx_us, uint8_t irqs)
         // fetch RSSI and SNR
         GetLastRssiSnr();
         // Push to application if callback is set
-        //ptr = RXdataBuffer;
-        RXdoneCallback1(RXdataBuffer, rx_us);
+        ptr = RXdataBuffer;
     }
-    //RXdoneCallback1(ptr, rx_us);
+    RXdoneCallback1(ptr, rx_us);
 }
 
 void ICACHE_RAM_ATTR SX127xDriver::StopContRX()

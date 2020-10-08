@@ -15,12 +15,22 @@
 #define FHSS_MY_STEP 1
 #endif
 
-uint32_t DRAM_ATTR FHSSptr;
-int_fast32_t DRAM_ATTR FreqCorrection;
+volatile uint32_t DRAM_ATTR FHSSptr;
+volatile int_fast32_t DRAM_ATTR FreqCorrection;
+
+void ICACHE_RAM_ATTR FHSSfreqCorrectionReset(void)
+{
+    FreqCorrection = 0;
+}
+
+void ICACHE_RAM_ATTR FHSSfreqCorrectionSet(int32_t error)
+{
+    FreqCorrection += error;
+}
 
 void ICACHE_RAM_ATTR FHSSsetCurrIndex(uint32_t value)
 { // set the current index of the FHSS pointer
-    write_u32(&FHSSptr, value % sizeof(FHSSsequence));
+    FHSSptr = value % sizeof(FHSSsequence);
 }
 
 uint32_t ICACHE_RAM_ATTR FHSSgetCurrIndex()
@@ -53,6 +63,10 @@ uint32_t ICACHE_RAM_ATTR FHSSgetNextFreq()
     FHSSincCurrIndex();
     return FHSSgetCurrFreq();
 }
+
+
+
+
 
 // Set all of the flags in the array to true, except for the first one
 // which corresponds to the sync channel and is never available for normal

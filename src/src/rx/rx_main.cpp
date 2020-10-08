@@ -37,12 +37,12 @@ CRSF_RX DRAM_FORCE_ATTR crsf(CrsfSerial); //pass a serial port object to the cla
 
 connectionState_e DRAM_ATTR connectionState;
 static volatile uint8_t DRAM_ATTR NonceRXlocal; // nonce that we THINK we are up to.
-static volatile uint8_t DRAM_ATTR TLMinterval;
+static uint8_t DRAM_ATTR TLMinterval;
 static volatile uint32_t DRAM_ATTR tlm_check_ratio;
 static volatile uint32_t DRAM_ATTR rx_last_valid_us; //Time the last valid packet was recv
 static volatile int32_t DRAM_ATTR rx_freqerror;
 #if NUM_FAILS_TO_RESYNC
-static volatile uint32_t rx_lost_packages;
+static uint32_t rx_lost_packages;
 #endif
 static volatile int32_t DRAM_ATTR rx_hw_isr_running;
 
@@ -50,7 +50,7 @@ static uint16_t DRAM_ATTR CRCCaesarCipher;
 
 #if SERVO_OUTPUTS_ENABLED
 #if !SERVO_WRITE_FROM_ISR
-static volatile uint8_t DRAM_ATTR update_servos;
+static uint8_t DRAM_ATTR update_servos;
 #endif
 #endif
 static crsf_channels_t DRAM_ATTR CrsfChannels;
@@ -63,22 +63,22 @@ static LPF DRAM_FORCE_ATTR LPF_UplinkRSSI(5);
 //////////////////////////////////////////////////////////////
 ////// Variables for Telemetry and Link Quality //////////////
 
-static volatile uint32_t DRAM_ATTR LastValidPacket; //Time the last valid packet was recv
+static uint32_t DRAM_ATTR LastValidPacket; //Time the last valid packet was recv
 #if !SERVO_OUTPUTS_ENABLED
 static uint32_t DRAM_ATTR SendLinkStatstoFCintervalNextSend;
 #endif
 static mspPacket_t DRAM_FORCE_ATTR msp_packet_tx;
-static /*volatile*/ uint_fast8_t DRAM_ATTR tlm_msp_send;
-static /*volatile*/ uint_fast8_t DRAM_ATTR uplink_Link_quality;
+static uint8_t DRAM_ATTR tlm_msp_send;
+static uint8_t DRAM_ATTR uplink_Link_quality;
 
 ///////////////////////////////////////////////////////////////
 ///////////// Variables for Sync Behaviour ////////////////////
-static volatile uint32_t DRAM_ATTR RFmodeNextCycle; // set from isr
+static uint32_t DRAM_ATTR RFmodeNextCycle; // set from isr
 static uint32_t DRAM_ATTR RFmodeCycleDelay;
 static uint8_t DRAM_ATTR scanIndex;
 static uint8_t DRAM_ATTR tentative_cnt;
 #if RX_UPDATE_AIR_RATE
-static volatile uint32_t DRAM_ATTR updatedAirRate = 0xff;
+static uint8_t DRAM_ATTR updatedAirRate = 0xff;
 #endif
 
 ///////////////////////////////////////
@@ -163,26 +163,25 @@ uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
 
     if (abs(freqerror) > 100) // 120
     {
-        FreqCorrection += freqerror;
+        FHSSfreqCorrectionSet(freqerror);
         Radio.setPPMoffsetReg(freqerror, 0);
         retval = 1;
     }
 #if PRINT_FREQ_ERROR
+    //extern int_fast32_t FreqCorrection;
     //DEBUG_PRINTF(" local:%u", FreqCorrection);
 #endif
 
     return retval;
 }
 
-uint8_t ICACHE_RAM_ATTR HandleFHSS()
+uint8_t ICACHE_RAM_ATTR HandleFHSS(uint_fast8_t & nonce)
 {
-    uint8_t fhss = 0, nonce = NonceRXlocal;
-    if ((nonce % ExpressLRS_currAirRate->FHSShopInterval) == 0)
-    {
+    uint8_t fhss = ((nonce % ExpressLRS_currAirRate->FHSShopInterval) == 0);
+    if (fhss) {
         FHSSincCurrIndex();
-        fhss = 1;
     }
-    NonceRXlocal = ++nonce;
+    ++nonce;
     return fhss;
 }
 
@@ -221,13 +220,16 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
     tx_buffer[index++] = (crc >> 8);
     tx_buffer[index++] = (crc & 0xFF);
     Radio.TXnb(tx_buffer, index, FHSSgetCurrFreq());
+
+    // Adds packet to LQ otherwise an artificial drop in LQ is seen due to sending TLM.
+    LQ_packetAck();
 }
 
 void tx_done_cb(void)
 {
     // Configure RX only next is not hopping time
-    if (((NonceRXlocal + 1) % ExpressLRS_currAirRate->FHSShopInterval) != 0)
-        Radio.RXnb(FHSSgetCurrFreq());
+    //if (((NonceRXlocal + 1) % ExpressLRS_currAirRate->FHSShopInterval) != 0)
+    //    Radio.RXnb(FHSSgetCurrFreq());
 }
 
 void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
@@ -240,6 +242,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     const uint32_t __rx_last_valid_us = rx_last_valid_us;
     const uint_fast8_t tlm_ratio = tlm_check_ratio;
     uint_fast8_t fhss_config_rx = 0;
+    uint_fast8_t nonce = NonceRXlocal;
     rx_last_valid_us = 0;
 
 #if PRINT_TIMER && PRINT_HW_ISR
@@ -280,24 +283,21 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     }
 
     fhss_config_rx |= RadioFreqErrorCorr();
-    fhss_config_rx |= HandleFHSS();
+    fhss_config_rx |= HandleFHSS(nonce);
 
 #if PRINT_TIMER && PRINT_HW_ISR
-    //DEBUG_PRINTF(" nonce %u", NonceRXlocal);
+    //DEBUG_PRINTF(" nonce %u", nonce);
 #endif
 
     uint_fast8_t lq = LQ_getlinkQuality();
     uplink_Link_quality = lq;
     LQ_nextPacket();
 
-    if ((0 < tlm_ratio) && ((NonceRXlocal & tlm_ratio) == 0))
+    if ((0 < tlm_ratio) && ((nonce & tlm_ratio) == 0))
     {
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
         gpio_out_write(dbg_pin_tmr, 0);
 #endif
-        // Adds packet to LQ otherwise an artificial drop in LQ is seen due to sending TLM.
-        LQ_packetAck();
-
         HandleSendTelemetryResponse(lq);
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
         gpio_out_write(dbg_pin_tmr, 1);
@@ -322,6 +322,8 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     }
 
 hw_tmr_isr_exit:
+    NonceRXlocal = nonce;
+
 #if (PRINT_TIMER && PRINT_HW_ISR) || PRINT_FREQ_ERROR
     DEBUG_PRINTF(" took %u\n", (micros() - us));
 #endif
@@ -348,7 +350,7 @@ void ICACHE_RAM_ATTR LostConnection()
     _RESTORE_IRQ(irq);
 
     // Reset FHSS
-    FHSSresetFreqCorrection();
+    FHSSfreqCorrectionReset();
     FHSSsetCurrIndex(0);
     LPF_FreqError.init(0);
 
@@ -359,16 +361,14 @@ void ICACHE_RAM_ATTR LostConnection()
     DEBUG_PRINTF("lost conn\n");
 
     platform_connection_state(connectionState);
-    RFmodeNextCycle = millis(); // make sure to stay on same freq during next sync search phase
 }
 
 void ICACHE_RAM_ATTR TentativeConnection(int32_t freqerror)
 {
     /* Do initial freq correction */
-    FreqCorrection += freqerror;
+    FHSSfreqCorrectionSet(freqerror);
     Radio.setPPMoffsetReg(freqerror, 0);
     LPF_FreqError.init(freqerror);
-    rx_freqerror = 0;
     rx_last_valid_us = 0;
 
     tentative_cnt = 0;
@@ -400,11 +400,20 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
         // Skip if hw isr is triggered already (e.g. TX has some weird latency)
         return;
 
+    /* Error in reception (CRC etc), kick hw timer */
+    if (!rx_buffer) {
+#if USE_TIMER_KICK
+        TxTimer.triggerSoon(); // Trigger FHSS ISR
+#endif
+        return;
+    }
+
 #if (DBG_PIN_RX_ISR != UNDEF_PIN)
     gpio_out_write(dbg_pin_rx, 1);
 #endif
 
     //DEBUG_PRINTF("I");
+    uint32_t freq_err;
     const connectionState_e _conn_state = connectionState;
     const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_PAYLOAD, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_PAYLOAD] << 8) + rx_buffer[OTA_PACKET_PAYLOAD+1];
@@ -419,11 +428,14 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
 #if (DBG_PIN_RX_ISR != UNDEF_PIN)
         gpio_out_write(dbg_pin_rx, 0);
 #endif
+#if USE_TIMER_KICK
+        TxTimer.triggerSoon(); // Trigger FHSS ISR
+#endif
         DEBUG_PRINTF(" !");
         return;
     }
 
-    rx_freqerror = Radio.GetFrequencyError();
+    freq_err = Radio.GetFrequencyError();
 
     rx_last_valid_us = current_us;
     LastValidPacket = millis();
@@ -439,7 +451,8 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
             {
                 if (_conn_state == STATE_disconnected || _conn_state == STATE_lost)
                 {
-                    TentativeConnection(rx_freqerror);
+                    TentativeConnection(freq_err);
+                    freq_err = 0;
                 }
                 else if (_conn_state == STATE_tentative)
                 {
@@ -503,7 +516,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
         default:
             /* Not a valid packet, ignore it */
             rx_last_valid_us = 0;
-            rx_freqerror = 0;
+            freq_err = 0;
             return;
             //break;
     }
@@ -515,6 +528,8 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
         NonceRXlocal = rx_buffer[OTA_PACKET_DATA+1];
     }
 #endif // OTA_PACKET_10B
+
+    rx_freqerror = freq_err;
 
 #if NUM_FAILS_TO_RESYNC
     rx_lost_packages = 0;
@@ -559,7 +574,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     // Init CRC aka LQ array
     LQ_reset();
     // Reset FHSS
-    FHSSresetFreqCorrection();
+    FHSSfreqCorrectionReset();
     FHSSsetCurrIndex(0);
 
     RFmodeCycleDelay = config->syncSearchTimeout +
@@ -591,7 +606,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
 /* FC sends v1 MSPs */
 void msp_data_cb(uint8_t const *const input)
 {
-    if ((tlm_msp_send != 0) || (tlm_check_ratio == 0))
+    if ((read_u8(&tlm_msp_send) != 0) || (tlm_check_ratio == 0))
         return;
 
     /* process MSP packet from flight controller
@@ -614,7 +629,7 @@ void msp_data_cb(uint8_t const *const input)
                     (void*)&input[1],       // skip flags
                     hdr->payloadSize + 3);  // include size, func and crc
 
-    tlm_msp_send = 1; // rdy for sending
+    write_u8(&tlm_msp_send, 1); // rdy for sending
 }
 
 void setup()
@@ -681,11 +696,12 @@ void loop()
 #endif
 
 #if RX_UPDATE_AIR_RATE
+    uint8_t new_air_rate = read_u8(&updatedAirRate);
     /* update air rate config, timed to FHSS index 0 */
-    if (updatedAirRate < get_elrs_airRateMax() && updatedAirRate != current_rate_config)
+    if (new_air_rate < get_elrs_airRateMax() && new_air_rate != current_rate_config)
     {
         write_u32(&connectionState, (uint32_t)STATE_lost); // Mark to lost to stay on received rate and force resync.
-        SetRFLinkRate(updatedAirRate); // configure air rate
+        SetRFLinkRate(new_air_rate); // configure air rate
         RFmodeNextCycle = now;
         return;
     }
@@ -693,8 +709,9 @@ void loop()
 
     if (STATE_lost < _conn_state)
     {
-        // check if connection is lost
-        if (ExpressLRS_currAirRate->connectionLostTimeout <= (int32_t)(now - LastValidPacket))
+        // check if connection is lost or in very bad shape
+        if (ExpressLRS_currAirRate->connectionLostTimeout <= (now - read_u32(&LastValidPacket))
+            /*|| read_u8(&uplink_Link_quality) <= 10*/)
         {
             LostConnection();
         }
@@ -702,13 +719,13 @@ void loop()
         {
 #if SERVO_OUTPUTS_ENABLED
 #if !SERVO_WRITE_FROM_ISR
-            if (update_servos)
+            if (read_u8(&update_servos))
                 servo_out_write(&CrsfChannels);
 #endif
 #else
             if (SEND_LINK_STATS_TO_FC_INTERVAL <= (uint32_t)(now - SendLinkStatstoFCintervalNextSend))
             {
-                crsf.LinkStatistics.uplink_Link_quality = uplink_Link_quality;
+                crsf.LinkStatistics.uplink_Link_quality = read_u8(&uplink_Link_quality);
                 crsf.LinkStatisticsSend();
                 SendLinkStatstoFCintervalNextSend = now;
             }
