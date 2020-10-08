@@ -24,12 +24,13 @@ class HardwareSerial
 public:
     HardwareSerial(uint32_t rx, uint32_t tx, uint8_t dma=0);
     HardwareSerial(void *peripheral, uint8_t dma=0);
+    void setTx(uint32_t tx_pin);
+    void setRx(uint32_t rx_pin);
     void begin(unsigned long baud, uint8_t mode = SERIAL_8N1);
     void end(void);
     int available(void);
     int read(void);
     void flush(void);
-    //size_t write(uint8_t);
     uint32_t write(const uint8_t *buff, uint32_t len);
     void setTimeout(unsigned long) {}
 
@@ -59,8 +60,8 @@ public:
         return ret;
     }
 
-    uint32_t dma_unit_tx;
-    uint32_t dma_unit_rx;
+    void* dma_unit_tx;
+    void* dma_unit_rx;
     void* p_usart;
     uint8_t dma_ch_tx;
     uint8_t dma_ch_rx;
@@ -68,10 +69,10 @@ public:
 protected:
     uint32_t rx_pin;
     uint32_t tx_pin;
-    int32_t usart_irq;
     struct gpio_out p_duplex_pin;
 
 private:
+    uint8_t usart_irq;
     uint8_t p_use_dma;
     uint8_t dma_irq_tx;
     uint8_t dma_irq_rx;

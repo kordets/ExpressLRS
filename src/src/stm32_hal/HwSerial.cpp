@@ -20,18 +20,16 @@
 #endif
 #endif
 
-#define USE_DMA 0
-
 HwSerial CrsfSerial(SPORT_RX_TX, BUFFER_OE);
 
 HwSerial::HwSerial(uint32_t _rx, uint32_t _tx, int32_t pin)
-    : HardwareSerial(_rx, _tx, USE_DMA)
+    : HardwareSerial(_rx, _tx, 1)
 {
     p_duplex_pin = gpio_out_setup(pin, 0);
 }
 
 HwSerial::HwSerial(void *peripheral, int32_t pin)
-    : HardwareSerial(peripheral, USE_DMA)
+    : HardwareSerial(peripheral, 1)
 {
     p_duplex_pin = gpio_out_setup(pin, 0);
 }
@@ -43,10 +41,8 @@ void HwSerial::Begin(uint32_t baud, uint32_t config)
 
 void HwSerial::enable_receiver(void)
 {
-    //HardwareSerial::enable_receiver();
 }
 
 void HwSerial::enable_transmitter(void)
 {
-    //HardwareSerial::enable_transmitter();
 }
