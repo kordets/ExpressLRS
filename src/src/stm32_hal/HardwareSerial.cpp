@@ -41,9 +41,8 @@
 #endif
 #include <string.h>
 
-#define UART_ENABLE_DMA_RX 1
+#define UART_ENABLE_DMA_RX 0 // Don't enable yet
 #define UART_ENABLE_DMA_TX 1
-
 
 #define DIV_ROUND_CLOSEST(x, divisor) ({       \
     typeof(divisor) __divisor = divisor;       \
@@ -130,12 +129,15 @@ void USART_IDLE_IRQ_handler(uint32_t index)
 
     /* Check for IDLE line interrupt */
     if ((SR & USART_SR_IDLE) && (CR1 & USART_CR1_IDLEIE)) {
+        (void)uart->RxDataReg;
         uint8_t head_pos = sizeof(serial->rx_buffer) -
             LL_DMA_GetDataLength((DMA_TypeDef *)serial->dma_unit_rx, serial->dma_ch_rx);
+        /*
         uint8_t head = serial->rx_head;
         uint8_t tail = head + (uint8_t)(head_pos - head);
         if (tail >= serial->rx_tail)
             serial->rx_tail = tail;
+        */
         serial->rx_head = head_pos;
     }
     /* Check for RX data */

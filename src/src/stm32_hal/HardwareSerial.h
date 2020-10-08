@@ -88,10 +88,11 @@ private:
     void tx_pool_add(const uint8_t * data, uint32_t len)
     {
         irqstatus_t flag = irq_save();
-        struct tx_pool_s * next = tx_pool_head->next;
+        struct tx_pool_s * next = tx_pool_head;
         if (!next->data_ptr) {
             next->data_ptr = (uint8_t*)data;
-            tx_pool_head = next;
+            next->len = len;
+            tx_pool_head = next->next;
         }
         irq_restore(flag);
     }

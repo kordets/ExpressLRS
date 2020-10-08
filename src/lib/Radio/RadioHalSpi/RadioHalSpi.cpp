@@ -11,11 +11,11 @@ void RadioHalSpi::Begin(uint32_t speed, int sck, int miso, int mosi, int cs)
 uint8_t ICACHE_RAM_ATTR
 RadioHalSpi::readRegister(uint8_t reg) const
 {
-    uint8_t data[] = {(uint8_t)(reg | p_read), 0};
+    uint8_t _data[] = {(uint8_t)(reg | p_read), 0};
     gpio_out_write(CS, 0);
-    spi_transfer(spi_bus, 1, sizeof(data), data);
+    spi_transfer(spi_bus, 1, sizeof(_data), _data);
     gpio_out_write(CS, 1);
-    return data[1];
+    return _data[1];
 }
 
 void ICACHE_RAM_ATTR
@@ -23,7 +23,7 @@ RadioHalSpi::writeRegister(uint8_t reg, uint8_t data) const
 {
     uint8_t _data[] = {(uint8_t)(reg | p_write), data};
     gpio_out_write(CS, 0);
-    spi_transfer(spi_bus, 0, sizeof(data), _data);
+    spi_transfer(spi_bus, 0, sizeof(_data), _data);
     gpio_out_write(CS, 1);
 }
 

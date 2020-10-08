@@ -4,7 +4,7 @@
 #include "utils.h"
 #include "helpers.h"
 
-#define I2C_FUNCTION (uint8_t)(GPIO_FUNCTION(4) | GPIO_OPEN_DRAIN)
+#define I2C_FUNCTION (GPIO_FUNCTION(4) | GPIO_OPEN_DRAIN)
 
 struct i2c_info {
     I2C_HandleTypeDef handle;
