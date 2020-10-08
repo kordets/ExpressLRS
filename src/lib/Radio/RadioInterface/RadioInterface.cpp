@@ -2,8 +2,6 @@
 #include "platform.h"
 #include <Arduino.h>
 
-enum isr_states DRAM_ATTR RadioInterface::p_state_isr;
-
 /////////////////////////////////////////////////////////////////
 
 void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
@@ -30,14 +28,18 @@ void RadioInterface::Reset(void)
     }
 }
 
+void ICACHE_RAM_ATTR RadioInterface::isr_state_set(enum isr_states isr) {
+    p_state_isr = isr;
+}
+
 void ICACHE_RAM_ATTR RadioInterface::WaitOnBusy() const
 {
     while (unlikely(gpio_in_read(_BUSY)));
 }
 
-void ICACHE_RAM_ATTR RadioInterface::TxEnable() const
+void ICACHE_RAM_ATTR RadioInterface::TxEnable()
 {
-    p_state_isr = TX_DONE;
+    isr_state_set(TX_DONE);
 #if TX_MODULE
     if (!gpio_out_valid(_RXen)) return;
     gpio_out_write(_RXen, 0);
@@ -45,9 +47,9 @@ void ICACHE_RAM_ATTR RadioInterface::TxEnable() const
 #endif // TX_MODULE
 }
 
-void ICACHE_RAM_ATTR RadioInterface::RxEnable() const
+void ICACHE_RAM_ATTR RadioInterface::RxEnable()
 {
-    p_state_isr = RX_DONE;
+    isr_state_set(RX_DONE);
 #if TX_MODULE
     if (!gpio_out_valid(_RXen)) return;
     gpio_out_write(_TXen, 0);
@@ -55,9 +57,9 @@ void ICACHE_RAM_ATTR RadioInterface::RxEnable() const
 #endif // TX_MODULE
 }
 
-void ICACHE_RAM_ATTR RadioInterface::TxRxDisable() const
+void ICACHE_RAM_ATTR RadioInterface::TxRxDisable()
 {
-    p_state_isr = NONE;
+    isr_state_set(NONE);
 #if TX_MODULE
     if (!gpio_out_valid(_RXen)) return;
     gpio_out_write(_RXen, 0);

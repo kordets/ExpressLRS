@@ -52,12 +52,8 @@ public:
     SX127xDriver(HwSpi &spi, uint8_t payload_len = RX_BUFFER_LEN);
 
     ///////////Radio Variables////////
-    bool headerExplMode;
-
     RFmodule_ RFmodule;
     Bandwidth currBW;
-    SpreadingFactor currSF;
-    CodingRate currCR;
     uint8_t _syncWord;
 
     ////////////////Configuration Functions/////////////
@@ -82,7 +78,6 @@ public:
 
     //////////////RX related Functions/////////////////
     uint8_t RunCAD(uint32_t timeout = 500);
-    uint8_t ICACHE_RAM_ATTR RX(uint32_t freq, uint8_t *data, uint8_t length, uint32_t timeout = UINT32_MAX);
 
     void ICACHE_RAM_ATTR GetLastRssiSnr();
     int16_t ICACHE_RAM_ATTR GetCurrRSSI() const;
@@ -100,10 +95,10 @@ public:
     void ICACHE_RAM_ATTR ClearIRQFlags();
 
 private:
-    uint32_t p_freqOffset = 0;
-    uint8_t p_ppm_off = 0;
-    //uint8_t p_isr_mask = 0;
-    uint8_t p_last_payload_len = 0;
+    uint32_t p_freqOffset;
+    uint8_t p_ppm_off;
+    //uint8_t p_isr_mask;
+    uint8_t p_last_payload_len;
 
     uint8_t CheckChipVersion();
     void SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t freq, uint8_t syncWord, uint8_t crc);

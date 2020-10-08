@@ -23,11 +23,19 @@ enum isr_states
 class RadioInterface : public RadioHalSpi
 {
 public:
-    RadioInterface(HwSpi &spi, uint8_t read = 0, uint8_t write = 0):
-        RadioHalSpi(spi, read, write) {}
+    RadioInterface(HwSpi &spi, uint8_t payload_len, uint8_t read = 0, uint8_t write = 0):
+            RadioHalSpi(spi, read, write), RX_buffer_size(payload_len) {
+        RXdoneCallback1 = RadioInterface::rx_nullCallback;
+        TXdoneCallback1 = RadioInterface::tx_nullCallback;
+    }
 
     void SetPins(int rst, int dio1, int dio2, int dio3,
                  int busy, int txpin, int rxpin);
+
+    enum isr_states ICACHE_RAM_ATTR isr_state_get(void) const {
+        return p_state_isr;
+    }
+    void ICACHE_RAM_ATTR isr_state_set(enum isr_states isr);
 
     ////////// Callback Function Pointers //////////
     static void rx_nullCallback(uint8_t *, uint32_t){};
@@ -35,20 +43,17 @@ public:
     void (*RXdoneCallback1)(uint8_t *buff, uint32_t rx_us);
     void (*TXdoneCallback1)(void);
 
-    ////////// Static Variables //////////
-    static enum isr_states DRAM_ATTR p_state_isr;
-
     ////////// Packet Stats //////////
-    int16_t LastPacketRSSI;
-    int8_t LastPacketSNR;
-    uint8_t RX_buffer_size;
+    volatile int16_t LastPacketRSSI;
+    volatile int8_t LastPacketSNR;
+    const uint8_t RX_buffer_size;
 
 protected:
     void Reset(void);
     void ICACHE_RAM_ATTR WaitOnBusy() const;
-    void ICACHE_RAM_ATTR TxEnable() const;
-    void ICACHE_RAM_ATTR RxEnable() const;
-    void ICACHE_RAM_ATTR TxRxDisable() const;
+    void ICACHE_RAM_ATTR TxEnable();
+    void ICACHE_RAM_ATTR RxEnable();
+    void ICACHE_RAM_ATTR TxRxDisable();
 
 #if TX_MODULE
     gpio_out _RXen;
@@ -61,10 +66,11 @@ protected:
     gpio_in _BUSY;
 
     ////////// Config Variables //////////
-    uint32_t current_freq;
-    int8_t current_power;
+    volatile uint32_t current_freq;
+    volatile int8_t current_power;
 
 private:
+    volatile enum isr_states p_state_isr;
 };
 
 #endif /* RADIO_INTERFACE_H_ */

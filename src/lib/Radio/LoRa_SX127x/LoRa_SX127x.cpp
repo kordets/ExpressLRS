@@ -16,13 +16,14 @@ static SX127xDriver * DMA_ATTR instance = NULL;
 
 static void ICACHE_RAM_ATTR _rxtx_isr_handler_dio0(void)
 {
+    SX127xDriver * const _radio = instance;
     uint32_t rx_us = micros();
-    uint8_t irqs = instance->GetIRQFlags();
-    enum isr_states state = RadioInterface::p_state_isr;
+    uint8_t irqs = _radio->GetIRQFlags();
+    enum isr_states state = _radio->isr_state_get();
     if (state == RX_DONE) {
-        instance->RXnbISR(rx_us, irqs);
+        _radio->RXnbISR(rx_us, irqs);
     } else if (state == TX_DONE) {
-        instance->TXnbISR(irqs);
+        _radio->TXnbISR(irqs);
     } else {
         if (irqs & SX127X_CLEAR_IRQ_FLAG_TX_DONE)
             state = TX_DONE;
@@ -36,34 +37,23 @@ static void ICACHE_RAM_ATTR _rxtx_isr_handler_dio0(void)
             state = CAD_DETECTED;
         else if (irqs & SX127X_CLEAR_IRQ_FLAG_CAD_DONE)
             state = CAD_DONE;
-        RadioInterface::p_state_isr = state;
+        _radio->isr_state_set(state);
     }
-    instance->ClearIRQFlags();
+    _radio->ClearIRQFlags();
 }
 
 //////////////////////////////////////////////
 
 SX127xDriver::SX127xDriver(HwSpi &spi, uint8_t payload_len):
-    RadioInterface(spi, SX127X_SPI_READ, SX127X_SPI_WRITE)
+    RadioInterface(spi, payload_len, SX127X_SPI_READ, SX127X_SPI_WRITE)
 {
     instance = this;
 
-    headerExplMode = false;
     RFmodule = RFMOD_SX1276;
-
     currBW = BW_500_00_KHZ;
-    currSF = SF_6;
-    currCR = CR_4_5;
     _syncWord = SX127X_SYNC_WORD;
     current_freq = 0;
     current_power = 0xF; // outside range to make sure the power is initialized
-
-    LastPacketRSSI = 0;
-    LastPacketSNR = 0;
-    RX_buffer_size = payload_len;
-
-    RXdoneCallback1 = RadioInterface::rx_nullCallback;
-    TXdoneCallback1 = RadioInterface::tx_nullCallback;
 }
 
 void SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
@@ -217,7 +207,7 @@ uint8_t ICACHE_RAM_ATTR SX127xDriver::TX(uint8_t *data, uint8_t length)
     }
 
     TxEnable();
-    RadioInterface::p_state_isr = NONE;
+    isr_state_set(NONE);
 
     writeRegister(SX127X_REG_PAYLOAD_LENGTH, length);
     writeRegister(SX127X_REG_FIFO_TX_BASE_ADDR, SX127X_FIFO_TX_BASE_ADDR_MAX);
@@ -229,7 +219,7 @@ uint8_t ICACHE_RAM_ATTR SX127xDriver::TX(uint8_t *data, uint8_t length)
     SetMode(SX127X_TX);
 
     unsigned long start = millis();
-    while (RadioInterface::p_state_isr == NONE)
+    while (isr_state_get() == NONE)
     {
         //yield();
         //delay(1);
@@ -296,7 +286,7 @@ void ICACHE_RAM_ATTR SX127xDriver::RxConfig(uint32_t freq)
     if (freq)
         SetFrequency(freq, 0xff);
 
-    if (headerExplMode == false && p_last_payload_len != RX_buffer_size)
+    if (p_last_payload_len != RX_buffer_size)
     {
         writeRegister(SX127X_REG_PAYLOAD_LENGTH, RX_buffer_size);
         p_last_payload_len = RX_buffer_size;
@@ -324,6 +314,7 @@ static uint8_t DMA_ATTR RXdataBuffer[16];
 
 void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint32_t rx_us, uint8_t irqs)
 {
+    //uint8_t * ptr = NULL;
     // Ignore if CRC is invalid
     if ((!(irqs & SX127X_CLEAR_IRQ_FLAG_PAYLOAD_CRC_ERROR)) &&
         (irqs & SX127X_CLEAR_IRQ_FLAG_RX_DONE))
@@ -333,8 +324,10 @@ void ICACHE_RAM_ATTR SX127xDriver::RXnbISR(uint32_t rx_us, uint8_t irqs)
         // fetch RSSI and SNR
         GetLastRssiSnr();
         // Push to application if callback is set
+        //ptr = RXdataBuffer;
         RXdoneCallback1(RXdataBuffer, rx_us);
     }
+    //RXdoneCallback1(ptr, rx_us);
 }
 
 void ICACHE_RAM_ATTR SX127xDriver::StopContRX()
@@ -351,42 +344,9 @@ void ICACHE_RAM_ATTR SX127xDriver::RXnb(uint32_t freq)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint8_t ICACHE_RAM_ATTR SX127xDriver::RX(uint32_t freq, uint8_t *data, uint8_t length, uint32_t timeout)
-{
-    RxConfig(freq);
-    RadioInterface::p_state_isr = NONE;
-    SetMode(SX127X_RXSINGLE);
-
-    uint32_t startTime = millis();
-
-    while (RadioInterface::p_state_isr == NONE)
-    {
-        if ((RadioInterface::p_state_isr == RX_TIMEOUT) ||
-            (timeout <= (millis() - startTime)))
-        {
-            return (ERR_RX_TIMEOUT);
-        }
-    }
-
-    if (RadioInterface::p_state_isr == CRC_ERROR)
-    {
-        return (ERR_CRC_MISMATCH);
-    }
-
-    if (headerExplMode)
-    {
-        length = readRegister(SX127X_REG_RX_NB_BYTES);
-    }
-
-    readRegisterBurst((uint8_t)SX127X_REG_FIFO, length, data);
-    GetLastRssiSnr();
-
-    return (ERR_NONE);
-}
-
 uint8_t SX127xDriver::RunCAD(uint32_t timeout)
 {
-    RadioInterface::p_state_isr = NONE;
+    isr_state_set(NONE);
 
     SetMode(SX127X_STANDBY);
 
@@ -396,14 +356,14 @@ uint8_t SX127xDriver::RunCAD(uint32_t timeout)
 
     uint32_t startTime = millis();
 
-    while ((RadioInterface::p_state_isr != CAD_DETECTED) && (RadioInterface::p_state_isr != CAD_DONE))
+    while ((isr_state_get() != CAD_DETECTED) && (isr_state_get() != CAD_DONE))
     {
         if (timeout <= (millis() - startTime))
         {
             return (CHANNEL_FREE);
         }
     }
-    return (RadioInterface::p_state_isr == CAD_DETECTED) ? (PREAMBLE_DETECTED) : (CHANNEL_FREE);
+    return (isr_state_get() == CAD_DETECTED) ? (PREAMBLE_DETECTED) : (CHANNEL_FREE);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -533,8 +493,6 @@ void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
 
     // save the new settings
     currBW = bw;
-    currSF = sf;
-    currCR = cr;
     current_freq = freq;
 }
 
@@ -644,9 +602,7 @@ void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t fre
     }
     writeRegister(SX127X_REG_MODEM_CONFIG_3, reg);
 
-    reg = bw | cr;
-    if (headerExplMode == false)
-        reg |= SX127X_HEADER_IMPL_MODE;
+    reg = bw | cr | SX127X_HEADER_IMPL_MODE;
     writeRegister(SX127X_REG_MODEM_CONFIG_1, reg);
 
     if (bw == SX127X_BW_500_00_KHZ)

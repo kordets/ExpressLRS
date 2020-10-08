@@ -17,8 +17,6 @@ class SX1280Driver: public RadioInterface
 public:
     ///////////Radio Variables////////
     SX1280_RadioLoRaBandwidths_t currBW;
-    SX1280_RadioLoRaSpreadingFactors_t currSF;
-    SX1280_RadioLoRaCodingRates_t currCR;
 
     /////////////Packet Stats//////////
     //uint8_t LastRadioStatus = 0;
