@@ -1,6 +1,8 @@
 #ifndef _RX_LINK_QUALITY_H__
 #define _RX_LINK_QUALITY_H__
 
+#include <string.h>
+
 uint8_t linkQualityArray[100];
 uint8_t linkQualityArrayIndex;
 
@@ -17,14 +19,10 @@ void ICACHE_RAM_ATTR LQ_packetAck(void)
     linkQualityArray[linkQualityArrayIndex] = 1;
 }
 
-void ICACHE_RAM_ATTR LQ_packetNack(void)
-{
-    linkQualityArray[linkQualityArrayIndex] = 0;
-}
-
 uint_fast8_t ICACHE_RAM_ATTR LQ_getlinkQuality()
 {
-    int_fast8_t LQ = 0, size = sizeof(linkQualityArray);
+    uint_fast8_t LQ = 0;
+    int_fast8_t size = sizeof(linkQualityArray);
     while (0 <= (--size)) {
         LQ += linkQualityArray[size];
     }
@@ -33,10 +31,7 @@ uint_fast8_t ICACHE_RAM_ATTR LQ_getlinkQuality()
 
 void ICACHE_RAM_ATTR LQ_reset()
 {
-    int size = sizeof(linkQualityArray);
-    while (0 <= (--size)) {
-        linkQualityArray[size] = 1; // set all good by default
-    };
+    memset(linkQualityArray, 1, sizeof(linkQualityArray));
     linkQualityArrayIndex = 0;
 }
 
