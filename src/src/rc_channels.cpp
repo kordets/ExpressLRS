@@ -271,6 +271,17 @@ void ICACHE_RAM_ATTR RcChannels_get_packed_data(uint8_t *const output)
     _RESTORE_IRQ(irq);
 }
 
+uint8_t ICACHE_RAM_ATTR
+RcChannels_get_arm_channel_state(void)
+{
+#if TX_SKIP_SYNC_WHEN_ARMED
+    // FIXME: expects ARM channel to be AUX1
+    return currentSwitches[0];
+#else
+    return 0;
+#endif
+}
+
 /*************************************************************************************
  * TELEMETRY OTA PACKET
  *************************************************************************************/

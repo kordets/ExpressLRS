@@ -23,6 +23,8 @@
 #endif
 #define N_CHANNELS (N_CONTROLS + N_SWITCHES)
 
+#define TX_SKIP_SYNC_WHEN_ARMED 0
+
 // expresslrs packet header types
 // 00 -> standard 4 channel data packet
 // 01 -> switch data packet
@@ -78,6 +80,8 @@ void
 RcChannels_processChannels(crsf_channels_t const *const channels);
 void ICACHE_RAM_ATTR
 RcChannels_get_packed_data(uint8_t *const output);
+uint8_t ICACHE_RAM_ATTR
+RcChannels_get_arm_channel_state(void);
 
 // RX related
 void ICACHE_RAM_ATTR

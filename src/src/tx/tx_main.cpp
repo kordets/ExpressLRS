@@ -270,7 +270,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     uint32_t __tx_buffer[(OTA_PACKET_SIZE + sizeof(uint32_t) - 1) / sizeof(uint32_t)];
     uint8_t * const tx_buffer = (uint8_t *)__tx_buffer;
     uint16_t crc;
-    uint8_t index = OTA_PACKET_DATA;
+    uint8_t index = OTA_PACKET_DATA, arm_state = RcChannels_get_arm_channel_state();
 
     crsf.UpdateOpenTxSyncOffset(current_us); // tells the crsf that we want to send data now - this allows opentx packet syncing
 
@@ -283,13 +283,13 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     freq = FHSSgetCurrFreq();
 
     //only send sync when its time and only on channel 0;
-    if ((FHSSgetCurrSequenceIndex() == 0) &&
+    if (!arm_state && (FHSSgetCurrSequenceIndex() == 0) &&
         (sync_send_interval <= (uint32_t)(current_us - SyncPacketNextSend)))
     {
         GenerateSyncPacketData(tx_buffer, rxtx_counter);
         SyncPacketNextSend = current_us;
     }
-    else if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
+    else if (!arm_state && (tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
         /* send tlm packet if needed */
         if (RcChannels_tlm_ota_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error) {
