@@ -26,9 +26,9 @@ uint32_t millis(void)
     return ms;
 }
 
-void delay(uint32_t ms)
+void delay(uint32_t const ms)
 {
-    uint32_t start = millis();
+    uint32_t const start = millis();
     //ms += millis();
     //while (timer_is_before(millis(), ms))
     //    ;
@@ -59,7 +59,12 @@ void HAL_Delay(uint32_t Delay)
 void shutdown(const char * reason)
 {
     DEBUG_PRINTF("F**k! %s\n", reason);
-    while(1);
+    uint8_t state = 0;
+    while(1) {
+        delay(50);
+        platform_set_led(state);
+        state ^= 1;
+    }
 }
 
 void _Error_Handler(const char * error, int line)
@@ -69,4 +74,3 @@ void _Error_Handler(const char * error, int line)
 }
 
 // -------------------------------------------
-
