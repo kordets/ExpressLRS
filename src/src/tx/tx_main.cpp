@@ -31,9 +31,9 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 
 /// define some libs to use ///
 #if RADIO_SX128x
-SX1280Driver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
+SX1280Driver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
 #else
-SX127xDriver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
+SX127xDriver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
 #endif
 CRSF_TX DRAM_FORCE_ATTR crsf(CrsfSerial);
 POWERMGNT DRAM_FORCE_ATTR PowerMgmt(Radio);

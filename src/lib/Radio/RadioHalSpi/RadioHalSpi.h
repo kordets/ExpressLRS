@@ -1,15 +1,15 @@
 #ifndef RADIO_HAL_SPI_H_
 #define RADIO_HAL_SPI_H_
 
-#include "HwSpi.h"
 #include <stdint.h>
+#include "gpio.h"
 
 class RadioHalSpi {
 public:
 
 protected:
-    RadioHalSpi(HwSpi &spi, uint8_t read = 0, uint8_t write = 0)
-            : spi_bus(spi), p_write(write), p_read(read) {}
+    RadioHalSpi(uint8_t read = 0, uint8_t write = 0)
+            : p_write(write), p_read(read) {}
     void Begin(uint32_t speed, int sck, int miso, int mosi, int ss);
 
     uint8_t readRegister(uint8_t reg) const;
@@ -29,7 +29,8 @@ protected:
                              uint8_t *data, uint8_t numBytes) const;
 
 private:
-    HwSpi &spi_bus;
+    struct spi_config spi_bus;
+    struct gpio_out CS;
     const uint8_t p_write;
     const uint8_t p_read;
 };

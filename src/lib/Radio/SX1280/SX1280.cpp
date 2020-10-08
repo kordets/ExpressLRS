@@ -26,8 +26,8 @@ static void ICACHE_RAM_ATTR _rxtx_isr_handler(void)
 
 /////////////////////////////////////////////////////////////////
 
-SX1280Driver::SX1280Driver(HwSpi &spi, uint8_t payload_len):
-    RadioInterface(spi, payload_len)
+SX1280Driver::SX1280Driver(uint8_t payload_len):
+    RadioInterface(payload_len)
 {
     instance = this;
     current_freq = 0; //2400000000;

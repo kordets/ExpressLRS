@@ -44,8 +44,8 @@ static void ICACHE_RAM_ATTR _rxtx_isr_handler_dio0(void)
 
 //////////////////////////////////////////////
 
-SX127xDriver::SX127xDriver(HwSpi &spi, uint8_t payload_len):
-    RadioInterface(spi, payload_len, SX127X_SPI_READ, SX127X_SPI_WRITE)
+SX127xDriver::SX127xDriver(uint8_t payload_len):
+    RadioInterface(payload_len, SX127X_SPI_READ, SX127X_SPI_WRITE)
 {
     instance = this;
 

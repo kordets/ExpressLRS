@@ -23,8 +23,8 @@ enum isr_states
 class RadioInterface : public RadioHalSpi
 {
 public:
-    RadioInterface(HwSpi &spi, uint8_t payload_len, uint8_t read = 0, uint8_t write = 0):
-            RadioHalSpi(spi, read, write), RX_buffer_size(payload_len) {
+    RadioInterface(uint8_t payload_len, uint8_t read = 0, uint8_t write = 0):
+            RadioHalSpi(read, write), RX_buffer_size(payload_len) {
         RXdoneCallback1 = RadioInterface::rx_nullCallback;
         TXdoneCallback1 = RadioInterface::tx_nullCallback;
     }

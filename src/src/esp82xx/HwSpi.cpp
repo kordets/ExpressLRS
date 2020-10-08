@@ -1,32 +1,40 @@
-#include "HwSpi.h"
-#include "targets.h"
+#include "platform.h"
+#include "gpio.h"
 #include <Arduino.h>
+#include <SPI.h>
 
-HwSpi::HwSpi() : SPIClass()
+SPIClass SpiBus;
+
+struct spi_config ICACHE_RAM_ATTR
+spi_setup(uint32_t speed, int sck, int miso, int mosi, uint8_t mode)
 {
+    uint8_t datamode[4] = {SPI_MODE0, SPI_MODE1, SPI_MODE2, SPI_MODE3};
+    if (SpiBus.pins(sck, miso, mosi, -1)) {
+        SpiBus.begin();
+        SpiBus.setHwCs(false);
+        SpiBus.setBitOrder(MSBFIRST);
+        SpiBus.setDataMode(datamode[mode]);
+        SpiBus.setFrequency(speed);
+        return {.spi = &SpiBus};
+    }
+    return {.spi = NULL};
 }
 
-void HwSpi::platform_init(uint32_t speed, int sck, int miso, int mosi)
+void ICACHE_RAM_ATTR
+spi_prepare(struct spi_config config)
 {
-    if (SPIClass::pins(sck, miso, mosi, -1)) {
-        SPIClass::begin();
-        SPIClass::setHwCs(false);
-        SPIClass::setBitOrder(MSBFIRST);
-        SPIClass::setDataMode(SPI_MODE0);
-        SPIClass::setFrequency(speed);
-    } else {
-        /* TODO: Error handling!! */
+    (void)config;
+}
+
+void ICACHE_RAM_ATTR
+spi_transfer(struct spi_config config, uint8_t receive_data,
+             uint8_t len, uint8_t *data)
+{
+    if (config.spi) {
+        SPIClass * spi = (SPIClass*)config.spi;
+        if (receive_data)
+            spi->transfer(data, len);
+        else
+            spi->writeBytes(data, len);
     }
 }
-
-void ICACHE_RAM_ATTR HwSpi::write(uint8_t data)
-{
-    SPIClass::write(data);
-}
-
-void ICACHE_RAM_ATTR HwSpi::write(uint8_t *data, uint8_t numBytes)
-{
-    SPIClass::writeBytes((uint8_t *)data, numBytes);
-}
-
-HwSpi RadioSpi;

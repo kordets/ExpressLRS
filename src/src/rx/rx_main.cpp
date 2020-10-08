@@ -29,9 +29,9 @@ void ICACHE_RAM_ATTR LostConnection();
 ///////////////////
 
 #if RADIO_SX128x
-SX1280Driver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
+SX1280Driver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
 #else
-SX127xDriver DRAM_FORCE_ATTR Radio(RadioSpi, OTA_PACKET_SIZE);
+SX127xDriver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
 #endif
 CRSF_RX DRAM_FORCE_ATTR crsf(CrsfSerial); //pass a serial port object to the class for it to use
 

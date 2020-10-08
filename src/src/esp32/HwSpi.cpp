@@ -1,31 +1,33 @@
-#include "HwSpi.h"
-#include "targets.h"
+#include "platform.h"
 #include <Arduino.h>
+#include <SPI.h>
 
-HwSpi::HwSpi() : SPIClass()
+SPIClass DRAM_ATTR SpiBus;
+
+struct spi_config ICACHE_RAM_ATTR
+spi_setup(uint32_t speed, int sck, int miso, int mosi, uint8_t mode)
 {
+    SpiBus.begin(sck, miso, mosi, -1);
+    SpiBus.setDataMode(mode);
+    SpiBus.setFrequency(speed);
+    return {.spi = &SpiBus};
 }
 
-void HwSpi::platform_init(uint32_t speed, int sck, int miso, int mosi)
+void ICACHE_RAM_ATTR
+spi_prepare(struct spi_config config)
 {
-    // sck, miso, mosi, ss (ss can be any GPIO)
-    SPIClass::begin(sck, miso, mosi, -1);
-    SPIClass::setDataMode(SPI_MODE0); // mode0 by default
-    SPIClass::setFrequency(speed);
+    (void)config;
 }
 
-void ICACHE_RAM_ATTR HwSpi::write(uint8_t data)
+void ICACHE_RAM_ATTR
+spi_transfer(struct spi_config config, uint8_t receive_data,
+             uint8_t len, uint8_t *data)
 {
+    SPIClass * spi = (SPIClass*)config.spi;
     taskDISABLE_INTERRUPTS();
-    SPIClass::write(data);
+    if (receive_data)
+        spi->transfer(data, len);
+    else
+        spi->writeBytes(data, len);
     taskENABLE_INTERRUPTS();
 }
-
-void ICACHE_RAM_ATTR HwSpi::write(uint8_t *data, uint8_t numBytes)
-{
-    taskDISABLE_INTERRUPTS();
-    SPIClass::writeBytes((uint8_t *)data, numBytes);
-    taskENABLE_INTERRUPTS();
-}
-
-HwSpi RadioSpi;

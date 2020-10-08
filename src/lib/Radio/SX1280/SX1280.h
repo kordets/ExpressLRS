@@ -22,7 +22,7 @@ public:
     //uint8_t LastRadioStatus = 0;
 
     ////////////////Configuration Functions/////////////
-    SX1280Driver(HwSpi &spi, uint8_t payload_len = RX_BUFFER_LEN);
+    SX1280Driver(uint8_t payload_len = RX_BUFFER_LEN);
     void Begin(int sck, int miso, int mosi, int ss);
     void End(void);
     int16_t MeasureNoiseFloor(uint32_t num_meas, uint32_t freq);

@@ -33,4 +33,13 @@ typedef void (*isr_cb_t)(void);
 void gpio_in_isr(struct gpio_in g, isr_cb_t func, uint8_t type);
 void gpio_in_isr_remove(struct gpio_in g);
 
+
+struct spi_config
+{
+    void *spi;
+};
+struct spi_config spi_setup(uint32_t speed, int sck, int miso, int mosi, uint8_t mode);
+void spi_prepare(struct spi_config config);
+void spi_transfer(struct spi_config config, uint8_t receive_data, uint8_t len, uint8_t *data);
+
 #endif /*_GPIO_H__*/
