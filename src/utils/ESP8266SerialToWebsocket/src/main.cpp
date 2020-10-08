@@ -9,7 +9,12 @@
 #endif /* WIFI_MANAGER */
 #include <ESP8266HTTPUpdateServer.h>
 #include <FS.h>
+#ifdef USE_LITTLE_FS
 #include <LittleFS.h>
+#define FILESYSTEM LittleFS
+#else
+#define FILESYSTEM SPIFFS
+#endif
 
 #include "stm32Updater.h"
 #include "msp.h"
@@ -634,7 +639,7 @@ void handleFileUpload()
   if (upload.status == UPLOAD_FILE_START)
   {
 
-    if (LittleFS.info(fs_info))
+    if (FILESYSTEM.info(fs_info))
     {
       String output;
       output += "Filesystem: used: ";
@@ -656,7 +661,7 @@ void handleFileUpload()
     {
       uploadedfilename = "/" + uploadedfilename;
     }
-    fsUploadFile = LittleFS.open(uploadedfilename, "w"); // Open the file for writing in SPIFFS (create if it doesn't exist)
+    fsUploadFile = FILESYSTEM.open(uploadedfilename, "w"); // Open the file for writing in SPIFFS (create if it doesn't exist)
   }
   else if (upload.status == UPLOAD_FILE_WRITE)
   {
@@ -696,7 +701,7 @@ void handleFileUpload()
     else
     {
       server.send(500, "text/plain", "500: couldn't create file");
-      LittleFS.format();
+      FILESYSTEM.format();
     }
   }
 }
@@ -840,7 +845,7 @@ void setup()
   Serial.begin(460800); // non-inverted serial
 #endif
 
-  LittleFS.begin();
+  FILESYSTEM.begin();
 
   wifi_station_set_hostname("elrs_tx");
 
