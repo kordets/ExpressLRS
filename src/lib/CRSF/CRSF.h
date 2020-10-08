@@ -252,7 +252,6 @@ class CRSF
 {
 public:
     CRSF(HwSerial *dev) : _dev(dev) {}
-    CRSF(HwSerial &dev) : _dev(&dev) {}
 
     void Begin();
 
@@ -267,11 +266,11 @@ public:
     void LinkStatisticsExtract(uint8_t const *const data,
                                int8_t snr,
                                uint8_t rssi);
-    void ICACHE_RAM_ATTR LinkStatisticsPack(uint8_t *const output,
-                                            uint_fast8_t ul_lq);
+    void LinkStatisticsPack(uint8_t *const output,
+                                            uint_fast8_t ul_lq) const;
 
-    void ICACHE_RAM_ATTR GpsStatsExtract(uint8_t const *const data);
-    uint8_t ICACHE_RAM_ATTR GpsStatsPack(uint8_t *const output);
+    void GpsStatsExtract(uint8_t const *const data);
+    uint8_t GpsStatsPack(uint8_t *const output);
 
     crsfPayloadLinkstatistics_s LinkStatistics; // Link Statisitics Stored as Struct
     crsf_sensor_battery_s TLMbattSensor;
@@ -279,9 +278,9 @@ public:
 
 protected:
     uint8_t *ParseInByte(uint8_t inChar);
-    virtual void LinkStatisticsSend(void) = 0;
+    virtual void LinkStatisticsSend(void) const = 0;
 
-    HwSerial *_dev;
+    HwSerial * const _dev;
 
     /// UART validity check ///
     uint32_t GoodPktsCount;

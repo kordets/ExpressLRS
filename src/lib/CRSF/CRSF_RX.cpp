@@ -3,6 +3,9 @@
 #include "debug_elrs.h"
 #include <string.h>
 
+crsf_channels_msg_s DMA_ATTR p_crsf_channels;
+crsf_msp_packet_fc_t DMA_ATTR msp_packet;
+
 void CRSF_RX::Begin(void)
 {
     LinkStatistics.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
@@ -32,7 +35,7 @@ void CRSF_RX::Begin(void)
     CRSF::Begin();
 }
 
-void ICACHE_RAM_ATTR CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size)
+void ICACHE_RAM_ATTR CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size) const
 {
     buff[size - 1] = CalcCRC(&buff[2], (buff[1] - 1));
 #if !NO_DATA_TO_FC
@@ -42,18 +45,18 @@ void ICACHE_RAM_ATTR CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size)
 #endif
 }
 
-void CRSF_RX::LinkStatisticsSend()
+void CRSF_RX::LinkStatisticsSend(void) const
 {
     sendFrameToFC((uint8_t*)&LinkStatistics, sizeof(LinkStatistics));
 }
 
-void ICACHE_RAM_ATTR CRSF_RX::sendRCFrameToFC(crsf_channels_t * channels)
+void ICACHE_RAM_ATTR CRSF_RX::sendRCFrameToFC(crsf_channels_t * channels) const
 {
     memcpy(&p_crsf_channels.data, (void*)channels, sizeof(crsf_channels_t));
     sendFrameToFC((uint8_t*)&p_crsf_channels, sizeof(p_crsf_channels));
 }
 
-void ICACHE_RAM_ATTR CRSF_RX::sendMSPFrameToFC(uint8_t const *const packet, uint8_t len)
+void ICACHE_RAM_ATTR CRSF_RX::sendMSPFrameToFC(uint8_t const *const packet, uint8_t len) const
 {
     uint8_t i;
 

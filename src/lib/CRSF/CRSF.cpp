@@ -62,7 +62,7 @@ void CRSF::LinkStatisticsExtract(uint8_t const *const input,
 }
 
 void ICACHE_RAM_ATTR CRSF::LinkStatisticsPack(uint8_t *const output,
-                                              uint_fast8_t ul_lq)
+                                              uint_fast8_t ul_lq) const
 {
     // NOTE: output is only 5 bytes + 6bits (MSB)!!
 

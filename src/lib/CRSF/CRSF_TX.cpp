@@ -68,34 +68,34 @@ void CRSF_TX::Begin(void)
     p_UartNextCheck = millis(); //  +UARTwdtInterval * 2;
 }
 
-void ICACHE_RAM_ATTR CRSF_TX::CrsfFramePushToFifo(uint8_t *buff, uint8_t size)
+void ICACHE_RAM_ATTR CRSF_TX::CrsfFramePushToFifo(uint8_t *buff, uint8_t size) const
 {
     buff[size - 1] = CalcCRC(&buff[2], (buff[1] - 1));
     _dev->write(buff, size);
     platform_wd_feed();
 }
 
-void CRSF_TX::LinkStatisticsSend(void)
+void CRSF_TX::LinkStatisticsSend(void) const
 {
     send_buffers |= SEND_LNK_STAT;
 }
-void CRSF_TX::LinkStatisticsProcess(void)
+void CRSF_TX::LinkStatisticsProcess(void) const
 {
     send_buffers &= ~SEND_LNK_STAT;
     CrsfFramePushToFifo((uint8_t*)&LinkStatistics, sizeof(LinkStatistics));
 }
 
-void CRSF_TX::BatterySensorSend(void)
+void CRSF_TX::BatterySensorSend(void) const
 {
     send_buffers |= SEND_BATT;
 }
-void CRSF_TX::BatteryStatisticsProcess(void)
+void CRSF_TX::BatteryStatisticsProcess(void) const
 {
     send_buffers &= ~SEND_BATT;
     CrsfFramePushToFifo((uint8_t*)&TLMbattSensor, sizeof(TLMbattSensor));
 }
 
-void CRSF_TX::GpsSensorSend(void)
+void CRSF_TX::GpsSensorSend(void) const
 {
     if (TLMGPSsensor.valid)
         send_buffers |= SEND_GPS;
@@ -107,18 +107,18 @@ void CRSF_TX::GpsSensorProcess(void)
     TLMGPSsensor.valid = false;
 }
 
-void CRSF_TX::sendLUAresponseToRadio(uint8_t *data, uint8_t size)
+void CRSF_TX::sendLUAresponseToRadio(uint8_t * const data, uint8_t const size) const
 {
     memcpy(p_lua_packet.buffer, data, size);
     send_buffers |= SEND_LUA;
 }
-void CRSF_TX::LuaResponseProcess(void)
+void CRSF_TX::LuaResponseProcess(void) const
 {
     send_buffers &= ~SEND_LUA;
     CrsfFramePushToFifo((uint8_t*)&p_lua_packet, sizeof(p_lua_packet));
 }
 
-void CRSF_TX::sendMspPacketToRadio(mspPacket_t &msp)
+void CRSF_TX::sendMspPacketToRadio(mspPacket_t &msp) const
 {
     if (!p_RadioConnected)
         return;
@@ -147,12 +147,11 @@ int CRSF_TX::sendSyncPacketToRadio()
 #if (FEATURE_OPENTX_SYNC)
     if (RCdataLastRecv && p_RadioConnected)
     {
-        uint32_t current = millis();
-        int32_t offset = (int32_t)(OpenTXsyncOffset - RequestedRCpacketAdvance);
-
+        uint32_t const current = millis();
         // Adjust radio timing if not in requested window or not sent within 200ms
-        if (OpenTXsyncPakcetInterval <= (current - OpenTXsynNextSend))
+        if (OTX_SYNC_INTERVAL <= (current - OpenTXsynNextSend))
         {
+            int32_t offset = (int32_t)(OpenTXsyncOffset - OTX_SYNC_ADVANCE);
             OpenTXsynNextSend = current;
 
             //DEBUG_PRINTF("Sync: int=%u,off=%d\n", RequestedRCpacketInterval, offset);
@@ -174,7 +173,7 @@ void CRSF_TX::processPacket(uint8_t const *input)
     {
         p_RadioConnected = true;
 #if (FEATURE_OPENTX_SYNC)
-        RCdataLastRecv = 0;
+        write_u32(&RCdataLastRecv, 0);
         OpenTXsynNextSend = millis();
 #endif
         DEBUG_PRINTF("CRSF Connected. Baud %uk\n", (p_slowBaudrate ? 115 : 400));
@@ -186,7 +185,7 @@ void CRSF_TX::processPacket(uint8_t const *input)
         case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
         {
 #if (FEATURE_OPENTX_SYNC)
-            RCdataLastRecv = micros();
+            write_u32(&RCdataLastRecv, micros());
 #endif
             (RCdataCallback1)((crsf_channels_t *)&input[1]); // run new RC data callback
             break;

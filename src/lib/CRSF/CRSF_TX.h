@@ -24,10 +24,7 @@ typedef struct elrs_lua_packet_s
 class CRSF_TX : public CRSF
 {
 public:
-    CRSF_TX(HwSerial *dev) : CRSF(dev) {
-        setRcPacketRate(5000); // default to 200hz as per 'normal'
-    }
-    CRSF_TX(HwSerial &dev) : CRSF(dev) {
+    CRSF_TX(HwSerial &dev) : CRSF(&dev) {
         setRcPacketRate(5000); // default to 200hz as per 'normal'
     }
 
@@ -37,14 +34,14 @@ public:
     uint8_t handleUartIn(volatile uint8_t &rx_data_rcvd);
 
     // Send to RADIO
-    void LinkStatisticsSend(void);
-    void BatterySensorSend(void);
-    void GpsSensorSend(void);
-    void sendLUAresponseToRadio(uint8_t *data, uint8_t len);
-    void sendMspPacketToRadio(mspPacket_t &msp);
+    void LinkStatisticsSend(void) const;
+    void BatterySensorSend(void) const;
+    void GpsSensorSend(void) const;
+    void sendLUAresponseToRadio(uint8_t * const data, uint8_t len) const;
+    void sendMspPacketToRadio(mspPacket_t &msp) const;
 
     // OpenTX Syncing
-    void ICACHE_RAM_ATTR setRcPacketRate(uint32_t interval)
+    void ICACHE_RAM_ATTR setRcPacketRate(uint32_t const interval)
     {
 #if (FEATURE_OPENTX_SYNC)
         // Scale value to correct format
@@ -52,7 +49,7 @@ public:
 #endif
     }
 
-    void ICACHE_RAM_ATTR UpdateOpenTxSyncOffset(uint32_t current_us) // called from timer
+    void ICACHE_RAM_ATTR UpdateOpenTxSyncOffset(uint32_t const current_us)
     {
 #if (FEATURE_OPENTX_SYNC)
         OpenTXsyncOffset = (int32_t)(current_us - RCdataLastRecv);
@@ -67,16 +64,16 @@ public:
 private:
     void uart_wdt(void);
     void processPacket(uint8_t const *input);
-    void ICACHE_RAM_ATTR CrsfFramePushToFifo(uint8_t *buff, uint8_t size);
-    void LinkStatisticsProcess(void);
-    void BatteryStatisticsProcess(void);
+    void CrsfFramePushToFifo(uint8_t *buff, uint8_t size) const;
+    void LinkStatisticsProcess(void) const;
+    void BatteryStatisticsProcess(void) const;
     void GpsSensorProcess(void);
-    void LuaResponseProcess(void);
+    void LuaResponseProcess(void) const;
 
 #if (FEATURE_OPENTX_SYNC)
 
-#define OpenTXsyncPakcetInterval 200 // in ms
-#define RequestedRCpacketAdvance 500 // 800 timing adcance in us
+#define OTX_SYNC_INTERVAL   200 // in ms
+#define OTX_SYNC_ADVANCE    500 // 800 timing adcance in us
 
     uint32_t RCdataLastRecv;
     int32_t OpenTXsyncOffset;
@@ -88,7 +85,6 @@ private:
     // for the UART wdt, every 1000ms we change bauds when connect is lost
 #define UARTwdtInterval 1000
     uint32_t p_UartNextCheck;
-
     bool p_slowBaudrate;
     bool p_RadioConnected; // connected state
 };
