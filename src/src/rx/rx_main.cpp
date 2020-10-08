@@ -29,6 +29,7 @@ void ICACHE_RAM_ATTR LostConnection();
 
 #if PRINT_RATE && NO_DATA_TO_FC
 uint32_t print_rate_cnt;
+uint32_t print_rate_cnt_fail;
 uint32_t print_Rate_cnt_time;
 #endif
 
@@ -278,9 +279,15 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 #else // USE_TIMER_KICK
         TxTimer.reset(-TIMER_OFFSET);
 #endif // USE_TIMER_KICK
+#if PRINT_RATE && NO_DATA_TO_FC
+        print_rate_cnt++;
+#endif
     }
     else
     {
+#if PRINT_RATE && NO_DATA_TO_FC
+        print_rate_cnt_fail++;
+#endif
 #if !USE_TIMER_KICK
         TxTimer.setTime(); // Reset timer interval
 #else
@@ -440,9 +447,6 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
         DEBUG_PRINTF(" !");
         return;
     }
-#if PRINT_RATE && NO_DATA_TO_FC
-    print_rate_cnt++;
-#endif
 
     freq_err = Radio.GetFrequencyError();
 
@@ -779,8 +783,12 @@ void loop()
 
 #if PRINT_RATE && NO_DATA_TO_FC
     if (1000 <= (uint32_t)(now - print_Rate_cnt_time)) {
-        DEBUG_PRINTF("Pkt Rate: %u\n", read_u32(&print_rate_cnt));
+        DEBUG_PRINTF(" Rate: -%u +%u LQ:%u\n",
+            read_u32(&print_rate_cnt_fail),
+            read_u32(&print_rate_cnt),
+            read_u8(&uplink_Link_quality));
         write_u32(&print_rate_cnt, 0);
+        write_u32(&print_rate_cnt_fail, 0);
         print_Rate_cnt_time = now;
     }
 #endif
