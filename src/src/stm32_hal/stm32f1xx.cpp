@@ -225,44 +225,38 @@ void timer_init(void)
 }
 
 
-/**
-  * @brief  System Clock Configuration
-  *         The system Clock is configured as follow :
-  *            System Clock source            = PLL (HSE)
-  *            SYSCLK(Hz)                     = 72000000
-  *            HCLK(Hz)                       = 72000000
-  *            AHB Prescaler                  = 1
-  *            APB1 Prescaler                 = 2
-  *            APB2 Prescaler                 = 1
-  *            PLL_Source                     = HSE
-  *            PLL_Mul                        = 9
-  *            Flash Latency(WS)              = 2
-  *            ADC Prescaler                  = 6
-  *            USB Prescaler                  = 1.5
-  * @param  None
-  * @retval None
-  */
 void SystemClock_Config(void)
 {
-    uint32_t FLatency = FLASH_LATENCY_2; // delay = (CPU CLK / 24MHz)
     RCC_OscInitTypeDef RCC_OscInitStruct;
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
     RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
     /* Initializes the CPU, AHB and APB busses clocks */
-#if !USE_INTERNAL_XO
+#if !USE_INTERNAL_XO && defined(HSE_VALUE)
+#define CPU_CLK_MAX 72000000LU
+#if (CPU_CLK_MAX / HSE_VALUE) < 2
+#error "Invalid HSE VALUE!"
+#endif
     // CPU_CLK to 72MHz
+    uint32_t PLLMUL = CPU_CLK_MAX / HSE_VALUE;
+    if (16 < PLLMUL)
+        PLLMUL = 16; // limit to max
+    PLLMUL = (PLLMUL - 2) << RCC_CFGR_PLLMULL_Pos;
+
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
     RCC_OscInitStruct.HSEState = RCC_HSE_ON;
     RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    //RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9; // 8MHz * 9 = 72MHz
-    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6; // 12MHz * 6 = 72MHz
+    RCC_OscInitStruct.PLL.PLLMUL = PLLMUL;
 #else // USE_INTERNAL_XO
+#if HSI_VALUE != 8000000
+#error "Wrong config! HSI VALUE is 8MHz!"
+#endif
     // CPU_CLK to 64MHz (max)
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI; // HSI = 8MHz
+    RCC_OscInitStruct.HSEState = RCC_HSE_OFF;
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
     RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -280,7 +274,8 @@ void SystemClock_Config(void)
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
-    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLatency) != HAL_OK) {
+    /* Flash latency = (CpuClock / 24) - 1  = 2WS */
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
         Error_Handler();
     }
 

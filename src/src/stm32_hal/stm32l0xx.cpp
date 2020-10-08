@@ -190,25 +190,12 @@ void timer_init(void)
 }
 
 
-/**
-  * @brief  System Clock Configuration
-  *         The system Clock is configured as follow :
-  *            System Clock source            = PLL (HSE)
-  *            SYSCLK(Hz)                     = 72000000
-  *            HCLK(Hz)                       = 72000000
-  *            AHB Prescaler                  = 1
-  *            APB1 Prescaler                 = 2
-  *            APB2 Prescaler                 = 1
-  *            PLL_Source                     = HSE
-  *            PLL_Mul                        = 9
-  *            Flash Latency(WS)              = 2
-  *            ADC Prescaler                  = 6
-  *            USB Prescaler                  = 1.5
-  * @param  None
-  * @retval None
-  */
 void SystemClock_Config(void)
 {
+#if HSI_VALUE != 16000000
+#error "Wrong config! HSI VALUE is 16MHz!"
+#endif
+
     RCC_OscInitTypeDef RCC_OscInitStruct;
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
     RCC_PeriphCLKInitTypeDef PeriphClkInit;
@@ -220,13 +207,17 @@ void SystemClock_Config(void)
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
     /* Initializes the CPU, AHB and APB busses clocks */
+    /*
+     * PLLVCO = PLL clock entry * PLLMUL
+     * PLL clock output = PLLVCO / PLLDIV
+     */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
     RCC_OscInitStruct.HSEState = RCC_HSE_OFF;
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL4;
-    RCC_OscInitStruct.PLL.PLLDIV = RCC_PLL_DIV2;
+    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL4; // 16MHz * 4 = 64Mhz
+    RCC_OscInitStruct.PLL.PLLDIV = RCC_PLL_DIV2; // 64Mhz / 2 = 32MHz (System Clock)
     RCC_OscInitStruct.HSICalibrationValue = 0x10;
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
         Error_Handler();
@@ -239,6 +230,7 @@ void SystemClock_Config(void)
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+    /* Flash latency = (CpuClock / 16) - 1  = 1WS */
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK) {
         Error_Handler();
     }
