@@ -334,7 +334,11 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     uart->BRR = div;
 #endif
 #else
+#if defined(STM32F1xx)
     LL_USART_SetBaudRate(uart, pclk, baud);
+#else
+    LL_USART_SetBaudRate(uart, pclk, LL_USART_OVERSAMPLING_16, baud);
+#endif
 #endif
 
     /* Create UART CR1 configurations for TX and RX modes */
