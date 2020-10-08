@@ -25,6 +25,12 @@ void ICACHE_RAM_ATTR LostConnection();
 #define SEND_LINK_STATS_TO_FC_INTERVAL 100
 #define PRINT_FREQ_ERROR               0
 //#define NUM_FAILS_TO_RESYNC            100
+#define PRINT_RATE 1
+
+#if PRINT_RATE && NO_DATA_TO_FC
+uint32_t print_rate_cnt;
+uint32_t print_Rate_cnt_time;
+#endif
 
 ///////////////////
 
@@ -434,6 +440,9 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
         DEBUG_PRINTF(" !");
         return;
     }
+#if PRINT_RATE && NO_DATA_TO_FC
+    print_rate_cnt++;
+#endif
 
     freq_err = Radio.GetFrequencyError();
 
@@ -710,7 +719,7 @@ void loop()
     if (STATE_lost < _conn_state)
     {
         // check if connection is lost or in very bad shape
-        if (ExpressLRS_currAirRate->connectionLostTimeout <= (now - read_u32(&LastValidPacket))
+        if (ExpressLRS_currAirRate->connectionLostTimeout <= (int32_t)(now - read_u32(&LastValidPacket))
             /*|| read_u8(&uplink_Link_quality) <= 10*/)
         {
             LostConnection();
@@ -767,4 +776,12 @@ void loop()
     platform_loop(_conn_state);
 
     platform_wd_feed();
+
+#if PRINT_RATE && NO_DATA_TO_FC
+    if (1000 <= (uint32_t)(now - print_Rate_cnt_time)) {
+        DEBUG_PRINTF("Pkt Rate: %u\n", read_u32(&print_rate_cnt));
+        write_u32(&print_rate_cnt, 0);
+        print_Rate_cnt_time = now;
+    }
+#endif
 }
