@@ -2,44 +2,31 @@
 #include "internal.h"
 #include "gpio.h" // i2c_setup
 #include "utils.h"
+#include "helpers.h"
 
-constexpr uint8_t i2c_cnt = 0
+#define I2C_FUNCTION (uint8_t)(GPIO_FUNCTION(4) | GPIO_OPEN_DRAIN)
+
+struct i2c_info {
+    I2C_HandleTypeDef handle;
+    uint16_t function;
+    uint8_t sda_pin, scl_pin;
+};
+
+static struct i2c_info i2c_bus[] = {
 #ifdef I2C1_BASE
-    + 1
+    {{.Instance = I2C1}, I2C_FUNCTION, GPIO('B',  7), GPIO('B', 6)},
+    //{I2C1, I2C_FUNCTION, GPIO('A', 10), GPIO('A', 9)},
 #endif
 #ifdef I2C2_BASE
-    + 1
+    {{.Instance = I2C2}, I2C_FUNCTION, GPIO('B', 11), GPIO('B', 10)},
 #endif
 #ifdef I2C3_BASE
-    + 1
+    {{.Instance = I2C3}, I2C_FUNCTION, GPIO('B',  4), GPIO('A', 7)},
 #endif
-    ;
-I2C_HandleTypeDef i2c_handles[i2c_cnt];
+};
 
-void* i2c_setup(uint32_t rate, uint8_t own_addr, uint8_t index)
+void* i2c_setup(I2C_HandleTypeDef * handle, uint32_t rate, uint8_t own_addr)
 {
-    I2C_HandleTypeDef * handle = &i2c_handles[index];
-
-    switch (index) {
-#ifdef I2C1_BASE
-        case 0:
-            handle->Instance = I2C1;
-            break;
-#endif
-#ifdef I2C2_BASE
-        case 1:
-            handle->Instance = I2C2;
-            break;
-#endif
-#ifdef I2C3_BASE
-        case 2:
-            handle->Instance = I2C3;
-            break;
-#endif
-        default:
-            return NULL;
-    }
-
     enable_pclock((uint32_t)handle->Instance);
 
 #if defined(STM32F1xx) && defined(I2C_DUTYCYCLE_2)
@@ -86,17 +73,15 @@ void I2C::setSCL(uint32_t scl)
 
 void I2C::begin()
 {
-    uint8_t index = 2;
-    if (scl_pin == GPIO('B', 6) && sda_pin == GPIO('B', 7))
-        index = 0;
-    else if (scl_pin == GPIO('B', 10) && sda_pin == GPIO('B', 11))
-        index = 1;
-    if (index < 2) {
-        // TODO: Setup gpio AFIO!
-        gpio_peripheral(scl_pin, GPIO_FUNCTION(4) | GPIO_OPEN_DRAIN, 0);
-        gpio_peripheral(sda_pin, GPIO_FUNCTION(4) | GPIO_OPEN_DRAIN, 0);
-
-        i2c = i2c_setup(100000, 0x33, index);
+    uint8_t index;
+    for (index = 0; index < ARRAY_SIZE(i2c_bus); index++) {
+        struct i2c_info *info = (struct i2c_info *)&i2c_bus[index];
+        if (scl_pin == info->scl_pin && sda_pin == info->sda_pin) {
+            gpio_peripheral(scl_pin, info->function, 0);
+            gpio_peripheral(sda_pin, info->function, 0);
+            i2c = i2c_setup(&info->handle, 100000, 0x33);
+            break;
+        }
     }
 }
 
