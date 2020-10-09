@@ -44,6 +44,7 @@
 #define UART_ENABLE_DMA_RX 0 // Don't enable yet
 #define UART_ENABLE_DMA_TX 1
 
+
 #define DIV_ROUND_CLOSEST(x, divisor) ({       \
     typeof(divisor) __divisor = divisor;       \
     (((x) + ((__divisor) / 2)) / (__divisor)); \
@@ -90,15 +91,15 @@ enum {
     USE_DMA_TX      = UART_ENABLE_DMA_TX << 2,
 };
 
-int8_t DMA_transmit(HardwareSerial * ptr, uint8_t dma_ch)
+int8_t DMA_transmit(HardwareSerial * serial, uint8_t dma_ch)
 {
-    DMA_TypeDef * dma = (DMA_TypeDef *)ptr->dma_unit_tx;
+    DMA_TypeDef * dma = (DMA_TypeDef *)serial->dma_unit_tx;
     //irqstatus_t irqs = irq_save();
 
     /* Check if TX ongoing... */
     /*if (!LL_DMA_IsEnabledChannel(dma, dma_ch))*/ {
         /* Check if something to send */
-        uint32_t len = 0, data = (uint32_t)ptr->tx_pool_get(&len);
+        uint32_t len = 0, data = (uint32_t)serial->tx_pool_get(&len);
         if (data && len) {
             //LL_DMA_DisableChannel(dma, dma_ch);
             /* Clear all irq flags */
@@ -107,7 +108,7 @@ int8_t DMA_transmit(HardwareSerial * ptr, uint8_t dma_ch)
             LL_DMA_SetMemoryAddress(dma, dma_ch, data);
             LL_DMA_SetDataLength(dma, dma_ch, len);
             /* enable tx */
-            ptr->hw_enable_transmitter();
+            serial->hw_enable_transmitter();
             /* Start transfer */
             LL_DMA_EnableChannel(dma, dma_ch);
             return 0;
@@ -117,6 +118,22 @@ int8_t DMA_transmit(HardwareSerial * ptr, uint8_t dma_ch)
     //irq_restore(irqs);
     return -1;
 }
+
+#if UART_USE_TX_POOL_ONLY
+int8_t UART_transmit(HardwareSerial * serial)
+{
+    //irqstatus_t irqs = irq_save();
+    uint32_t len = 0;
+    uint8_t* data = serial->tx_pool_get(&len);
+    if (data && len) {
+        serial->tx_buffer_ptr = data;
+        serial->tx_buffer_len = len;
+        return 0;
+    }
+    //irq_restore(irqs);
+    return -1;
+}
+#endif
 
 void USART_IDLE_IRQ_handler(uint32_t index)
 {
@@ -153,24 +170,35 @@ void USART_IDLE_IRQ_handler(uint32_t index)
     // Check if TX is enabled and TX Empty IRQ triggered
     if ((SR & USART_SR_TXE) && (CR1 & USART_CR1_TXEIE)) {
         //  Check if data available
+#if UART_USE_TX_POOL_ONLY
+        if (serial->tx_buffer_len) {
+            uart->TxDataReg = *serial->tx_buffer_ptr++;
+            serial->tx_buffer_len--;
+        } else if (UART_transmit(serial) < 0) {
+            serial->hw_enable_receiver();
+        }
+#else
         if (serial->tx_head <= serial->tx_tail)
             serial->hw_enable_receiver();
         else
             uart->TxDataReg = serial->tx_buffer[serial->tx_tail++];
+#endif
     }
 }
 
 void USARTx_DMA_handler(uint32_t index)
 {
-    if (serial_cnt <= index) return;
+    if (serial_cnt <= index)
+        return;
     HardwareSerial *serial = _started_serials[index];
-    if (!serial) return;
+    if (!serial || !serial->dma_unit_tx)
+        return;
     uint32_t channel = serial->dma_ch_tx;
     DMA_TypeDef * dma = (DMA_TypeDef *)serial->dma_unit_tx;
     uint32_t sr = dma->ISR, mask = (DMA_ISR_TCIF1_Msk << (4 * (channel-1)));
     if (sr & mask) {
         LL_DMA_DisableChannel(dma, channel);
-        if (serial && DMA_transmit(serial, channel) < 0)
+        if (DMA_transmit(serial, channel) < 0)
             serial->hw_enable_receiver();
         dma->IFCR = mask;
     }
@@ -258,7 +286,20 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
 
     /* Init RX buffer */
     rx_head = rx_tail = 0;
+#if UART_USE_TX_POOL_ONLY
+    tx_buffer_ptr = NULL;
+    tx_buffer_len = 0;
+#else
     tx_head = tx_tail = 0;
+#endif
+
+    /* Init TX list */
+    tx_pool_tail = tx_pool_head = tx_pool;
+    uint8_t iter;
+    for (iter = 0; iter < (sizeof(tx_pool)/sizeof(tx_pool[0]) - 1); iter++) {
+        tx_pool[iter].next = &tx_pool[iter+1];
+    }
+    tx_pool[iter].next = &tx_pool[0];
 
     dmaptr = (DMA_TypeDef *)dma_get((uint32_t)uart, DMA_USART_RX, 0);
     if ((p_use_dma & USE_DMA_RX) && dmaptr) {
@@ -294,14 +335,6 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
 
     dmaptr = (DMA_TypeDef *)dma_get((uint32_t)uart, DMA_USART_TX, 0);
     if ((p_use_dma & USE_DMA_TX) && dmaptr) {
-        /* Init TX list */
-        tx_pool_tail = tx_pool_head = tx_pool;
-        uint8_t iter;
-        for (iter = 0; iter < (sizeof(tx_pool)/sizeof(tx_pool[0]) - 1); iter++) {
-            tx_pool[iter].next = &tx_pool[iter+1];
-        }
-        tx_pool[iter].next = &tx_pool[0];
-
         enable_pclock((uint32_t)dmaptr);
         dma_unit_tx = dmaptr;
 
@@ -413,19 +446,29 @@ int HardwareSerial::read(void)
 void HardwareSerial::flush(void)
 {
     // Wait until data is sent
-    while(read_u8(&tx_head) != read_u8(&tx_tail))
-        ;
+    //while(read_u8(&tx_head) != read_u8(&tx_tail))
+    //    ;
 }
 
 uint32_t HardwareSerial::write(const uint8_t *buff, uint32_t len)
 {
+#if UART_USE_TX_POOL_ONLY
+    tx_pool_add(buff, len);
+#endif
     if (p_use_dma & USE_DMA_TX) {
+#if !UART_USE_TX_POOL_ONLY
         tx_pool_add(buff, len);
+#endif
         if (!LL_DMA_IsEnabledChannel(DMA1, dma_ch_tx))
             DMA_transmit(this, dma_ch_tx);
     } else {
+#if UART_USE_TX_POOL_ONLY
+        if (!read_u32(&tx_buffer_len)) {
+            UART_transmit(this);
+            hw_enable_transmitter();
+        }
+#else
         //irqstatus_t flag = irq_save();
-
         // push data into tx_buffer...
         uint8_t tmax = read_u8(&tx_head), tpos = read_u8(&tx_tail);
         if (tpos >= tmax) {
@@ -449,12 +492,9 @@ uint32_t HardwareSerial::write(const uint8_t *buff, uint32_t len)
 
         memcpy(&tx_buffer[tmax], buff, len);
         write_u8(&tx_head, (tmax + len));
-
         //irq_restore(flag);
         hw_enable_transmitter();
-
-        /* flush... */
-        //while(read_u8(&tx_head) != read_u8(&tx_tail));
+#endif
     }
     return len;
 }
