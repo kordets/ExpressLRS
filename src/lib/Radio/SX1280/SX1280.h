@@ -7,6 +7,14 @@
 // speed up to 10 MHz, SX1280 can handle up to 18MHz
 #define SX128X_SPI_SPEED (10000000)
 
+#define EFE_NO_DOUBLE 1
+
+#if EFE_NO_DOUBLE
+typedef uint32_t efe_scaler_t;
+#else // !EFE_NO_DOUBLE
+typedef double efe_scaler_t;
+#endif // EFE_NO_DOUBLE
+
 // SX127x compatible typedef
 typedef SX1280_RadioLoRaBandwidths_t Bandwidth;
 typedef SX1280_RadioLoRaSpreadingFactors_t SpreadingFactor;
@@ -15,9 +23,6 @@ typedef SX1280_RadioLoRaCodingRates_t CodingRate;
 class SX1280Driver: public RadioInterface
 {
 public:
-    ///////////Radio Variables////////
-    SX1280_RadioLoRaBandwidths_t currBW;
-
     /////////////Packet Stats//////////
     //uint8_t LastRadioStatus = 0;
 
@@ -53,6 +58,7 @@ public:
 
 private:
     SX1280_RadioOperatingModes_t currOpmode;
+    efe_scaler_t p_efe_scaler;
 
     void ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
                          SX1280_RadioLoRaSpreadingFactors_t sf,

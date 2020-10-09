@@ -33,7 +33,6 @@ SX1280Driver::SX1280Driver(uint8_t payload_len):
     current_freq = 0; //2400000000;
     current_power = -100;
     currOpmode = SX1280_MODE_UNKNOWN_MAX;
-    currBW = SX1280_LORA_BW_1600;
 }
 
 void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
@@ -199,7 +198,41 @@ void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
         break;
     }
 
-    currBW = bw;
+#if EFE_NO_DOUBLE
+    /* This cause a bit of Hz error which does not effect to functionality
+     *   SX1280 can handle 203kHz (BW 0.8MHz) or even 406kHz (BW 1.6MHz)
+     *   frequency error.
+     */
+    switch (bw) {
+        case SX1280_LORA_BW_0200:
+            p_efe_scaler = 315;
+            break;
+        case SX1280_LORA_BW_0400:
+            p_efe_scaler = 630;
+            break;
+        case SX1280_LORA_BW_0800:
+            p_efe_scaler = 1259;
+            break;
+        case SX1280_LORA_BW_1600:
+            p_efe_scaler = 2519; // max value fits just to int32_t
+            break;
+    }
+#else // EFE_NO_DOUBLE
+    switch (bw) {
+        case SX1280_LORA_BW_0200:
+            p_efe_scaler = 314.84375; // 203.125 * 1.55
+            break;
+        case SX1280_LORA_BW_0400:
+            p_efe_scaler = 629.6875; // 406.25 * 1.55
+            break;
+        case SX1280_LORA_BW_0800:
+            p_efe_scaler = 1259.375; // 812.5 * 1.55
+            break;
+        case SX1280_LORA_BW_1600:
+            p_efe_scaler = 2518.75; // 1625.0 * 1.55
+            break;
+    }
+#endif // EFE_NO_DOUBLE
 }
 
 void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power)
@@ -248,15 +281,8 @@ void ICACHE_RAM_ATTR SX1280Driver::SetFrequency(uint32_t Reqfreq)
 
 int32_t ICACHE_RAM_ATTR SX1280Driver::GetFrequencyError()
 {
-#define EFE_NO_DOUBLE 1
-
 #if EFE_NO_DOUBLE
-#define EFE_USE_32b 1
-#if EFE_USE_32b
     int32_t efe;
-#else
-    int64_t efe;
-#endif
 #else
     double efeHz;
     int32_t efe = 0;
@@ -277,70 +303,11 @@ int32_t ICACHE_RAM_ATTR SX1280Driver::GetFrequencyError()
     }
 
 #if EFE_NO_DOUBLE
-#if EFE_USE_32b
-    /* This cause a bit of Hz error which does not effect to functionality
-     *   SX1280 can handle 203kHz (BW 0.8MHz) or even 406kHz (BW 1.6MHz)
-     *   frequency error.
-     */
-    switch (currBW) {
-        case SX1280_LORA_BW_0200:
-            efe *= 315;
-            break;
-        case SX1280_LORA_BW_0400:
-            efe *= 630;
-            break;
-        case SX1280_LORA_BW_0800:
-            efe *= 1259;
-            break;
-        case SX1280_LORA_BW_1600:
-            efe *= 2519; // max value fits just to int32_t
-            break;
-    }
+    efe *= p_efe_scaler;
     return (efe / 1600);
-
-#else // EFE_USE_32b
-    switch (currBW) {
-        case SX1280_LORA_BW_0200:
-            efe *= 19677734375;
-            return (int32_t)(efe / 100000000000);
-            break;
-        case SX1280_LORA_BW_0400:
-            efe *= 3935546875;
-            return (int32_t)(efe / 10000000000);
-            break;
-        case SX1280_LORA_BW_0800:
-            efe *= 787109375;
-            return (int32_t)(efe / 1000000000);
-            break;
-        case SX1280_LORA_BW_1600:
-            efe *= 157421875;
-            return (int32_t)(efe / 100000000);
-            break;
-    }
-    return 0;
-#endif // EFE_USE_32b
-
 #else // EFE_NO_DOUBLE
     efeHz = efe;
-    //efeHz *= 1.55;
-    switch (currBW) {
-        case SX1280_LORA_BW_0200:
-            //efeHz *= 203.125;
-            efeHz *= 314.84375; // 203.125 * 1.55
-            break;
-        case SX1280_LORA_BW_0400:
-            //efeHz *= 406.25;
-            efeHz *= 629.6875; // 406.25 * 1.55
-            break;
-        case SX1280_LORA_BW_0800:
-            //efeHz *= 812.5;
-            efeHz *= 1259.375; // 812.5 * 1.55
-            break;
-        case SX1280_LORA_BW_1600:
-            //efeHz *= 1625.0;
-            efeHz *= 2518.75; // 1625.0 * 1.55
-            break;
-    }
+    efeHz *= p_efe_scaler;
     efeHz /= 1600;
     return (int32_t)efeHz;
 #endif // EFE_NO_DOUBLE

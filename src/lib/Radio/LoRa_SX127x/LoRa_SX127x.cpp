@@ -77,7 +77,7 @@ SX127xDriver::SX127xDriver(uint8_t payload_len):
     instance = this;
 
     RFmodule = RFMOD_SX1276;
-    currBW = BW_500_00_KHZ;
+    p_bw_hz = 0;
     _syncWord = SX127X_SYNC_WORD;
     current_freq = 0;
     current_power = 0xF; // outside range to make sure the power is initialized
@@ -209,43 +209,6 @@ int16_t SX127xDriver::MeasureNoiseFloor(uint32_t num_meas, uint32_t freq)
 ////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// TX functions ///////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
-
-uint8_t ICACHE_RAM_ATTR SX127xDriver::TX(uint8_t *data, uint8_t length)
-{
-    SetMode(SX127X_STANDBY);
-
-    if (length >= 256)
-    {
-        return (ERR_PACKET_TOO_LONG);
-    }
-
-    TxEnable();
-    isr_state_set(NONE);
-
-    writeRegister(SX127X_REG_PAYLOAD_LENGTH, length);
-    writeRegister(SX127X_REG_FIFO_TX_BASE_ADDR, SX127X_FIFO_TX_BASE_ADDR_MAX);
-    writeRegister(SX127X_REG_FIFO_ADDR_PTR, SX127X_FIFO_TX_BASE_ADDR_MAX);
-    writeRegisterBurst((uint8_t)SX127X_REG_FIFO, data, (uint8_t)length);
-
-    //reg_dio1_isr_mask_write(SX127X_MASK_IRQ_FLAG_TX_DONE);
-
-    SetMode(SX127X_TX);
-
-    unsigned long start = millis();
-    while (isr_state_get() == NONE)
-    {
-        //yield();
-        //delay(1);
-        //TODO: calculate timeout dynamically based on modem settings
-        if (millis() - start > (length * 100))
-        {
-            DEBUG_PRINTF("Send Timeout\n");
-            return (ERR_TX_TIMEOUT);
-        }
-    }
-
-    return (ERR_NONE);
-}
 
 void ICACHE_RAM_ATTR SX127xDriver::TXnbISR(uint8_t irqs)
 {
@@ -508,8 +471,32 @@ void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
     SetPreambleLength(PreambleLength);
 
     // save the new settings
-    currBW = bw;
     current_freq = freq;
+
+    switch (bw) {
+        case BW_7_80_KHZ:
+            p_bw_hz = 7.8E3;
+        case BW_10_40_KHZ:
+            p_bw_hz = 10.4E3;
+        case BW_15_60_KHZ:
+            p_bw_hz = 15.6E3;
+        case BW_20_80_KHZ:
+            p_bw_hz = 20.8E3;
+        case BW_31_25_KHZ:
+            p_bw_hz = 31.25E3;
+        case BW_41_70_KHZ:
+            p_bw_hz = 41.667E3;
+        case BW_62_50_KHZ:
+            p_bw_hz = 62.5E3;
+        case BW_125_00_KHZ:
+            p_bw_hz = 125E3;
+        case BW_250_00_KHZ:
+            p_bw_hz = 250E3;
+        case BW_500_00_KHZ:
+            p_bw_hz = 500E3;
+        default:
+            p_bw_hz = 0;
+    }
 }
 
 void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t freq, uint8_t syncWord, uint8_t crc)
@@ -636,35 +623,6 @@ void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t fre
     SetMode(SX127X_STANDBY);
 }
 
-uint32_t ICACHE_RAM_ATTR SX127xDriver::getCurrBandwidth() const
-{
-    switch (currBW)
-    {
-        case BW_7_80_KHZ:
-            return 7.8E3;
-        case BW_10_40_KHZ:
-            return 10.4E3;
-        case BW_15_60_KHZ:
-            return 15.6E3;
-        case BW_20_80_KHZ:
-            return 20.8E3;
-        case BW_31_25_KHZ:
-            return 31.25E3;
-        case BW_41_70_KHZ:
-            return 41.667E3;
-        case BW_62_50_KHZ:
-            return 62.5E3;
-        case BW_125_00_KHZ:
-            return 125E3;
-        case BW_250_00_KHZ:
-            return 250E3;
-        case BW_500_00_KHZ:
-            return 500E3;
-    }
-
-    return -1;
-}
-
 void ICACHE_RAM_ATTR SX127xDriver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
 {
     if (!frf) // use locally stored value if not defined
@@ -706,10 +664,10 @@ int32_t ICACHE_RAM_ATTR SX127xDriver::GetFrequencyError()
     // Calculate Hz error where XTAL is 32MHz
     int64_t tmp_f = intFreqError;
     tmp_f <<= 11;
-    tmp_f *= getCurrBandwidth();
+    tmp_f *= p_bw_hz;
     tmp_f /= 1953125000;
     intFreqError = tmp_f;
-    //intFreqError = ((tmp_f << 11) * getCurrBandwidth()) / 1953125000;
+    //intFreqError = ((tmp_f << 11) * p_bw_hz) / 1953125000;
 
     return intFreqError;
 }
