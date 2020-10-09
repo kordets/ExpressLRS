@@ -386,6 +386,7 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
 
         case 5:
             // Start WiFi
+            platform_radio_force_stop();
             platform_wifi_start();
             break;
 
@@ -425,7 +426,6 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
         // Save modified values
         pl_config.key = ELRS_EEPROM_KEY;
         pl_config.mode = current_rate_config;
-        //pl_config.mode = get_elrs_airRateIndex((void*)ExpressLRS_currAirRate);
         pl_config.power = PowerMgmt.currPower();
         pl_config.tlm = TLMinterval;
         platform_config_save(pl_config);
