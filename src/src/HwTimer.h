@@ -10,9 +10,9 @@
 
 #define TimerIntervalUSDefault 20000
 
-#define TIMER_SOON 40 //80 // 80us
+#define TIMER_SOON 40 // 40us
 
-#if /*RADIO_SX128x &&*/ PLATFORM_STM32 && !defined(ARDUINO)
+#if PLATFORM_STM32 && !defined(ARDUINO)
 #define USE_TIMER_KICK  1   // TODO: Need testing!!
 #endif
 

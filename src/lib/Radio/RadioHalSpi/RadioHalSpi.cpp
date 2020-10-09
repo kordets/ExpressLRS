@@ -9,7 +9,7 @@ void RadioHalSpi::Begin(uint32_t speed, int sck, int miso, int mosi, int cs)
 }
 
 void ICACHE_RAM_ATTR
-RadioHalSpi::transfer(uint8_t *data, uint8_t len, uint8_t receive)
+RadioHalSpi::transfer(uint8_t *data, uint8_t len, uint8_t receive) const
 {
     gpio_out_write(CS, 0);
     spi_transfer(spi_bus, receive, len, data);
@@ -56,32 +56,10 @@ RadioHalSpi::writeRegisterBurst(uint8_t reg, uint8_t *data, uint8_t numBytes) co
 }
 
 void ICACHE_RAM_ATTR
-RadioHalSpi::readRegisterAddr(uint8_t reg, uint16_t addr,
-                              uint8_t *data, uint8_t numBytes) const
-{
-    uint8_t hdr[] = {(uint8_t)(reg | p_write), (uint8_t)(addr >> 8), (uint8_t)addr, 0};
-    gpio_out_write(CS, 0);
-    spi_transfer(spi_bus, 0, sizeof(hdr), hdr);
-    spi_transfer(spi_bus, 1, numBytes, data);
-    gpio_out_write(CS, 1);
-}
-
-void ICACHE_RAM_ATTR
-RadioHalSpi::writeRegisterAddr(uint8_t reg, uint16_t addr,
-                               uint8_t *data, uint8_t numBytes) const
-{
-    uint8_t hdr[] = {(uint8_t)(reg | p_write), (uint8_t)(addr >> 8), (uint8_t)addr};
-    gpio_out_write(CS, 0);
-    spi_transfer(spi_bus, 0, sizeof(hdr), hdr);
-    spi_transfer(spi_bus, 0, numBytes, data);
-    gpio_out_write(CS, 1);
-}
-
-void ICACHE_RAM_ATTR
 RadioHalSpi::readRegisterOffset(uint8_t reg, uint8_t offset,
                                 uint8_t *data, uint8_t numBytes) const
 {
-    uint8_t hdr[] = {(uint8_t)(reg | p_write), offset, 0};
+    uint8_t hdr[] = {(uint8_t)(reg | p_read), offset, 0};
     gpio_out_write(CS, 0);
     spi_transfer(spi_bus, 0, sizeof(hdr), hdr);
     spi_transfer(spi_bus, 1, numBytes, data);

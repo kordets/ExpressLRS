@@ -74,25 +74,13 @@ private:
     int32_t ICACHE_RAM_ATTR GetRxBufferAddr(void);
     void ICACHE_RAM_ATTR GetLastRssiSnr(void);
 
-    void ICACHE_RAM_ATTR WriteCommand(SX1280_RadioCommands_t command, uint8_t val) {
-        WriteCommand(command, &val, 1);
+    ///////// SPI Interface
+    void ICACHE_RAM_ATTR WriteBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const;
+    void ICACHE_RAM_ATTR ReadBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const;
+    void ICACHE_RAM_ATTR TransferBuffer(uint8_t *buffer, uint8_t size, uint8_t read) const {
+        WaitOnBusy();
+        transfer(buffer, size, read);
     }
-    void ICACHE_RAM_ATTR WriteCommand(SX1280_RadioCommands_t opcode, uint8_t *buffer, uint8_t size);
-    void ICACHE_RAM_ATTR ReadCommand(SX1280_RadioCommands_t opcode, uint8_t *buffer, uint8_t size);
-
-    void ICACHE_RAM_ATTR WriteRegister(uint16_t address, uint8_t value) {
-        SX1280Driver::WriteRegister(address, &value, 1);
-    }
-    void ICACHE_RAM_ATTR WriteRegister(uint16_t address, uint8_t *buffer, uint8_t size);
-    uint8_t ICACHE_RAM_ATTR ReadRegister(uint16_t address) {
-        uint8_t data;
-        SX1280Driver::ReadRegister(address, &data, 1);
-        return data;
-    }
-    void ICACHE_RAM_ATTR ReadRegister(uint16_t address, uint8_t *buffer, uint8_t size);
-
-    void ICACHE_RAM_ATTR WriteBuffer(uint8_t offset, uint8_t *buffer, uint8_t size); // Writes and Reads to FIFO
-    void ICACHE_RAM_ATTR ReadBuffer(uint8_t offset, uint8_t *buffer, uint8_t size);
 };
 
 #if RADIO_SX128x

@@ -475,25 +475,25 @@ void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
 
     switch (bw) {
         case BW_7_80_KHZ:
-            p_bw_hz = 7.8E3;
+            p_bw_hz = 7800;
         case BW_10_40_KHZ:
-            p_bw_hz = 10.4E3;
+            p_bw_hz = 10400;
         case BW_15_60_KHZ:
-            p_bw_hz = 15.6E3;
+            p_bw_hz = 15600;
         case BW_20_80_KHZ:
-            p_bw_hz = 20.8E3;
+            p_bw_hz = 20800;
         case BW_31_25_KHZ:
-            p_bw_hz = 31.25E3;
+            p_bw_hz = 31250;
         case BW_41_70_KHZ:
-            p_bw_hz = 41.667E3;
+            p_bw_hz = 41667;
         case BW_62_50_KHZ:
-            p_bw_hz = 62.5E3;
+            p_bw_hz = 62500;
         case BW_125_00_KHZ:
-            p_bw_hz = 125E3;
+            p_bw_hz = 125000;
         case BW_250_00_KHZ:
-            p_bw_hz = 250E3;
+            p_bw_hz = 250000;
         case BW_500_00_KHZ:
-            p_bw_hz = 500E3;
+            p_bw_hz = 500000;
         default:
             p_bw_hz = 0;
     }
@@ -631,7 +631,7 @@ void ICACHE_RAM_ATTR SX127xDriver::setPPMoffsetReg(int32_t error_hz, uint32_t fr
         return;
     // Calc new PPM
     error_hz *= 95;
-    error_hz /= (frf / 1E4);
+    error_hz /= (frf / 10000);
 
     uint8_t regValue = (uint8_t)error_hz;
     if (regValue == p_ppm_off)
