@@ -10,7 +10,7 @@ static void ICACHE_RAM_ATTR _rxtx_isr_handler(void)
     SX1280Driver * const _radio = instance;
     uint32_t const rx_us = micros();
     uint16_t const irqs = _radio->GetIRQFlags();
-    _radio->ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
+    //_radio->ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
 
     switch (_radio->isr_state_get()) {
         case RX_DONE:
@@ -365,7 +365,8 @@ void ICACHE_RAM_ATTR SX1280Driver::TXnb(const uint8_t *data, uint8_t length, uin
 {
     SetMode(SX1280_MODE_FS);
     TxEnable(); // do first to allow PA stablise
-    //ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
+    gpio_in_isr_clear_pending(_DIO1);
+    ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
     if (freq)
         SetFrequency(freq);
     SetFIFOaddr(0x00, 0x00);   // not 100% sure if needed again
@@ -397,7 +398,8 @@ void ICACHE_RAM_ATTR SX1280Driver::RXnb(uint32_t freq)
 {
     SetMode(SX1280_MODE_FS);
     RxEnable();
-    //ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
+    gpio_in_isr_clear_pending(_DIO1);
+    ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
     if (freq)
         SetFrequency(freq);
     //SetFIFOaddr(0x00, 0x00);

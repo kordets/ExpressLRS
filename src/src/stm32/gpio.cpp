@@ -64,5 +64,13 @@ void gpio_in_isr(struct gpio_in g, isr_cb_t func, uint8_t type)
 
 void gpio_in_isr_remove(struct gpio_in g)
 {
-    detachInterrupt(pinNametoDigitalPin(g.pin));
+    detachInterrupt(digitalPinToInterrupt(pinNametoDigitalPin(g.pin)));
+}
+
+void gpio_in_isr_clear_pending(struct gpio_in g)
+{
+    // Clear pending IRQ
+    if (gpio_in_valid(g)) {
+        EXTI->PR = STM_GPIO_PIN(g.pin);
+    }
 }

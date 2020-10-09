@@ -4,7 +4,34 @@
 #include <stdio.h>
 #include <string.h>
 
-#define DEBUG
+/////////////////////////////////////////////////////////////////
+
+/* Big thanks to AlessandroAU who tested these to work best!! */
+uint8_t SX127x_AllowedSyncwords[] = {
+    0,   5,   6,   7,   11,  12,  13,  15, 18,
+    21,  23,  26,  29,  30,  31,  33,  34,
+    37,  38,  39,  40,  42,  44,  50,  51,
+    54,  55,  57,  58,  59,  61,  63,  65,
+    67,  68,  71,  77,  78,  79,  80,  82,
+    84,  86,  89,  92,  94,  96,  97,  99,
+    101, 102, 105, 106, 109, 111, 113, 115,
+    117, 118, 119, 121, 122, 124, 126, 127,
+    129, 130, 138, 143, 161, 170, 172, 173,
+    175, 180, 181, 182, 187, 190, 191, 192,
+    193, 196, 199, 201, 204, 205, 208, 209,
+    212, 213, 219, 220, 221, 223, 227, 229,
+    235, 239, 240, 242, 243, 246, 247, 255
+};
+
+uint8_t SyncWorFindValid(uint8_t syncWord)
+{
+    uint8_t iter;
+    for (iter = 0; iter < sizeof(SX127x_AllowedSyncwords); iter++) {
+        if (syncWord <= SX127x_AllowedSyncwords[iter])
+            return SX127x_AllowedSyncwords[iter];
+    }
+    return SX127x_AllowedSyncwords[0];
+}
 
 /////////////////////////////////////////////////////////////////
 
@@ -39,7 +66,7 @@ static void ICACHE_RAM_ATTR _rxtx_isr_handler_dio0(void)
             state = CAD_DONE;
         _radio->isr_state_set(state);
     }
-    _radio->ClearIRQFlags();
+    //_radio->ClearIRQFlags();
 }
 
 //////////////////////////////////////////////
@@ -93,7 +120,9 @@ void SX127xDriver::End(void)
 void SX127xDriver::SetSyncWord(uint8_t syncWord)
 {
     //writeRegister(SX127X_REG_SYNC_WORD, syncWord);
-    _syncWord = syncWord;
+    _syncWord = SyncWorFindValid(syncWord);
+    DEBUG_PRINTF("Using sync word %u (input %u)\n",
+                 _syncWord, syncWord);
 }
 
 void SX127xDriver::SetOutputPower(uint8_t Power, uint8_t init)
@@ -149,33 +178,17 @@ void ICACHE_RAM_ATTR SX127xDriver::SetFrequency(uint32_t freq, uint8_t mode)
 
 uint8_t SX127xDriver::CheckChipVersion()
 {
-    uint8_t i = 0;
-    bool flagFound = false;
-    while ((i < 10) && !flagFound)
-    {
-        uint8_t version = readRegister(SX127X_REG_VERSION);
-        if (version == 0x12)
-        {
-            flagFound = true;
-#ifdef DEBUG
+    uint8_t i = 0, version;
+    while (i++ < 10) {
+        version = readRegister(SX127X_REG_VERSION);
+        if (version == 0x12) {
             DEBUG_PRINTF("SX127x found! (match by REG_VERSION == 0x12)\n");
-#endif
+            return (ERR_NONE);
         }
-        else
-        {
-#ifdef DEBUG
-            DEBUG_PRINTF("SX127x not found! (%u of 10 tries) REG_VERSION == 0x%X\n", (i+1), version);
-#endif
-            delay(200);
-            i++;
-        }
+        DEBUG_PRINTF("SX127x not found! [%u / 10] REG_VERSION == 0x%X\n", i, version);
+        delay(200);
     }
-
-    if (!flagFound)
-    {
-        return (ERR_CHIP_NOT_FOUND);
-    }
-    return (ERR_NONE);
+    return (ERR_CHIP_NOT_FOUND);
 }
 
 int16_t SX127xDriver::MeasureNoiseFloor(uint32_t num_meas, uint32_t freq)
@@ -267,6 +280,8 @@ void ICACHE_RAM_ATTR SX127xDriver::TXnb(const uint8_t *data, uint8_t length, uin
     writeRegisterBurst(SX127X_REG_FIFO_ADDR_PTR, cfg, sizeof(cfg));
     writeRegisterBurst(SX127X_REG_FIFO, (uint8_t *)data, length);
 
+    ClearIRQFlags();
+    gpio_in_isr_clear_pending(_DIO1);
     //reg_dio1_isr_mask_write(SX127X_MASK_IRQ_FLAG_TX_DONE);
 
     SetMode(SX127X_TX);
@@ -304,6 +319,8 @@ void ICACHE_RAM_ATTR SX127xDriver::RxConfig(uint32_t freq)
     //                                    SX127X_FIFO_TX_BASE_ADDR_MAX,
     //                                    SX127X_FIFO_RX_BASE_ADDR_MAX};
     writeRegisterBurst(SX127X_REG_FIFO_ADDR_PTR, (uint8_t *)&cfg, 3);
+    ClearIRQFlags();
+    gpio_in_isr_clear_pending(_DIO1);
 
     //reg_dio1_isr_mask_write(SX127X_MASK_IRQ_FLAG_RX_DONE & SX127X_MASK_IRQ_FLAG_PAYLOAD_CRC_ERROR);
 }

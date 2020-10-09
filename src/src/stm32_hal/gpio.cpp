@@ -286,6 +286,13 @@ void gpio_in_isr_remove(struct gpio_in g)
     irq_restore(irq);
 }
 
+void gpio_in_isr_clear_pending(struct gpio_in g)
+{
+    if (gpio_in_valid(g))
+        // Clear pending IRQ
+        EXTI->PR = g.bit;
+}
+
 /*********************/
 
 void GPIO_EXTI_IRQHandler(uint16_t pin)

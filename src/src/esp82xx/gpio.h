@@ -31,6 +31,7 @@ static inline uint8_t gpio_in_valid(struct gpio_in g) {
 typedef void (*isr_cb_t)(void);
 void gpio_in_isr(struct gpio_in g, isr_cb_t func, uint8_t type);
 void gpio_in_isr_remove(struct gpio_in g);
+void gpio_in_isr_clear_pending(struct gpio_in g);
 
 struct spi_config
 {

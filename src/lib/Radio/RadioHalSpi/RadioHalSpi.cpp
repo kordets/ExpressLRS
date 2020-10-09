@@ -8,6 +8,14 @@ void RadioHalSpi::Begin(uint32_t speed, int sck, int miso, int mosi, int cs)
     spi_prepare(spi_bus);
 }
 
+void ICACHE_RAM_ATTR
+RadioHalSpi::transfer(uint8_t *data, uint8_t len, uint8_t receive)
+{
+    gpio_out_write(CS, 0);
+    spi_transfer(spi_bus, receive, len, data);
+    gpio_out_write(CS, 1);
+}
+
 uint8_t ICACHE_RAM_ATTR
 RadioHalSpi::readRegister(uint8_t reg) const
 {

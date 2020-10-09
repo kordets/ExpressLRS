@@ -58,5 +58,15 @@ void ICACHE_RAM_ATTR gpio_in_isr(struct gpio_in g, isr_cb_t func, uint8_t type)
 
 void ICACHE_RAM_ATTR gpio_in_isr_remove(struct gpio_in g)
 {
-    detachInterrupt(g.pin);
+    detachInterrupt(digitalPinToInterrupt(g.pin));
+}
+
+void gpio_in_isr_clear_pending(struct gpio_in g)
+{
+    if (gpio_in_valid(g)) {
+        int pin = digitalPinToInterrupt(g.pin);
+        if (pin < 0)
+            return;
+        GPIEC = (1 << pin); //Clear Interrupt
+    }
 }

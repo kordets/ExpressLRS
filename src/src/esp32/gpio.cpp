@@ -58,5 +58,18 @@ void IRAM_ATTR gpio_in_isr(struct gpio_in g, isr_cb_t func, uint8_t type)
 
 void IRAM_ATTR gpio_in_isr_remove(struct gpio_in g)
 {
-    detachInterrupt(g.pin);
+    detachInterrupt(digitalPinToInterrupt(g.pin));
+}
+
+void gpio_in_isr_clear_pending(struct gpio_in g)
+{
+    if (gpio_in_valid(g)) {
+        uint32_t pin = g.pin;
+        if (pin < 32)
+            //Clear intr for gpio0 - gpio31
+            GPIO.status_w1tc = (0x1 << pin);
+        else
+            //Clear intr for gpio32 - gpio39
+            GPIO.status1_w1tc.val = (0x1 << (pin - 32));
+    }
 }
