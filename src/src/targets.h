@@ -247,15 +247,15 @@ https://github.com/jaxxzer
 #if defined(TARGET_R9MX)
 #  define GPIO_PIN_LED_RED   PB2
 #  define GPIO_PIN_LED_GREEN PB3
-#  define GPIO_PIN_BUTTON    PB0  // pullup e.g. LOW when pressed
+//#  define GPIO_PIN_BUTTON    PB0  // pullup e.g. LOW when pressed
 #else
 #  define GPIO_PIN_LED_RED   PC1
 #  define GPIO_PIN_LED_GREEN PB3
-#  define GPIO_PIN_BUTTON    PC13 // pullup e.g. LOW when pressed
+//#  define GPIO_PIN_BUTTON    PC13 // pullup e.g. LOW when pressed
 #endif
 
-#define GPIO_PIN_DEBUG_RX    PA3 // confirmed, USART2
-#define GPIO_PIN_DEBUG_TX    PA2 // confirmed, USART2
+//#define GPIO_PIN_DEBUG_RX    PA3 // confirmed, USART2
+//#define GPIO_PIN_DEBUG_TX    PA2 // confirmed, USART2
 
 // External pads
 // #define R9m_Ch1    PA8
@@ -267,10 +267,10 @@ https://github.com/jaxxzer
 // #define R9m_isport PB11
 
 #if SERVO_OUTPUTS_ENABLED
-#define SERVO_PIN_CH1 PA8
-#define SERVO_PIN_CH2 PA11
-#define SERVO_PIN_CH3 PA9
-#define SERVO_PIN_CH4 PA10
+#define SERVO_PIN_CH1 PA8   // TIM1_CH1
+#define SERVO_PIN_CH2 PA11  // TIM1_CH4
+#define SERVO_PIN_CH3 PA9   // TIM1_CH2
+#define SERVO_PIN_CH4 PA10  // TIM1_CH3
 #endif
 
 // Invert RED led (used to indicate failure)

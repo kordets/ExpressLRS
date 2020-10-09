@@ -8,11 +8,13 @@ class Servo
 public:
     Servo() {};
 
-    void attach(int pin, int min, int max);
+    void attach(int pin, uint16_t min=1000, uint16_t max=2000);
     void writeMicroseconds(uint32_t us);
 
 private:
-
+    void * reg;
+    uint16_t _min;
+    uint16_t _max;
 };
 
 #endif // _SERVO_H__
