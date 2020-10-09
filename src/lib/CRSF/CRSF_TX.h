@@ -31,7 +31,7 @@ public:
     void Begin(void);
 
     // Handle incoming data
-    uint8_t handleUartIn(volatile uint8_t &rx_data_rcvd);
+    uint8_t handleUartIn(void);
 
     // Send to RADIO
     void LinkStatisticsSend(void) const;

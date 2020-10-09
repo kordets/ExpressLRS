@@ -10,7 +10,7 @@ public:
 
     void Begin(void);
 
-    void handleUartIn(volatile uint8_t &rx_data_rcvd);
+    void handleUartIn(void);
 
     void sendRCFrameToFC(crsf_channels_t * channels) const;
     void LinkStatisticsSend(void) const;

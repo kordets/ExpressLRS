@@ -213,41 +213,37 @@ void CRSF_TX::processPacket(uint8_t const *input)
     };
 }
 
-uint8_t CRSF_TX::handleUartIn(volatile uint8_t &rx_data_rcvd) // Merge with RX version...
+uint8_t CRSF_TX::handleUartIn(void)
 {
+    int available = _dev->available();
+    uint8_t *ptr;
     uint8_t can_send = 0;
-    uint8_t split_cnt = 0;
 
-    for (split_cnt = 0; (rx_data_rcvd == 0) && _dev->available() && (split_cnt < 16); split_cnt++)
-    {
+    if (16 < available) available = 16;
+    else if (available < 0) available = 0;
+
+    while (available--) {
 #ifdef DBF_PIN_CRSF_BYTES_IN
         gpio_out_write(crsf_byte_in, 1);
 #endif
-        uint8_t *ptr = ParseInByte(_dev->read());
-        if (ptr)
-        {
+        ptr = ParseInByte(_dev->read());
+        if (ptr) {
             processPacket(ptr);
             platform_wd_feed();
 
-            if (rx_data_rcvd == 0)
-            {
-                /* Can write right after successful package reception */
-                sendSyncPacketToRadio();
+            /* Can write right after successful package reception */
+            sendSyncPacketToRadio();
 
-                if (!rx_data_rcvd)
-                {
-                    if (send_buffers & SEND_LNK_STAT)
-                        LinkStatisticsProcess();
-                    else if (send_buffers & SEND_BATT)
-                        BatteryStatisticsProcess();
-                    else if (send_buffers & SEND_LUA)
-                        LuaResponseProcess();
-                    else if (send_buffers & SEND_GPS)
-                        GpsSensorProcess();
-                    else
-                        can_send = 1;
-                }
-            }
+            if (send_buffers & SEND_LNK_STAT)
+                LinkStatisticsProcess();
+            else if (send_buffers & SEND_BATT)
+                BatteryStatisticsProcess();
+            else if (send_buffers & SEND_LUA)
+                LuaResponseProcess();
+            else if (send_buffers & SEND_GPS)
+                GpsSensorProcess();
+            else
+                can_send = 1;
         }
 
 #ifdef DBF_PIN_CRSF_BYTES_IN
@@ -255,7 +251,7 @@ uint8_t CRSF_TX::handleUartIn(volatile uint8_t &rx_data_rcvd) // Merge with RX v
 #endif
     }
 
-    if (rx_data_rcvd == 0)
+    if (!can_send)
         uart_wdt();
 
     return can_send;

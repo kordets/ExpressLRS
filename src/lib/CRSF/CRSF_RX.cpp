@@ -156,12 +156,16 @@ void CRSF_RX::processPacket(uint8_t const *data)
     }
 }
 
-void CRSF_RX::handleUartIn(volatile uint8_t &rx_data_rcvd)
+void CRSF_RX::handleUartIn(void)
 {
-    uint8_t split_cnt = 0;
-    for (split_cnt = 0; (rx_data_rcvd == 0) && _dev->available() && (split_cnt < 16); split_cnt++)
-    {
-        uint8_t *ptr = ParseInByte(_dev->read());
+    int available = _dev->available();
+    uint8_t *ptr;
+
+    if (16 < available) available = 16;
+    else if (available < 0) available = 0;
+
+    while (available--) {
+        ptr = ParseInByte(_dev->read());
         if (ptr)
             processPacket(ptr);
     }

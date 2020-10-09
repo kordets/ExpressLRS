@@ -682,7 +682,7 @@ void loop()
     }
 
     // Process CRSF packets from TX
-    can_send = crsf.handleUartIn(rx_buffer_handle);
+    can_send = crsf.handleUartIn();
 
     if (!rx_buffer_handle) {
         // Send MSP resp if allowed and packet ready
