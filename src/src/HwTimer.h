@@ -12,9 +12,10 @@
 
 #define TIMER_SOON 40 // 40us
 
-#if PLATFORM_STM32 && !defined(ARDUINO)
-#define USE_TIMER_KICK  1   // TODO: Need testing!!
+#if (PLATFORM_STM32 && !defined(ARDUINO)) || PLATFORM_ESP8266
+#define USE_TIMER_KICK  1
 #endif
+
 
 class HwTimer
 {

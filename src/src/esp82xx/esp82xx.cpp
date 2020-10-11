@@ -102,7 +102,7 @@ void platform_connection_state(int state)
 void platform_set_led(bool state)
 {
 #if (GPIO_PIN_LED != UNDEF_PIN)
-    gpio_out_write(led_pin, !state);
+    gpio_out_write(led_pin, state);
 #endif
 }
 
