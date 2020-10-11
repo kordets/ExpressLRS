@@ -10,7 +10,7 @@
 #define UART_BUFF_SIZE 256
 
 /* This is to avoid unnecessary data copy */
-#define UART_USE_TX_POOL_ONLY 1
+#define UART_USE_TX_POOL_ONLY 0
 
 // Used by the TX DMA
 // Note: make sure the TX is not called ofter for same buffer!

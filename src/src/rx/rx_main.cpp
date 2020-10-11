@@ -51,9 +51,7 @@ static volatile int32_t DRAM_ATTR rx_freqerror;
 #if NUM_FAILS_TO_RESYNC
 static uint32_t rx_lost_packages;
 #endif
-#if defined(ARDUINO)
 static volatile int32_t DRAM_ATTR rx_hw_isr_running;
-#endif
 
 static uint16_t DRAM_ATTR CRCCaesarCipher;
 
@@ -247,9 +245,9 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
     gpio_out_write(dbg_pin_tmr, 1);
 #endif
-#if defined(ARDUINO)
+
     rx_hw_isr_running = 1;
-#endif
+
     const uint32_t __rx_last_valid_us = rx_last_valid_us;
     const uint_fast8_t tlm_ratio = tlm_check_ratio;
     uint_fast8_t fhss_config_rx = 0;
@@ -344,9 +342,9 @@ hw_tmr_isr_exit:
 #if (PRINT_TIMER && PRINT_HW_ISR) || PRINT_FREQ_ERROR
     DEBUG_PRINTF(" took %u\n", (micros() - us));
 #endif
-#if defined(ARDUINO)
+
     rx_hw_isr_running = 0;
-#endif
+
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
     gpio_out_write(dbg_pin_tmr, 0);
 #endif
@@ -415,11 +413,9 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
     /* Processing takes:
         R9MM: ~160us
     */
-#if defined(ARDUINO)
     if (rx_hw_isr_running)
         // Skip if hw isr is triggered already (e.g. TX has some weird latency)
         return;
-#endif
 
     /* Error in reception (CRC etc), kick hw timer */
     if (!rx_buffer) {
