@@ -2,6 +2,10 @@
 #include "platform_internal.h"
 #include <Arduino.h>
 
+#if defined(STM32L4xx)
+#define PR PR1
+#endif
+
 struct gpio_out gpio_out_setup(uint32_t pin, uint32_t val)
 {
     if (160 <= pin)

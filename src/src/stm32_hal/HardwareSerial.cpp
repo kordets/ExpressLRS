@@ -215,20 +215,7 @@ HardwareSerial::HardwareSerial(uint32_t rx, uint32_t tx, uint8_t dma)
 HardwareSerial::HardwareSerial(void *peripheral, uint8_t dma)
 {
     USART_TypeDef * uart = (USART_TypeDef *)peripheral;
-    if (uart == USART1) {
-        rx_pin = GPIO('A', 10);
-        tx_pin = GPIO('A', 9);
-#ifdef USART2
-    } else if (uart == USART2) {
-        rx_pin = GPIO('A', 3);
-        tx_pin = GPIO('A', 2);
-#endif // USART2
-#ifdef USART3
-    } else if (uart == USART3) {
-        rx_pin = GPIO('B', 11);
-        tx_pin = GPIO('B', 10);
-#endif // USART3
-    }
+    uart_pins_get((uint32_t)uart, &rx_pin, &tx_pin, 0);
     p_usart = uart;
     p_use_dma = dma ? (USE_DMA_RX | USE_DMA_TX) : USE_DMA_NONE;
 }
@@ -249,16 +236,8 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     USART_TypeDef * uart = NULL;
     DMA_TypeDef * dmaptr;
 
-    if (rx_pin == GPIO('A', 10) && tx_pin == GPIO('A', 9))
-        uart = USART1;
-    else if (rx_pin == GPIO('A', 3) && tx_pin == GPIO('A', 2))
-        uart = USART2;
-#ifdef USART3
-    else if ((rx_pin == GPIO('D', 9) && tx_pin == GPIO('D', 8)) ||
-             (rx_pin == GPIO('B', 11) && tx_pin == GPIO('B', 10)))
-        uart = USART3;
-#endif // USART3
-    p_usart = uart;
+    p_usart = uart =
+        (USART_TypeDef*)uart_peripheral_get(rx_pin, tx_pin);
 
     if (uart == USART1) {
         usart_irq = USART1_IRQn;

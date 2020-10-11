@@ -15,17 +15,27 @@ uint32_t dma_get(uint32_t periph, uint8_t type, uint8_t index)
 
 uint32_t dma_channel_get(uint32_t periph, uint8_t type, uint8_t index)
 {
-    // FIXME!!!
-    if (periph == USART1_BASE || periph == USART2_BASE)
+    if (periph == USART1_BASE)
         return (type == DMA_USART_RX) ? LL_DMA_CHANNEL_5 : LL_DMA_CHANNEL_4;
+    else if (periph == USART2_BASE)
+        return (type == DMA_USART_RX) ? LL_DMA_CHANNEL_6 : LL_DMA_CHANNEL_7;
+#ifdef USART3_BASE
+    else if (periph == USART3_BASE)
+        return (type == DMA_USART_RX) ? LL_DMA_CHANNEL_3 : LL_DMA_CHANNEL_2;
+#endif
     return 0xff;
 }
 
 uint32_t dma_irq_get(uint32_t periph, uint8_t type, uint8_t index)
 {
-    // FIXME!!!
-    if (periph == USART1_BASE || periph == USART2_BASE)
-        return DMA1_Channel1_IRQn;
+    if (periph == USART1_BASE)
+        return (type == DMA_USART_RX) ? DMA1_Channel5_IRQn : DMA1_Channel4_IRQn;
+    else if (periph == USART2_BASE)
+        return (type == DMA_USART_RX) ? DMA1_Channel6_IRQn : DMA1_Channel7_IRQn;
+#ifdef USART3_BASE
+    else if (periph == USART3_BASE)
+        return (type == DMA_USART_RX) ? DMA1_Channel3_IRQn : DMA1_Channel2_IRQn;
+#endif
     return 0xff;
 }
 
