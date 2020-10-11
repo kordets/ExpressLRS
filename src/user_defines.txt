@@ -96,6 +96,11 @@
 # Default is 5
 #-DN_SWITCHES=5
 
+######################################
+### Defines whether the sync OTA packet is sent or not when armed.
+# Note: AUX1 is expected as a ARM switch
+#-DTX_SKIP_SYNC_WHEN_ARMED=1
+
 ################################
 ### Set your UID or PHRASE.
 # Only one of these is allowed!

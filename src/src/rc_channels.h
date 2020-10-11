@@ -23,7 +23,9 @@
 #endif
 #define N_CHANNELS (N_CONTROLS + N_SWITCHES)
 
+#ifndef TX_SKIP_SYNC_WHEN_ARMED
 #define TX_SKIP_SYNC_WHEN_ARMED 0
+#endif
 
 // expresslrs packet header types
 // 00 -> standard 4 channel data packet
