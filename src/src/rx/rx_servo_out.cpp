@@ -14,6 +14,13 @@
 #define CRSF_IN_to_US(val) MAP_U16((val), CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX)
 
 
+#ifndef SERVO_OUTPUTS_THROTTLE_CH
+#define SERVO_OUTPUTS_THROTTLE_CH 1
+#endif
+#if SERVO_OUTPUTS_THROTTLE_CH < 1 || 4 < SERVO_OUTPUTS_THROTTLE_CH
+#error "Servo channel must be 1 ... 4"
+#endif
+
 /**
  * Control for servo (PWM) outputs
  */
@@ -85,6 +92,30 @@ void servo_out_init(void) {
 
 void ICACHE_RAM_ATTR servo_out_fail_safe(void)
 {
+    Servo * servos[] = {
+#if (SERVO_PIN_CH1 != UNDEF_PIN)
+        &ch1,
+#endif
+#if (SERVO_PIN_CH2 != UNDEF_PIN)
+        &ch2,
+#endif
+#if (SERVO_PIN_CH3 != UNDEF_PIN)
+        &ch3,
+#endif
+#if (SERVO_PIN_CH4 != UNDEF_PIN)
+        &ch4,
+#endif
+    };
+    uint16_t mid = (CRSF_US_OUT_MIN + CRSF_US_OUT_MAX) / 2;
+    uint8_t iter;
+    for (iter = 0; iter < ARRAY_SIZE(servos); iter++) {
+        if (iter == (SERVO_OUTPUTS_THROTTLE_CH-1))
+            servos[iter]->writeMicroseconds(CRSF_US_OUT_MIN);
+        else
+            servos[iter]->writeMicroseconds(mid);
+    }
+
+#if 0
 #if (SERVO_PIN_CH1 != UNDEF_PIN)
     ch1.writeMicroseconds(CRSF_US_OUT_MIN);
 #endif
@@ -96,6 +127,7 @@ void ICACHE_RAM_ATTR servo_out_fail_safe(void)
 #endif
 #if (SERVO_PIN_CH4 != UNDEF_PIN)
     ch4.writeMicroseconds(CRSF_US_OUT_MIN);
+#endif
 #endif
 }
 

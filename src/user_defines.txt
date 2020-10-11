@@ -85,6 +85,9 @@
 ### Servo control output enabled
 # NOTE! This disables CRSF UART to FC!
 # -DSERVO_OUTPUTS_ENABLED=1
+# This defines throttle channel which is set to 0deg in case
+#   of fail safe, others to middle.
+#-DSERVO_OUTPUTS_THROTTLE_CH=1
 
 ######################################
 ### Defines how many switches are handled
