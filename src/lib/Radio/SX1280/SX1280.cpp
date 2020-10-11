@@ -10,7 +10,7 @@ static void ICACHE_RAM_ATTR _rxtx_isr_handler(void)
     SX1280Driver * const _radio = instance;
     uint32_t const rx_us = micros();
     uint16_t const irqs = _radio->GetIRQFlags();
-    //_radio->ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
+    _radio->ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
 
     switch (_radio->isr_state_get()) {
         case RX_DONE:

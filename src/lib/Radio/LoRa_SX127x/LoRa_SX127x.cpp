@@ -66,7 +66,7 @@ static void ICACHE_RAM_ATTR _rxtx_isr_handler_dio0(void)
             state = CAD_DONE;
         _radio->isr_state_set(state);
     }
-    //_radio->ClearIRQFlags();
+    _radio->ClearIRQFlags();
 }
 
 //////////////////////////////////////////////
@@ -123,6 +123,7 @@ void SX127xDriver::SetSyncWord(uint8_t syncWord)
     _syncWord = SyncWorFindValid(syncWord);
     DEBUG_PRINTF("Using sync word %u (input %u)\n",
                  _syncWord, syncWord);
+    //_syncWord = syncWord;
 }
 
 void SX127xDriver::SetOutputPower(uint8_t Power, uint8_t init)
