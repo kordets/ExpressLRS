@@ -12,7 +12,7 @@ public:
     void writeMicroseconds(uint32_t us);
 
 private:
-    void * reg;
+    uint32_t _channel;
     uint16_t _min;
     uint16_t _max;
 };

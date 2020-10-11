@@ -3,8 +3,16 @@
 
 #if SERVO_OUTPUTS_ENABLED
 
-#define SERVO_USE_LPF 0
+#define SERVO_USE_LPF 1
 #define SERVO_UPDATE_INTERVAL 100 //ms
+
+#undef CRSF_CHANNEL_IN_VALUE_MIN
+#define CRSF_CHANNEL_IN_VALUE_MIN 188
+#undef CRSF_CHANNEL_IN_VALUE_MAX
+#define CRSF_CHANNEL_IN_VALUE_MAX 1792
+#undef CRSF_IN_to_US
+#define CRSF_IN_to_US(val) MAP_U16((val), CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX)
+
 
 /**
  * Control for servo (PWM) outputs
@@ -12,6 +20,7 @@
 
 #include "platform.h"
 #include "targets.h"
+#include "Arduino.h"
 #include <Servo.h>
 
 #define LPF_SMOOTHING_FACTOR 3
@@ -46,7 +55,7 @@ static uint32_t DRAM_ATTR last_update;
 
 void servo_out_init(void) {
 #if (SERVO_PIN_CH1 != UNDEF_PIN)
-    ch1.attach(SERVO_PIN_CH1, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX);
+    ch1.attach(SERVO_PIN_CH1, 0, CRSF_US_OUT_MAX);
 #if SERVO_USE_LPF
     lpf_ch1.init(0);
 #endif // SERVO_USE_LPF
@@ -133,6 +142,7 @@ void ICACHE_RAM_ATTR servo_out_write(crsf_channels_t const * const channels) {
 
     if (SERVO_UPDATE_INTERVAL < (now - last_update)) {
 #if (SERVO_PIN_CH1 != UNDEF_PIN)
+        // 188 ... 1792
         ch1.writeMicroseconds(CRSF_IN_to_US(ch0_val));
 #endif
 #if (SERVO_PIN_CH2 != UNDEF_PIN)

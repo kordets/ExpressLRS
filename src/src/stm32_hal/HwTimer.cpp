@@ -71,7 +71,7 @@ extern "C"
 void timer_enable(void)
 {
     TIMx->CR1 = TIM_CR1_CEN | TIM_CR1_URS | COUNT_DOWN;
-    TIMx->DIER = TIM_IT_UPDATE;
+    TIMx->DIER = TIM_DIER_UIE;
     TIMx->SR &= ~(TIM_SR_UIF);
 }
 
@@ -95,7 +95,7 @@ static void timer_init(void)
     TIMx->CNT = 0;
     //TIMx->RCR = 0;
     TIMx->EGR = TIM_EGR_UG;
-    //TIMx->DIER = TIM_IT_UPDATE;
+    //TIMx->DIER = TIM_DIER_UIE;
     NVIC_SetPriority(TIMx_IRQn,
         NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_TIM, 0));
     NVIC_EnableIRQ(TIMx_IRQn);
