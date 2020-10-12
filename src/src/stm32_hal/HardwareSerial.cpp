@@ -310,9 +310,7 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
         /* Enable DMA */
         LL_DMA_EnableChannel(dmaptr, dma_ch_rx);
 
-#ifdef STM32L4xx
-        LL_DMA_SetPeriphRequest(dmaptr, dma_ch_rx, LL_DMA_REQUEST_2);
-#endif
+        dma_request_config((uint32_t)uart, DMA_USART_RX, 0);
     }
 
     dmaptr = (DMA_TypeDef *)dma_get((uint32_t)uart, DMA_USART_TX, 0);
@@ -339,9 +337,7 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
             NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART_DMA, 0));
         NVIC_EnableIRQ((IRQn_Type)dma_irq_tx);
 
-#ifdef STM32L4xx
-        LL_DMA_SetPeriphRequest(dmaptr, dma_ch_tx, LL_DMA_REQUEST_2);
-#endif
+        dma_request_config((uint32_t)uart, DMA_USART_TX, 0);
     }
 
     /*********** USART Init ***********/

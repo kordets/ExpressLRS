@@ -9,7 +9,6 @@
 
 uint32_t dma_get(uint32_t periph, uint8_t type, uint8_t index)
 {
-    // CHECK!!!
     return DMA1_BASE;
 }
 
@@ -37,6 +36,14 @@ uint32_t dma_irq_get(uint32_t periph, uint8_t type, uint8_t index)
         return (type == DMA_USART_RX) ? DMA1_Channel3_IRQn : DMA1_Channel2_IRQn;
 #endif
     return 0xff;
+}
+
+void dma_request_config(uint32_t periph, uint8_t type, uint8_t index)
+{
+    LL_DMA_SetPeriphRequest(
+        (DMA_TypeDef *)dma_get(periph, type, index),
+        dma_channel_get(periph, type, index),
+        LL_DMA_REQUEST_2);
 }
 
 uint32_t uart_peripheral_get(uint32_t rx, uint32_t tx)

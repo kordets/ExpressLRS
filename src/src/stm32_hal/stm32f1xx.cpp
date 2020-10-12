@@ -35,6 +35,10 @@ uint32_t dma_irq_get(uint32_t periph, uint8_t type, uint8_t index)
     return 0xff;
 }
 
+void dma_request_config(uint32_t periph, uint8_t type, uint8_t index)
+{
+}
+
 uint32_t uart_peripheral_get(uint32_t rx, uint32_t tx)
 {
     if ((rx == GPIO('A', 10) && tx == GPIO('A', 9)) ||
