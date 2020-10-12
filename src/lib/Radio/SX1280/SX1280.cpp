@@ -43,6 +43,7 @@ void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
 
     if (!gpio_in_valid(_BUSY)) {
         // Error handler!
+        while(1);
     }
 
     Reset();
@@ -60,6 +61,10 @@ void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
     firmwareRev <<= 8;
     firmwareRev += buffer[5];
     DEBUG_PRINTF("SX1280 fw rev %u\n", firmwareRev);
+    if (43447 != firmwareRev) {
+        // Error handler!
+        while(1);
+    }
 
     if (gpio_in_valid(_DIO1))
         gpio_in_isr(_DIO1, _rxtx_isr_handler, RISING);
