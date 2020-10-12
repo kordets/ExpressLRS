@@ -45,6 +45,15 @@ void feedTheDog(void)
     TIMERG1.wdt_wprotect = 0;                   // write protect
 }
 
+void initVariant(void)
+{
+    /* Disable watchdogs to precent unwanted resets */
+    disableCore0WDT();
+    disableCore1WDT();
+
+    //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+}
+
 /******************* CONFIG *********************/
 int8_t platform_config_load(struct platform_config &config)
 {
@@ -97,9 +106,6 @@ int8_t platform_config_save(struct platform_config &config)
 /******************* SETUP *********************/
 void platform_setup(void)
 {
-    disableCore0WDT();
-    disableCore1WDT();
-
     // Set higher task priority
     vTaskPrioritySet(NULL, 10);
 
@@ -123,8 +129,6 @@ void platform_setup(void)
 #endif
 
 #if 0
-    //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
-
     //strip.Begin();
 
     uint8_t baseMac[6];
