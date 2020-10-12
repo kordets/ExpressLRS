@@ -27,7 +27,6 @@ HwTimer TxTimer;
 #define TIMx_IRQn TIM3_IRQn
 #define TIMx_IRQx_FUNC TIM3_IRQHandler
 #endif
-// originally TIM1;
 
 static inline uint32_t timer_counter_get(void)
 {
@@ -49,10 +48,8 @@ static inline void timer_set(uint32_t next)
  * HW Timer setup and irqs
  ****************************************************************/
 
-#ifdef __cplusplus
 extern "C"
 {
-#endif
     // Hardware timer IRQ handler - dispatch software timers
     void TIMx_IRQx_FUNC(void)
     {
@@ -64,9 +61,7 @@ extern "C"
             //irq_restore(flag);
         }
     }
-#ifdef __cplusplus
 }
-#endif
 
 void timer_enable(void)
 {

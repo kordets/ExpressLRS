@@ -51,7 +51,6 @@ void ICACHE_RAM_ATTR HwSerial::enable_receiver(void)
 void ICACHE_RAM_ATTR HwSerial::enable_transmitter(void)
 {
     if (gpio_out_valid(duplex_pin)) {
-        //delayMicroseconds(20);
         HAL_HalfDuplex_EnableTransmitter(&_serial.handle);
         gpio_out_write(duplex_pin, HIGH);
     }
