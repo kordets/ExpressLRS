@@ -77,7 +77,7 @@ private:
     ///////// SPI Interface
     void ICACHE_RAM_ATTR WriteBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const;
     void ICACHE_RAM_ATTR ReadBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const;
-    void ICACHE_RAM_ATTR TransferBuffer(uint8_t *buffer, uint8_t size, uint8_t read) const {
+    void TransferBuffer(uint8_t *buffer, uint8_t size, uint8_t read) const {
         WaitOnBusy();
         transfer(buffer, size, read);
     }
