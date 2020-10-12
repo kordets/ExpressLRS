@@ -158,16 +158,12 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
 // Return the current time (in absolute clock ticks).
 uint32_t timer_read_time(void)
 {
-    // Cortex M0 does not have DWT so read us from SysTick
-    uint32_t ms = millis();
-    uint32_t period = SysTick->LOAD + 1;
-    uint32_t us = period - SysTick->VAL;
-    return (ms * 1000 + (us * 1000) / period);
+    return DWT->CYCCNT;
 }
 
 uint32_t micros(void)
 {
-    return timer_read_time();
+    return clockCyclesToMicroseconds(timer_read_time());
 }
 
 void delayMicroseconds(uint32_t usecs)
@@ -175,6 +171,7 @@ void delayMicroseconds(uint32_t usecs)
     //uint32_t end = timer_read_time() + microsecondsToClockCycles(usecs);
     //while (timer_is_before(timer_read_time(), end))
     //    ;
+    usecs = microsecondsToClockCycles(usecs);
     uint32_t start = timer_read_time();
     while ((timer_read_time() - start) < usecs);
 }
@@ -271,6 +268,9 @@ void hw_init(void)
 {
     /* Configure Flash prefetch */
     __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+    __HAL_FLASH_INSTRUCTION_CACHE_ENABLE();
+    //__HAL_FLASH_DATA_CACHE_ENABLE();
+    //__HAL_FLASH_DATA_CACHE_DISABLE();
 }
 
 extern "C" {
@@ -285,28 +285,33 @@ void RTC_IRQHandler(void) {Error_Handler();}
 void FLASH_IRQHandler(void) {Error_Handler();}
 void RCC_IRQHandler(void) {Error_Handler();}
 
-void EXTI0_1_IRQHandler(void) {
-    GPIO_EXTI_IRQHandler(0);
-    GPIO_EXTI_IRQHandler(1);
-}
-void EXTI2_3_IRQHandler(void) {
-    GPIO_EXTI_IRQHandler(2);
-    GPIO_EXTI_IRQHandler(3);
-}
-void EXTI4_15_IRQHandler(void) {
+void EXTI0_IRQHandler(void) {GPIO_EXTI_IRQHandler(0);}
+void EXTI1_IRQHandler(void) {GPIO_EXTI_IRQHandler(1);}
+void EXTI2_IRQHandler(void) {GPIO_EXTI_IRQHandler(2);}
+void EXTI3_IRQHandler(void) {GPIO_EXTI_IRQHandler(3);}
+void EXTI4_IRQHandler(void) {GPIO_EXTI_IRQHandler(4);}
+void EXTI9_5_IRQHandler(void)
+{
     uint8_t pin;
-    for (pin = 4; pin <= 15; pin++)
-    {
+    for (pin = 5; pin <= 9; pin++) {
+        GPIO_EXTI_IRQHandler(pin);
+    }
+}
+void EXTI15_10_IRQHandler(void)
+{
+    uint8_t pin;
+    for (pin = 10; pin <= 15; pin++) {
         GPIO_EXTI_IRQHandler(pin);
     }
 }
 
 void DMA1_Channel1_IRQHandler(void) {Error_Handler();}
-void DMA1_Channel2_3_IRQHandler(void) {Error_Handler();}
-void DMA1_Channel4_5_6_7_IRQHandler(void) {
-    USARTx_DMA_handler(0);
-    USARTx_DMA_handler(1);
-}
+void DMA1_Channel2_IRQHandler(void) {USARTx_DMA_handler(3);} // USART3
+void DMA1_Channel3_IRQHandler(void) {Error_Handler();}
+void DMA1_Channel4_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1
+void DMA1_Channel5_IRQHandler(void) {Error_Handler();}
+void DMA1_Channel6_IRQHandler(void) {Error_Handler();}
+void DMA1_Channel7_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2
 
 void ADC1_COMP_IRQHandler(void) {Error_Handler();}
 void USART4_5_IRQHandler(void) {Error_Handler();}

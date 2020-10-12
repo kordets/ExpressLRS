@@ -77,7 +77,6 @@ gpio_out_setup(uint32_t pin, uint32_t val)
     GPIO_TypeDef *regs = digital_regs[GPIO2PORT(pin)];
     if (!regs)
         Error_Handler();
-    gpio_clock_enable(regs);
     struct gpio_out g = {.regs = regs, .bit = GPIO2BIT(pin)};
     gpio_out_reset(g, val);
     return g;
@@ -88,11 +87,8 @@ void gpio_out_reset(struct gpio_out g, uint32_t val)
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
     int pin = regs_to_pin(regs, g.bit);
     irqstatus_t flag = irq_save();
-    if (val)
-        regs->BSRR = g.bit;
-    else
-        regs->BSRR = g.bit << 16;
     gpio_peripheral(pin, GPIO_OUTPUT, 0);
+    gpio_out_write(g, val);
     irq_restore(flag);
 }
 
@@ -278,7 +274,7 @@ void gpio_in_isr(struct gpio_in g, isr_cb_t callback, uint8_t it_mode)
 
 void gpio_in_isr_remove(struct gpio_in g)
 {
-    if (!g.regs)
+    if (!gpio_in_valid(g))
         Error_Handler();
     uint32_t index = ffs(g.bit) - 1;
     irqstatus_t irq = irq_save();
