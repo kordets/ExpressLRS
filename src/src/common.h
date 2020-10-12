@@ -74,7 +74,7 @@ typedef enum
 } expresslrs_tlm_header_e;
 
 #if RADIO_SX128x /*&& !RADIO_SX128x_BW800*/
-#define RATE_DEFAULT         1 // 250Hz
+#define RATE_DEFAULT         0 // 250Hz
 #else
 #define RATE_DEFAULT         0 // 200HZ
 #endif

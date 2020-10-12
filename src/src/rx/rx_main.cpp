@@ -461,7 +461,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
     {
         case UL_PACKET_SYNC:
         {
-            DEBUG_PRINTF(" S");
+            //DEBUG_PRINTF(" S");
             ElrsSyncPacket_s const * const sync = (ElrsSyncPacket_s*)rx_buffer;
 
             if (sync->CRCCaesarCipher == CRCCaesarCipher)
@@ -498,7 +498,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
             break;
         }
         case UL_PACKET_RC_DATA: //Standard RC Data Packet
-            DEBUG_PRINTF(" R");
+            //DEBUG_PRINTF(" R");
             if (STATE_lost < _conn_state)
             {
                 RcChannels_channels_extract(rx_buffer, CrsfChannels);
@@ -522,7 +522,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
 
         case UL_PACKET_MSP: {
 #if !SERVO_OUTPUTS_ENABLED
-            DEBUG_PRINTF(" M");
+            //DEBUG_PRINTF(" M");
             uint8_t len = RcChannels_tlm_uplink_receive(rx_buffer);
             crsf.sendMSPFrameToFC(rx_buffer, len);
 #endif
