@@ -28,6 +28,9 @@ void HwTimer::init()
     stop();
     timer_tx.attachInterrupt(TimerCallback);
     timer_tx.setMode(2, TIMER_OUTPUT_COMPARE);
+#if (1 <= STM32_CORE_VERSION_MAJOR) && (9 <= STM32_CORE_VERSION_MINOR)
+    timer_tx.setPreloadEnable(false);
+#endif
 }
 
 void HwTimer::start()
