@@ -321,7 +321,9 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
               else if (value == "2")
                 domain_info = "Regulatory domain 433MHz";
               else if (value == "3")
-                domain_info = "Regulatory domain ISM 2400";
+                domain_info = "Regulatory domain ISM 2400 (BW 0.8MHz)";
+              else if (value == "4")
+                domain_info = "Regulatory domain ISM 2400 (BW 1.6MHz)";
               elem.innerHTML = domain_info;
 
               // update rate options
@@ -330,7 +332,9 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
                 rates.remove(rates.length-1);
               }
               var options = [];
-              if (value == "3") {
+              if (value == "4") {
+                options = ['500Hz', '250Hz', '125Hz', '50Hz'];
+              } else if (value == "3") {
                 options = ['250Hz', '125Hz', '50Hz'];
               } else {
                 options = ['200Hz', '100Hz', '50Hz'];

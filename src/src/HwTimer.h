@@ -16,6 +16,12 @@
 #define USE_TIMER_KICK  1
 #endif
 
+#if USE_TIMER_KICK
+#define TIMER_OFFSET       300
+#else
+#define TIMER_OFFSET       400
+#define TIMER_OFFSET_LIMIT 100
+#endif
 
 class HwTimer
 {

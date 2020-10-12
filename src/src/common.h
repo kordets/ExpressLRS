@@ -63,6 +63,7 @@ enum
     OSD_MODE_200Hz,
     OSD_MODE_250Hz,
     OSD_MODE_500Hz,
+    OSD_MODE_800Hz,
 };
 
 typedef enum
@@ -72,10 +73,10 @@ typedef enum
     RF_AIRMODE_PARAMETERS = 2
 } expresslrs_tlm_header_e;
 
-#if RADIO_SX128x && !RADIO_SX128x_BW800
+#if RADIO_SX128x /*&& !RADIO_SX128x_BW800*/
 #define RATE_DEFAULT         1 // 250Hz
 #else
-#define RATE_DEFAULT         0 // 200HZ or 250Hz
+#define RATE_DEFAULT         0 // 200HZ
 #endif
 
 typedef struct expresslrs_mod_settings_s
@@ -84,7 +85,7 @@ typedef struct expresslrs_mod_settings_s
     SpreadingFactor sf;
     CodingRate cr;
     uint32_t interval;       // interval in us seconds that corresponds to that frequnecy
-    uint8_t rate;            // rate in hz
+    uint16_t rate;           // rate in hz
     uint8_t TLMinterval;     // every X packets is a response TLM packet, should be a power of 2
     uint8_t FHSShopInterval; // every X packets we hope to a new frequnecy.
     uint8_t rate_osd_num;

@@ -407,9 +407,12 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
         out[4] = 1;
 #elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
         out[4] = 2;
-#elif defined(Regulatory_Domain_ISM_2400_800kHz)
-        out[4] = 3;
-#elif defined(Regulatory_Domain_ISM_2400)
+//#elif defined(Regulatory_Domain_ISM_2400_800kHz)
+//        out[4] = 3;
+//#elif defined(Regulatory_Domain_ISM_2400)
+//        out[4] = 4;
+#elif defined(Regulatory_Domain_ISM_2400_800kHz) || defined(Regulatory_Domain_ISM_2400)
+        // 500Hz supported
         out[4] = 4;
 #else
         out[4] = 0xff;

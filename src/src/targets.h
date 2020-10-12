@@ -6,9 +6,6 @@
 /// General Features ///
 #define LED_MAX_BRIGHTNESS 50 //0..255 for max led brightness
 
-#define TIMER_OFFSET       400
-#define TIMER_OFFSET_LIMIT 100
-
 /******************************************************************************************/
 /*                                     ESP TX CONFIGS                                     */
 /******************************************************************************************/
