@@ -269,7 +269,7 @@ void hw_init(void)
     /* Configure Flash prefetch */
     __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
     __HAL_FLASH_INSTRUCTION_CACHE_ENABLE();
-    //__HAL_FLASH_DATA_CACHE_ENABLE();
+    __HAL_FLASH_DATA_CACHE_ENABLE();
     //__HAL_FLASH_DATA_CACHE_DISABLE();
 }
 

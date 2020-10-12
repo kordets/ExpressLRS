@@ -44,7 +44,6 @@
 #define UART_ENABLE_DMA_RX 0 // Don't enable yet
 #define UART_ENABLE_DMA_TX 1
 
-
 #define DIV_ROUND_CLOSEST(x, divisor) ({       \
     typeof(divisor) __divisor = divisor;       \
     (((x) + ((__divisor) / 2)) / (__divisor)); \
@@ -310,6 +309,10 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
         NVIC_EnableIRQ((IRQn_Type)dma_irq_rx);
         /* Enable DMA */
         LL_DMA_EnableChannel(dmaptr, dma_ch_rx);
+
+#ifdef STM32L4xx
+        LL_DMA_SetPeriphRequest(dmaptr, dma_ch_rx, LL_DMA_REQUEST_2);
+#endif
     }
 
     dmaptr = (DMA_TypeDef *)dma_get((uint32_t)uart, DMA_USART_TX, 0);
@@ -335,6 +338,10 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
         NVIC_SetPriority((IRQn_Type)dma_irq_tx,
             NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART_DMA, 0));
         NVIC_EnableIRQ((IRQn_Type)dma_irq_tx);
+
+#ifdef STM32L4xx
+        LL_DMA_SetPeriphRequest(dmaptr, dma_ch_tx, LL_DMA_REQUEST_2);
+#endif
     }
 
     /*********** USART Init ***********/
@@ -366,6 +373,7 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
         DR_RX |= USART_CR1_TE;
         DR_TX |= DR_RX;
     }
+
     /* Configure other UART registers */
     LL_USART_ConfigAsyncMode(uart);
     if (dma_unit_rx)
