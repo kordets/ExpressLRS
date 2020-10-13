@@ -1,21 +1,7 @@
 #ifndef _STM32_DEF_H_
 #define _STM32_DEF_H_
 
-
 #include "hal_inc.h"
-
-//#ifndef F_CPU
-//  #define F_CPU SystemCoreClock
-//#endif
-#ifdef F_CPU
-#undef F_CPU
-#endif
-#define F_CPU SystemCoreClock
-
-// Here define some compatibility
-#ifndef CAN1
-  #define CAN1 CAN
-#endif
 
 /**
  * Libc porting layers

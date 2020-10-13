@@ -36,12 +36,13 @@ extern GPIO_TypeDef * digital_regs[];
 #define GPIO_OPEN_DRAIN   0x100
 #define GPIO_FUNCTION(fn) (GPIO_AF | ((fn) << 4))
 
-#define CONFIG_CLOCK_FREQ     F_CPU
+#define CONFIG_CLOCK_FREQ     SystemCoreClock
 
-//extern uint32_t SystemCoreClock;
 #define clockCyclesPerMicrosecond()  ( CONFIG_CLOCK_FREQ / 1000000U )
 #define clockCyclesToMicroseconds(a) ( (a) / clockCyclesPerMicrosecond() )
 #define microsecondsToClockCycles(a) ( (a) * clockCyclesPerMicrosecond() )
+
+extern uint32_t SystemCoreClock;
 
 void shutdown(const char * reason);
 
