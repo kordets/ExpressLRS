@@ -12,3 +12,5 @@ firmware.map
 user_defines_private.txt
 .vscode
 *.code-workspace
+*.map
+
