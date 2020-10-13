@@ -10,7 +10,7 @@ struct spi_info
     uint8_t miso_pin, mosi_pin, sck_pin, function;
 };
 
-#if defined(STM32F0xx)
+#if defined(STM32F0xx) || defined(STM32L0xx)
 #define SPI_FUNCTION GPIO_FUNCTION(0)
 #else
 #define SPI_FUNCTION GPIO_FUNCTION(5)

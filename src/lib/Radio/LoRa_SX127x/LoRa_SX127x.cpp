@@ -94,6 +94,7 @@ void SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
 
     if (CheckChipVersion() != ERR_NONE)
     {
+        while(1);
         return;
     }
 
