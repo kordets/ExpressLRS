@@ -12,10 +12,8 @@ void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
     _DIO2 = gpio_in_setup(dio2, 0),
     _DIO3 = gpio_in_setup(dio3, 0),
     _BUSY = gpio_in_setup(busy, 0);
-#if TX_MODULE
     _TXen = gpio_out_setup(txpin, 0);
     _RXen = gpio_out_setup(rxpin, 0);
-#endif // TX_MODULE
 }
 
 void RadioInterface::Reset(void)
@@ -40,29 +38,23 @@ void ICACHE_RAM_ATTR RadioInterface::WaitOnBusy() const
 void ICACHE_RAM_ATTR RadioInterface::TxEnable()
 {
     isr_state_set(TX_DONE);
-#if TX_MODULE
     if (!gpio_out_valid(_RXen)) return;
     gpio_out_write(_RXen, 0);
     gpio_out_write(_TXen, 1);
-#endif // TX_MODULE
 }
 
 void ICACHE_RAM_ATTR RadioInterface::RxEnable()
 {
     isr_state_set(RX_DONE);
-#if TX_MODULE
     if (!gpio_out_valid(_RXen)) return;
     gpio_out_write(_TXen, 0);
     gpio_out_write(_RXen, 1);
-#endif // TX_MODULE
 }
 
 void ICACHE_RAM_ATTR RadioInterface::TxRxDisable()
 {
     isr_state_set(NONE);
-#if TX_MODULE
     if (!gpio_out_valid(_RXen)) return;
     gpio_out_write(_RXen, 0);
     gpio_out_write(_TXen, 0);
-#endif // TX_MODULE
 }

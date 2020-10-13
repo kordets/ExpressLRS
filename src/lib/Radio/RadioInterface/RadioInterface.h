@@ -55,10 +55,8 @@ protected:
     void ICACHE_RAM_ATTR RxEnable();
     void ICACHE_RAM_ATTR TxRxDisable();
 
-#if TX_MODULE
     gpio_out _RXen;
     gpio_out _TXen;
-#endif // TX_MODULE
     gpio_out _RST;
     gpio_in _DIO1;
     gpio_in _DIO2;
