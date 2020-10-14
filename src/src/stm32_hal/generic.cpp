@@ -5,7 +5,7 @@
 // -------------------------------------------
 // Generic time methods
 
-uint32_t _ms_cntr;
+volatile uint32_t _ms_cntr;
 
 extern "C" void SysTick_Handler(void)
 {
@@ -22,8 +22,9 @@ uint8_t timer_is_before(uint32_t time1, uint32_t time2)
 
 uint32_t millis(void)
 {
-    uint32_t ms = read_u32(&_ms_cntr);
-    return ms;
+    //uint32_t ms = read_u32(&_ms_cntr);
+    //return ms;
+    return _ms_cntr;
 }
 
 void delay(uint32_t const ms)

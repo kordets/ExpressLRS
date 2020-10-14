@@ -239,7 +239,7 @@ void tx_done_cb(void)
     //    Radio.RXnb(FHSSgetCurrFreq());
 }
 
-void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
+void ICACHE_RAM_ATTR HWtimerCallback(uint32_t const us)
 {
     //DEBUG_PRINTF("H");
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
@@ -248,6 +248,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 
     rx_hw_isr_running = 1;
 
+    int32_t diff_us = 0;
     const uint32_t last_rx_us = rx_last_valid_us;
     const uint_fast8_t tlm_ratio = tlm_check_ratio;
     uint_fast8_t fhss_config_rx = 0;
@@ -255,16 +256,17 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
     rx_last_valid_us = 0;
 
 #if PRINT_TIMER && PRINT_HW_ISR
-    DEBUG_PRINTF("HW us %u", us);
+    //DEBUG_PRINTF("HW us %u", us);
 #endif
 
     /* do adjustment */
     if (unlikely(last_rx_us != 0))
     {
 #if 1 //!USE_TIMER_KICK
-        int32_t diff_us = (int32_t)((uint32_t)(us - last_rx_us));
+        diff_us = (int32_t)((uint32_t)(us - last_rx_us));
 #if PRINT_TIMER && PRINT_HW_ISR
-        DEBUG_PRINTF(" - rx %u = %u", last_rx_us, diff_us);
+        //DEBUG_PRINTF(" - rx %u = %u", last_rx_us, diff_us);
+        //DEBUG_PRINTF(" d:%u", diff_us);
 #endif
 
 #if 0
@@ -344,7 +346,9 @@ hw_tmr_isr_exit:
     NonceRXlocal = nonce;
 
 #if (PRINT_TIMER && PRINT_HW_ISR) || PRINT_FREQ_ERROR
-    DEBUG_PRINTF(" took %u\n", (micros() - us));
+    uint32_t now = micros();
+    DEBUG_PRINTF("RX:%u HW:%u d:%d t:%d (n:%u)\n",
+                 last_rx_us, us, diff_us, (int32_t)(now - us), now);
 #endif
 
     rx_hw_isr_running = 0;
