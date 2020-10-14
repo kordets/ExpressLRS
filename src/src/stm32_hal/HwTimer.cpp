@@ -18,15 +18,9 @@ HwTimer TxTimer;
  * Low level timer code
  ****************************************************************/
 
-#ifdef TIM2
 #define TIMx TIM2
 #define TIMx_IRQn TIM2_IRQn
 #define TIMx_IRQx_FUNC TIM2_IRQHandler
-#else
-#define TIMx TIM3
-#define TIMx_IRQn TIM3_IRQn
-#define TIMx_IRQx_FUNC TIM3_IRQHandler
-#endif
 
 static inline uint32_t timer_counter_get(void)
 {

@@ -1,6 +1,7 @@
 #include "Arduino.h"
 #include "stm32_def.h"
 #include "priorities.h"
+#include "platform.h"
 
 #ifdef STM32L0xx
 
@@ -157,15 +158,22 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
     HAL_GPIO_Init(regs, &init);
 }
 
-
+#define USE_TIM_FOR_US 1
+#if USE_TIM_FOR_US
+static uint32_t _micro_seconds;
+#endif
 // Return the current time (in absolute clock ticks).
 uint32_t timer_read_time(void)
 {
+#if USE_TIM_FOR_US
+    return read_u32(&_micro_seconds);
+#else
     // Cortex M0 does not have DWT so read us from SysTick
-    uint32_t ms = millis();
-    uint32_t period = SysTick->LOAD + 1;
-    uint32_t us = period - SysTick->VAL;
-    return (ms * 1000 + (us * 1000) / period);
+    uint32_t const ms = millis();
+    uint32_t const period = SysTick->LOAD + 1;
+    uint32_t const us = period - SysTick->VAL;
+    return (ms * 1000U + (us * 1000U) / period);
+#endif
 }
 
 uint32_t micros(void)
@@ -173,23 +181,39 @@ uint32_t micros(void)
     return timer_read_time();
 }
 
-void delayMicroseconds(uint32_t usecs)
+void delayMicroseconds(uint32_t const usecs)
 {
-    //uint32_t end = timer_read_time() + microsecondsToClockCycles(usecs);
-    //while (timer_is_before(timer_read_time(), end))
-    //    ;
-    uint32_t start = timer_read_time();
+    uint32_t const start = timer_read_time();
     while ((timer_read_time() - start) < usecs);
+}
+
+#define TIMx TIM3
+#define TIMx_IRQn TIM3_IRQn
+#define TIMx_IRQx_FUNC TIM3_IRQHandler
+
+extern "C" void TIMx_IRQx_FUNC(void)
+{
+    TIMx->SR &= ~(TIM_SR_UIF);
+    _micro_seconds++;
 }
 
 void timer_init(void)
 {
-    // Enable Debug Watchpoint and Trace (DWT) for its 32bit timer
-    /*
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-    DWT->CYCCNT = 0;
-    */
+#if USE_TIM_FOR_US
+    write_u32(&_micro_seconds, 0);
+    /* STM32L0x1 does not have DWT so use TIM3 for us timer */
+    enable_pclock((uint32_t)TIMx);
+    TIMx->CR1 = 0; // Disable
+    TIMx->PSC = 1; // PSC == 1 clock is APB1 x1
+    TIMx->ARR = (get_pclock_frequency((uint32_t)TIMx) / 1000000) - 1; // 1us interval
+    TIMx->CNT = 0;
+    TIMx->EGR = TIM_EGR_UG;
+    TIMx->DIER = TIM_DIER_UIE;
+    TIMx->SR &= ~(TIM_SR_UIF);
+    TIMx->CR1 = TIM_CR1_CEN | TIM_CR1_URS;
+    NVIC_SetPriority(TIMx_IRQn, ISR_PRIO_TICKS);
+    NVIC_EnableIRQ(TIMx_IRQn);
+#endif // USE_TIM_FOR_US
 
     // Enable SysTick
     NVIC_SetPriority(SysTick_IRQn, ISR_PRIO_TICKS);
@@ -304,7 +328,7 @@ void DMA1_Channel4_5_6_7_IRQHandler(void) {
 void ADC1_COMP_IRQHandler(void) {Error_Handler();}
 void USART4_5_IRQHandler(void) {Error_Handler();}
 //void TIM2_IRQHandler(void) {Error_Handler();}
-void TIM3_IRQHandler(void) {Error_Handler();}
+//void TIM3_IRQHandler(void) {Error_Handler();}
 void TIM6_IRQHandler(void) {Error_Handler();}
 void TIM7_IRQHandler(void) {Error_Handler();}
 void TIM21_IRQHandler(void) {Error_Handler();}

@@ -1,9 +1,9 @@
 #ifndef _PRIORITIES_H__
 #define _PRIORITIES_H__
 
-#define ISR_PRIO_UART_DMA   1 // 0
-#define ISR_PRIO_UART       1
-#define ISR_PRIO_TICKS      2
+#define ISR_PRIO_TICKS      1
+#define ISR_PRIO_UART_DMA   2 // 0
+#define ISR_PRIO_UART       2
 #if defined(TX_MODULE)
 /* TX module shall ignore reception if some weird delay has happened */
 #define ISR_PRIO_TIM        4
