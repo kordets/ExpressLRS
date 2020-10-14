@@ -21,7 +21,6 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 
 //// CONSTANTS ////
 #define RX_CONNECTION_LOST_TIMEOUT        1500U // After 1500ms of no TLM response consider that slave has lost connection
-#define LQ_CALCULATE_INTERVAL             500u
 #ifndef TLM_REPORT_INTERVAL
 #define TLM_REPORT_INTERVAL               300u
 #endif
@@ -471,7 +470,7 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
 
     current_rate_config = rate;
     ExpressLRS_currAirRate = config;
-    TxTimer.updateInterval(config->interval); // TODO: Make sure this is equiv to above commented lines
+    TxTimer.updateInterval(config->interval);
 
     FHSSsetCurrIndex(0);
     Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(),
