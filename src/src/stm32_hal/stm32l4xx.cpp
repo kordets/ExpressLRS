@@ -179,7 +179,7 @@ void delayMicroseconds(uint32_t usecs)
     //while (timer_is_before(timer_read_time(), end))
     //    ;
     usecs = microsecondsToClockCycles(usecs);
-    uint32_t start = timer_read_time();
+    uint32_t const start = timer_read_time();
     while ((timer_read_time() - start) < usecs);
 }
 

@@ -193,8 +193,8 @@ void delayMicroseconds(uint32_t const usecs)
 
 extern "C" void TIMx_IRQx_FUNC(void)
 {
+    ++_micro_seconds;
     TIMx->SR &= ~(TIM_SR_UIF);
-    _micro_seconds++;
 }
 
 void timer_init(void)
