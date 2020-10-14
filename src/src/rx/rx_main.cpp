@@ -248,7 +248,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 
     rx_hw_isr_running = 1;
 
-    const uint32_t __rx_last_valid_us = rx_last_valid_us;
+    const uint32_t last_rx_us = rx_last_valid_us;
     const uint_fast8_t tlm_ratio = tlm_check_ratio;
     uint_fast8_t fhss_config_rx = 0;
     uint_fast8_t nonce = NonceRXlocal;
@@ -259,14 +259,15 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
 #endif
 
     /* do adjustment */
-    if (unlikely(__rx_last_valid_us != 0))
+    if (unlikely(last_rx_us != 0))
     {
-#if !USE_TIMER_KICK
-        int32_t diff_us = (int32_t)(us - __rx_last_valid_us);
+#if 1 //!USE_TIMER_KICK
+        int32_t diff_us = (int32_t)((uint32_t)(us - last_rx_us));
 #if PRINT_TIMER && PRINT_HW_ISR
-        DEBUG_PRINTF(" - rx %u = %u", __rx_last_valid_us, diff_us);
+        DEBUG_PRINTF(" - rx %u = %u", last_rx_us, diff_us);
 #endif
 
+#if 0
         int32_t const interval = ExpressLRS_currAirRate->interval;
         if (diff_us > (interval >> 1))
         {
@@ -274,12 +275,15 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
             diff_us %= interval;
             diff_us -= interval;
         }
-
+#else
+        if (diff_us < -TIMER_OFFSET) diff_us = -TIMER_OFFSET;
+        else if (diff_us > TIMER_OFFSET) diff_us = TIMER_OFFSET;
+#endif
         /* Adjust the timer */
-        if ((TIMER_OFFSET_LIMIT < diff_us) || (diff_us < 0))
+        //if ((TIMER_OFFSET_LIMIT < diff_us) || (diff_us < 0))
             TxTimer.reset(diff_us - TIMER_OFFSET);
 #else // USE_TIMER_KICK
-        TxTimer.reset(-TIMER_OFFSET);
+        TxTimer.reset(-TIMER_OFFSET_KICK);
 #endif // USE_TIMER_KICK
 #if PRINT_RATE && NO_DATA_TO_FC
         print_rate_cnt++;
@@ -320,7 +324,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t us)
         goto hw_tmr_isr_exit;
     }
 #if NUM_FAILS_TO_RESYNC
-    else if (!__rx_last_valid_us)
+    else if (!last_rx_us)
     {
         if (NUM_FAILS_TO_RESYNC < (++rx_lost_packages)) {
             // consecutive losts => trigger connection lost to resync

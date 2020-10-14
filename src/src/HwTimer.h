@@ -16,16 +16,14 @@
 #define USE_TIMER_KICK  1
 #endif
 
-#if USE_TIMER_KICK
 //#ifdef STM32L0xx
-#define TIMER_OFFSET       100
+#define TIMER_OFFSET_KICK       100
 //#else
-//#define TIMER_OFFSET       200
+//#define TIMER_OFFSET_KICK       200
 //#endif
-#else
-#define TIMER_OFFSET       300
-#define TIMER_OFFSET_LIMIT 100
-#endif
+
+#define TIMER_OFFSET       250
+#define TIMER_OFFSET_LIMIT 50
 
 class HwTimer
 {
