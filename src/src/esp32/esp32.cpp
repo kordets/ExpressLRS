@@ -8,10 +8,8 @@
 #include "printf.h"
 #include "gpio.h"
 
-#ifdef TARGET_EXPRESSLRS_PCB_TX_V3
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
-#endif
+//#include "soc/soc.h"
+//#include "soc/rtc_cntl_reg.h"
 #include "esp_task_wdt.h"
 
 #include "soc/timer_group_struct.h"
