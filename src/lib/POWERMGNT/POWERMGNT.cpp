@@ -152,29 +152,7 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
 #elif defined(TARGET_R9M_TX)
     r9dac.setPower(power);
 
-#elif defined(TARGET_1000mW_MODULE)
-    switch (power)
-    {
-        case PWR_100mW:
-            p_radio.SetOutputPower(0b0101);
-            break;
-        case PWR_250mW:
-            p_radio.SetOutputPower(0b1000);
-            break;
-        case PWR_500mW:
-            p_radio.SetOutputPower(0b1100);
-            break;
-        case PWR_1000mW:
-            p_radio.SetOutputPower(0b1111);
-            break;
-        default:
-            p_radio.SetOutputPower(0b0010);
-            power = PWR_50mW;
-            break;
-    }
-
-#else
-    // TARGET_100mW_MODULE
+#elif defined(TARGET_100mW_MODULE)
     switch (power)
     {
         case PWR_10mW:
@@ -189,6 +167,8 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
             power = PWR_50mW;
             break;
     }
+#else
+#error "!! Unknown module, cannot control power !!"
 #endif
     p_current_power = power;
 }

@@ -8,7 +8,7 @@
 
 #if RADIO_SX128x
 #if defined(TARGET_MODULE_LORA1280F27)
-#define MaxPower PWR_1000mW
+#define MaxPower PWR_500mW
 #elif defined(TARGET_MODULE_E28)
 #define MaxPower PWR_500mW
 #else
@@ -21,12 +21,9 @@
 #endif
 
 #else // SX127x
-#ifdef TARGET_R9M_TX
+#if defined(TARGET_R9M_TX)
 #define MaxPower PWR_1000mW // was PWR_2000mW
-#elif defined(TARGET_1000mW_MODULE)
-#define MaxPower PWR_250mW
-#else
-// TARGET_100mW_MODULE
+#elif defined(TARGET_100mW_MODULE)
 #define MaxPower PWR_50mW
 #endif
 
