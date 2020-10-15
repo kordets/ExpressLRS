@@ -46,7 +46,7 @@ extern uint32_t SystemCoreClock;
 
 void shutdown(const char * reason);
 
-uint32_t timer_read_time(void);
+uint8_t timer_is_before(uint16_t time1, uint16_t time2);
 uint8_t timer_is_before(uint32_t time1, uint32_t time2);
 
 void enable_pclock(uint32_t periph_base);
