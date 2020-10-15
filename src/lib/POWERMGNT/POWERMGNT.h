@@ -23,7 +23,7 @@
 #else // SX127x
 #if defined(TARGET_R9M_TX)
 #define MaxPower PWR_1000mW // was PWR_2000mW
-#elif defined(TARGET_100mW_MODULE)
+#else
 #define MaxPower PWR_50mW
 #endif
 

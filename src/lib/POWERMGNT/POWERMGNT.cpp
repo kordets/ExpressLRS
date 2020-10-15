@@ -152,7 +152,7 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
 #elif defined(TARGET_R9M_TX)
     r9dac.setPower(power);
 
-#elif defined(TARGET_100mW_MODULE)
+#else
     switch (power)
     {
         case PWR_10mW:
@@ -167,8 +167,6 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
             power = PWR_50mW;
             break;
     }
-#else
-#error "!! Unknown module, cannot control power !!"
 #endif
     p_current_power = power;
 }
