@@ -159,41 +159,16 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
     HAL_GPIO_Init(regs, &init);
 }
 
-static uint32_t _ms_period;
+#define TIMC_1 TIM21
+#define TIMC_2 TIM22 // TIMC_1 UG triggers TIMC_2
 
 // Return the current time (in absolute clock ticks).
 uint32_t timer_read_time(void)
 {
-#if 0
-    //irqstatus_t flag = irq_save();
-    // Cortex M0 does not have DWT so read us from SysTick
-    volatile uint32_t const ms = millis(); //(millis() + 1) * 1000U;
-    //irq_restore(flag);
-
-    volatile uint32_t us = SysTick->VAL;
-    //uint32_t const period = _ms_period; //SysTick->LOAD + 1;
-    //us = period - us;
-    //return (ms * 1000U + (us * 1000U) / period);
-    return ((ms+1)*1000U - ((us+35) / 36));
-#else
-    /* Ensure COUNTFLAG is reset by reading SysTick control and status register */
-    LL_SYSTICK_IsActiveCounterFlag();
-    uint32_t m = millis();
-    const uint32_t tms = SysTick->LOAD + 1;
-    //const uint32_t tms = _ms_period;
-    __IO uint32_t u = tms - SysTick->VAL;
-    //__IO uint32_t u = SysTick->VAL;
-    if (LL_SYSTICK_IsActiveCounterFlag()) {
-        m = millis();
-        u = tms - SysTick->VAL;
-        //u = SysTick->VAL;
-    }
-    //m++;
-    //m *= 1000U;
-    //m += (1000U - (u / 36U));
-    //return m;
-    return (m * 1000 + (u * 1000) / tms);
-#endif
+    uint32_t us = TIMC_2->CNT;
+    us <<= 16;
+    us += TIMC_1->CNT;
+    return us;
 }
 
 uint32_t micros(void)
@@ -201,35 +176,41 @@ uint32_t micros(void)
     return timer_read_time();
 }
 
-#define TIMx TIM3
-
 void delayMicroseconds(uint32_t const usecs)
 {
-    if (usecs < 0xffff) {
-        uint16_t start = TIM3->CNT;
-        while ((TIM3->CNT - start) < usecs);
-        return;
-    }
-    uint32_t const start = timer_read_time();
-    while ((timer_read_time() - start) < usecs);
+    uint32_t const start = micros();
+    while ((uint32_t)(micros() - start) < usecs);
 }
 
 void timer_init(void)
 {
-    /* STM32L0x1 does not have DWT so use TIM3 for us timer */
-    enable_pclock((uint32_t)TIMx);
-    TIMx->CR1 = 0; // Disable
-    // Prescaler to 1us
-    TIMx->PSC = (2 * get_pclock_frequency((uint32_t)TIMx) / 1000000) - 1;
-    TIMx->ARR = (1 << 16) - 1;
-    TIMx->CNT = 0;
-    TIMx->EGR = 0;
-    TIMx->CR1 = TIM_CR1_CEN | TIM_CR1_URS;
+    /* STM32L0x1 does not have DWT so use timer for us timer */
+    enable_pclock((uint32_t)TIMC_1);
+    enable_pclock((uint32_t)TIMC_2);
+    TIMC_1->CR1 = 0; // Disable
+    TIMC_2->CR1 = 0; // Disable
+
+    /* Configure slave timer (upper 16bits) */
+    TIMC_2->PSC = 0;
+    TIMC_2->ARR = (1 << 16) - 1;
+    TIMC_2->CNT = 0;
+    TIMC_2->EGR = TIM_EGR_UG;
+    /* TS  > 0 = ITR0
+     * SMS > '111' = External clock mode 1 */
+    TIMC_2->SMCR = TIM_SMCR_SMS_Msk;
+    TIMC_2->CR1 = TIM_CR1_CEN;
+
+    /* Configure master timer (lower 16bits) for 1us */
+    TIMC_1->PSC = (CONFIG_CLOCK_FREQ / 1000000) - 1;
+    TIMC_1->ARR = (1 << 16) - 1;
+    TIMC_1->CNT = 0;
+    TIMC_1->EGR = TIM_EGR_UG;
+    TIMC_1->CR2 |= TIM_CR2_MMS_1; // Update trigger TRGO
+    TIMC_1->CR1 = TIM_CR1_CEN | TIM_CR1_URS;
 
     // Enable SysTick
-    _ms_period = (uint32_t)(SystemCoreClock / 1000UL);
     NVIC_SetPriority(SysTick_IRQn, ISR_PRIO_TICKS);
-    SysTick->LOAD = _ms_period - 1; //(uint32_t)(SystemCoreClock / 1000UL) - 1;
+    SysTick->LOAD = (uint32_t)(SystemCoreClock / 1000UL) - 1;
     SysTick->VAL = 0UL;
     SysTick->CTRL = (SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk);
 }
