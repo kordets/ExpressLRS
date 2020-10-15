@@ -347,8 +347,8 @@ hw_tmr_isr_exit:
 
 #if (PRINT_TIMER && PRINT_HW_ISR) || PRINT_FREQ_ERROR
     uint32_t now = micros();
-    DEBUG_PRINTF("RX:%u HW:%u d:%d t:%d (n:%u)\n",
-                 last_rx_us, us, diff_us, (int32_t)(now - us), now);
+    DEBUG_PRINTF("RX:%u HW:%u diff:%d took:%u\n",
+                 last_rx_us, us, diff_us, (uint32_t)(now - us));
 #endif
 
     rx_hw_isr_running = 0;
