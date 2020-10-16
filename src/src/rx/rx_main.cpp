@@ -26,11 +26,15 @@ void ICACHE_RAM_ATTR LostConnection();
 #define PRINT_FREQ_ERROR               0
 //#define NUM_FAILS_TO_RESYNC            100
 #define PRINT_RATE 1
+#define PRINT_TIMING 0
 
 #if PRINT_RATE && NO_DATA_TO_FC
 uint32_t print_rate_cnt;
 uint32_t print_rate_cnt_fail;
 uint32_t print_Rate_cnt_time;
+#endif
+#if PRINT_TIMING
+static volatile uint32_t DRAM_ATTR print_rx_isr_end_time;
 #endif
 
 ///////////////////
@@ -255,19 +259,11 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t const us)
     uint_fast8_t nonce = NonceRXlocal;
     rx_last_valid_us = 0;
 
-#if PRINT_TIMER && PRINT_HW_ISR
-    //DEBUG_PRINTF("HW us %u", us);
-#endif
-
     /* do adjustment */
     if (unlikely(last_rx_us != 0))
     {
 #if 1 //!USE_TIMER_KICK
         diff_us = (int32_t)((uint32_t)(us - last_rx_us));
-#if PRINT_TIMER && PRINT_HW_ISR
-        //DEBUG_PRINTF(" - rx %u = %u", last_rx_us, diff_us);
-        //DEBUG_PRINTF(" d:%u", diff_us);
-#endif
 
 #if 0
         int32_t const interval = ExpressLRS_currAirRate->interval;
@@ -306,10 +302,6 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t const us)
     fhss_config_rx |= RadioFreqErrorCorr();
     fhss_config_rx |= HandleFHSS(nonce);
 
-#if PRINT_TIMER && PRINT_HW_ISR
-    //DEBUG_PRINTF(" nonce %u", nonce);
-#endif
-
     uint_fast8_t lq = LQ_getlinkQuality();
     uplink_Link_quality = lq;
     LQ_nextPacket();
@@ -345,10 +337,11 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t const us)
 hw_tmr_isr_exit:
     NonceRXlocal = nonce;
 
-#if (PRINT_TIMER && PRINT_HW_ISR) || PRINT_FREQ_ERROR
+#if (PRINT_TIMING)
     uint32_t now = micros();
-    DEBUG_PRINTF("RX:%u HW:%u diff:%d took:%u\n",
-                 last_rx_us, us, diff_us, (uint32_t)(now - us));
+    DEBUG_PRINTF("RX:%u (t:%u) HW:%u diff:%d (t:%u)\n",
+                 last_rx_us, (last_rx_us - print_rx_isr_end_time),
+                 us, diff_us, (uint32_t)(now - us));
 #endif
 
     rx_hw_isr_running = 0;
@@ -443,10 +436,6 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
     const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_PAYLOAD, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_PAYLOAD] << 8) + rx_buffer[OTA_PACKET_PAYLOAD+1];
     const uint8_t type = RcChannels_packetTypeGet(rx_buffer);
-
-#if PRINT_TIMER && PRINT_RX_ISR
-    DEBUG_PRINTF("RX us %u", current_us);
-#endif
 
     if (crc_in != crc)
     {
@@ -562,8 +551,8 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
     LQ_packetAck();
     FillLinkStats();
 
-#if PRINT_TIMER && PRINT_RX_ISR
-    DEBUG_PRINTF(" took %u\n", (micros() - current_us));
+#if PRINT_TIMING
+    print_rx_isr_end_time = micros();
 #endif
 #if (DBG_PIN_RX_ISR != UNDEF_PIN)
     gpio_out_write(dbg_pin_rx, 0);

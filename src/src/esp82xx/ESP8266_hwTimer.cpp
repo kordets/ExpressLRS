@@ -52,9 +52,6 @@ void ICACHE_RAM_ATTR HwTimer::setTime(uint32_t time)
     if (!time)
         time = HWtimerInterval;
     timer1_write(time * 5);
-#if PRINT_TIMER && PRINT_TMR
-    DEBUG_PRINTF(" set: %u", time);
-#endif
 }
 
 void ICACHE_RAM_ATTR HwTimer::triggerSoon(void)

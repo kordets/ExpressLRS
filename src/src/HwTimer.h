@@ -3,11 +3,6 @@
 #include "platform.h"
 #include <stdint.h>
 
-#define PRINT_TIMER 0
-#define PRINT_HW_ISR 0
-#define PRINT_RX_ISR 0
-#define PRINT_TMR 0
-
 #define TimerIntervalUSDefault 20000
 
 #define TIMER_SOON 40 // 40us
