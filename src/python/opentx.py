@@ -13,7 +13,22 @@ def gen_multi_bin(source, target, env):
         _out.close()
     print("Copy %s to SD card and choose flash external multi" % bin_target)
 
+def gen_elrs(source, target, env):
+    if not "_stock" in env['PIOENV']:
+        return
+    source_bin = source[0]
+    bin_path = os.path.dirname(source_bin.rstr())
+    bin_target = os.path.join(bin_path, 'firmware.elrs')
+    with open(bin_target, "wb+") as _out:
+        _out.write(source_bin.get_contents())
+        _out.close()
+    print("=====================================================================================================================================\n")
+    print("    Copy %s to SD card and choose flash ext. ELRS !!! ||\n" % bin_target)
+    print("=====================================================================================================================================\n")
+
 def gen_frsky(source, target, env):
+    if "_stock" in env['PIOENV']:
+        return
     target_bin = source[0] # target[0]
     print("Source bin: %s" % target_bin)
     bin_path = os.path.dirname(target_bin.rstr())
@@ -45,9 +60,11 @@ def gen_frsky(source, target, env):
         _out.write(b"\x00\x00") # crc
         _out.write(bin_content)
         _out.close()
-    print("Copy %s to SD card and choose flash external" % bin_target)
+    print("=====================================================================================================================================\n")
+    print("    Copy %s to SD card and choose flash external" % bin_target)
+    print("=====================================================================================================================================\n")
 
-#env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", gen_frsky)
+env.AddPostAction("buildprog", gen_elrs)
 env.AddPostAction("buildprog", gen_frsky)
 
 env.Replace(UPLOADCMD=stlink.on_upload)

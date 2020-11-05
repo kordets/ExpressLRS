@@ -35,7 +35,7 @@ if not os.path.exists(filename):
 port = serials_find.get_serial_port()
 dbg_print("Going to use %s\n" % port)
 s = serial.Serial(port=port, baudrate=420000, bytesize=8, parity='N', stopbits=1, timeout=.5, xonxoff=0, rtscts=0)
-s.timeout = 1.
+s.timeout = 4.
 
 try:
     already_in_bl = s.read(3).decode('utf-8')
@@ -73,7 +73,7 @@ if 'CC' not in already_in_bl:
             except UnicodeDecodeError:
                 continue
             #dbg_print("line : '%s'\n" % (line.strip(), ))
-            if "'2bl', 'bbb'" in line:
+            if "'2bl', 'bbb'" in line or "ExpressLRS" in line:
                 # notify bootloader to start uploading
                 s.write(BootloaderInitSeq2)
                 s.flush()
@@ -122,6 +122,9 @@ def getc(size, timeout=3):
 
 def putc(data, timeout=3):
     return s.write(data)
+
+s.reset_input_buffer()
+s.reset_output_buffer()
 
 modem = XMODEM(getc, putc, mode='xmodem')
 #modem.log.setLevel(logging.DEBUG)
