@@ -89,7 +89,7 @@ __attribute__((constructor(101))) void premain()
 {
     /* Reset vector location which is set wrongly by SystemInit */
     extern uint32_t g_pfnVectors;
-    SCB->VTOR = (uint32_t) &g_pfnVectors;
+    SCB->VTOR = (__IO uint32_t) &g_pfnVectors;
 
     hw_init();
 

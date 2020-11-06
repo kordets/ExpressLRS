@@ -69,11 +69,22 @@ if 'CC' not in already_in_bl:
             try:
                 line = s.readline().decode('utf-8')
                 if not line and s.in_waiting:
-                    line = s.read(1000).decode('utf-8')
+                    line = s.read(128).decode('utf-8')
             except UnicodeDecodeError:
                 continue
-            #dbg_print("line : '%s'\n" % (line.strip(), ))
-            if "'2bl', 'bbb'" in line or "ExpressLRS" in line:
+            #if line:
+            #    dbg_print("line : '%s'\n" % (line.strip(), ))
+            #if "'2bl', 'bbb'" in line or "ExpressLRS" in line:
+            if "Bootloader for ExpressLRS" in line:
+                for idx in range(2):
+                    line = s.readline().decode('utf-8')
+                    if "BL_TYPE" in line:
+                        # do check...
+                        dbg_print("line : '%s'\n" % (line, ))
+                        bl_ver = line.strip()[8:].strip()
+                        dbg_print("Bootloader type : '%s'\n" % (bl_ver, ))
+                        break
+                #time.sleep(.5)
                 # notify bootloader to start uploading
                 s.write(BootloaderInitSeq2)
                 s.flush()
@@ -86,15 +97,19 @@ if 'CC' not in already_in_bl:
     s.write_timeout = 5.
 
     # sanity check! Make sure the bootloader is started
+    dbg_print("Wait sync...")
     start = time.time()
     while True:
-        char = s.read().decode('utf-8')
-        if char == 'C':
+        char = s.read(3).decode('utf-8')
+        if char == 'CCC':
             break
-        if ((time.time() - start) > 10):
-            msg = "[FAILED] Unable to communicate with bootloader...\n"
+        #if char:
+        #    dbg_print("char : '%s'\n" % (char.strip(), ))
+        if ((time.time() - start) > 15):
+            msg = "\n[FAILED] Unable to communicate with bootloader...\n"
             dbg_print(msg)
             raise EnvironmentError(msg)
+    dbg_print("  ... sync OK\n")
 else:
     dbg_print("\nWe were already in bootloader\n")
 
@@ -122,9 +137,6 @@ def getc(size, timeout=3):
 
 def putc(data, timeout=3):
     return s.write(data)
-
-s.reset_input_buffer()
-s.reset_output_buffer()
 
 modem = XMODEM(getc, putc, mode='xmodem')
 #modem.log.setLevel(logging.DEBUG)
