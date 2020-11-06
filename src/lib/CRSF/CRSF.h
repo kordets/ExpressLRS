@@ -267,7 +267,7 @@ public:
                                int8_t snr,
                                uint8_t rssi);
     void LinkStatisticsPack(uint8_t *const output,
-                                            uint_fast8_t ul_lq) const;
+                            uint_fast8_t ul_lq) const;
 
     void GpsStatsExtract(uint8_t const *const data);
     uint8_t GpsStatsPack(uint8_t *const output);
