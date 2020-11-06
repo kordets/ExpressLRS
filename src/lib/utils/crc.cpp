@@ -139,6 +139,14 @@ uint8_t crc8_dvb_s2(uint8_t crc, uint8_t a)
     return crc;
 }
 
+uint8_t crc8_dvb_s2(uint8_t const* data, uint16_t length)
+{
+    uint8_t crc = 0u;
+    while (length--)
+        crc = crc8_dvb_s2(*data++, crc);
+    return crc;
+}
+
 uint32_t CalcCRC32(uint8_t const *data, uint16_t len) {
    int bit;
    uint32_t mask;

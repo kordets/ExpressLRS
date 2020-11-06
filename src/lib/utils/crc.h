@@ -16,6 +16,7 @@ uint16_t ICACHE_RAM_ATTR CalcCRC16_CCITT(uint8_t const *data, uint16_t length, u
 //#define CalcCRC16(D, L, C) (CalcCRC16_XMODEM((D), (L)) ^ (C))
 
 uint8_t crc8_dvb_s2(uint8_t crc, uint8_t a);
+uint8_t crc8_dvb_s2(uint8_t const* data, uint16_t length);
 
 uint32_t CalcCRC32(uint8_t const *data, uint16_t len);
 
