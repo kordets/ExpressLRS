@@ -89,23 +89,18 @@ void SX1280Driver::Config(SX1280_RadioLoRaBandwidths_t bw,
                           uint8_t crc)
 {
     uint16_t irqs = (SX1280_IRQ_TX_DONE | SX1280_IRQ_RX_DONE | SX1280_IRQ_RX_TX_TIMEOUT);
-    uint8_t cmd[2];
-    //Reset(); // ????
     //SetMode(SX1280_MODE_STDBY_XOSC);
     SetMode(SX1280_MODE_STDBY_RC);
-    cmd[0] = SX1280_RADIO_SET_PACKETTYPE;
-    cmd[1] = SX1280_PACKET_TYPE_LORA;
-    TransferBuffer(cmd, sizeof(cmd), 0);
+    SetPacketType(SX1280_PACKET_TYPE_LORA);
     SetFrequency(freq);
-    //SetFIFOaddr(0x00, 0x00);
     ConfigModParams(bw, sf, cr);
-    cmd[0] = SX1280_RADIO_SET_AUTOFS;
-    cmd[1] = 0x01; //enable auto FS
-    TransferBuffer(cmd, sizeof(cmd), 0);
+    //SetAutoFs(1);
     SetPacketParams(SX1280_LORA_PACKET_IMPLICIT,
                     (crc) ? SX1280_LORA_CRC_ON : SX1280_LORA_CRC_OFF,
                     SX1280_LORA_IQ_NORMAL,
                     PreambleLength, RX_buffer_size);
+    SetAutoFs(1);
+    SetHighSensitivityMode(1);
     if (crc)
         irqs |= SX1280_IRQ_CRC_ERROR;
     // Config IRQs
@@ -132,6 +127,45 @@ void SX1280Driver::SetPacketParams(SX1280_RadioLoRaPacketLengthsModes_t HeaderTy
     buf[6] = 0x00;
     buf[7] = 0x00;
     TransferBuffer(buf, sizeof(buf), 0);
+}
+
+void SX1280Driver::SetPacketType(uint8_t type)
+{
+    uint8_t cmd[] = {
+        SX1280_RADIO_SET_PACKETTYPE,
+        type
+    };
+    TransferBuffer(cmd, sizeof(cmd), 0);
+}
+
+void SX1280Driver::SetAutoFs(uint8_t enabled)
+{
+    uint8_t cmd[] = {
+        SX1280_RADIO_SET_AUTOFS,
+        enabled ? 0x1 : 0x0
+    };
+    TransferBuffer(cmd, sizeof(cmd), 0);
+}
+
+void SX1280Driver::SetHighSensitivityMode(uint8_t enabled)
+{
+    /* High sensitivity mode is enabled by setting bits 7:6 at address 0x891 to 0x3
+     *      Once enabled the noise figure of the receiver is improved by up to
+     *      3 dB for 500 μA of additional current consumption.
+     */
+    uint8_t buffer[] = {
+        SX1280_RADIO_READ_REGISTER,
+        (uint8_t)(SX1280_REG_SENSITIVITY >> 8),
+        (uint8_t)SX1280_REG_SENSITIVITY,
+        0, // NOP
+        0};
+    TransferBuffer(buffer, sizeof(buffer), 1);
+
+    enabled = (enabled ? (0x3 << 6) : 0x0) | (buffer[4] & ~(0x3 << 6));
+
+    buffer[0] = SX1280_RADIO_WRITE_REGISTER;
+    buffer[3] = enabled;
+    TransferBuffer(buffer, 4, 0);
 }
 
 void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
@@ -479,7 +513,7 @@ void ICACHE_RAM_ATTR SX1280Driver::GetLastRssiSnr(void)
     uint8_t buff[] = {SX1280_RADIO_GET_PACKETSTATUS, 0, 0, 0};
     TransferBuffer(buff, sizeof(buff), 1);
     //LastRadioStatus = buff[1];
-    LastPacketRSSI = -((int8_t)buff[2]) / 2;
+    LastPacketRSSI = -(int8_t)(buff[2] / 2);
     LastPacketSNR = (int8_t)buff[3] / 4;
 }
 

@@ -68,6 +68,9 @@ private:
                          SX1280_RadioLoRaIQModes_t InvertIQ,
                          uint8_t PreambleLength,
                          uint8_t PayloadLength);
+    void SetPacketType(uint8_t type);
+    void SetAutoFs(uint8_t enabled);
+    void SetHighSensitivityMode(uint8_t enabled);
 
     void ICACHE_RAM_ATTR SetFIFOaddr(uint8_t txBaseAddr, uint8_t rxBaseAddr);
     void SetDioIrqParams(uint16_t irqMask, uint16_t dio1Mask, uint16_t dio2Mask, uint16_t dio3Mask);
