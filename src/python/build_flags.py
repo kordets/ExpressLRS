@@ -70,3 +70,9 @@ parse_flags("user_defines_private.txt")
 print("\n[INFO] build flags: %s\n" % env['BUILD_FLAGS'])
 
 fhss_random.check_env_and_parse(env['BUILD_FLAGS'])
+
+# Set upload_protovol = 'custom' for STM32 MCUs
+#  otherwise firmware.bin is not generated
+stm = env.get('PIOPLATFORM', '') in ['ststm32']
+if stm:
+    env['UPLOAD_PROTOCOL'] = 'custom'

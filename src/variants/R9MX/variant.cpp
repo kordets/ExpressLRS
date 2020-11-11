@@ -17,6 +17,8 @@
 extern "C" {
 #endif
 
+#include <string.h>
+
 // Digital PinName array
 // This array allows to wrap Arduino pin number(Dx or x)
 // to STM32 PinName (PX_n)
@@ -110,7 +112,7 @@ const uint32_t analogInputPin[] = {
 extern "C" {
 #endif
 
-
+extern void SystemCoreClockUpdate(void);
 
 /**
   * @brief  System Clock Configuration
@@ -131,16 +133,12 @@ extern "C" {
   * @param  None
   * @retval None
   */
-WEAK void SystemClock_Config(void)
+void SystemClock_Config(void)
 {
 
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {};
-  RCC_OscInitTypeDef RCC_OscInitStruct = {};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {};
-
-#if 1
-  memset(&RCC_OscInitStruct, 0, sizeof(RCC_OscInitTypeDef));
-  memset(&RCC_ClkInitStruct, 0, sizeof(RCC_ClkInitTypeDef));
+  RCC_ClkInitTypeDef RCC_ClkInitStruct;
+  RCC_OscInitTypeDef RCC_OscInitStruct;
+  RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
   /* Enable Power Control clock */
   __HAL_RCC_PWR_CLK_ENABLE();
@@ -150,7 +148,11 @@ WEAK void SystemClock_Config(void)
      regarding system frequency refer to product datasheet.  */
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-  /* Enable HSI Oscillator and activate PLL with HSI as source */
+  memset(&RCC_OscInitStruct, 0, sizeof(RCC_OscInitTypeDef));
+  memset(&RCC_ClkInitStruct, 0, sizeof(RCC_ClkInitTypeDef));
+  memset(&PeriphClkInit, 0, sizeof(RCC_PeriphCLKInitTypeDef));
+
+  /* MSI is enabled after System reset, activate PLL with MSI as source */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSEState = RCC_HSE_OFF;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
@@ -160,47 +162,8 @@ WEAK void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLN = 10; // 10 * 16MHz
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2; // 160MHz / 2
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7; // 160MHz / 7
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2; // 160MHz / 2
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV4; // 160MHz / 4
   RCC_OscInitStruct.HSICalibrationValue = 0x10;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-    //Error_Handler();
-    while (1);
-
-  /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2
-     clocks dividers */
-  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-    //Error_Handler();
-    while (1);
-
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1 | RCC_PERIPHCLK_USART2;
-  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
-  PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-    //Error_Handler();
-    while (1);
-
-  HAL_ResumeTick();
-
-
-#else
-  /* MSI is enabled after System reset, activate PLL with MSI as source */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
-  RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
-  RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
-  RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 40;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
 
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     /* Initialization Error */
@@ -219,21 +182,17 @@ WEAK void SystemClock_Config(void)
     while (1);
   }
 
-
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLLSAI1;
-  PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_MSI;
-  PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
-  PeriphClkInit.PLLSAI1.PLLSAI1N = 24;
-  PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV7;
-  PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
-  PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV2;
-  PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_48M2CLK;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
-    /* Initialization Error */
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1 | RCC_PERIPHCLK_USART2;
+  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+  PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
     while (1);
   }
-#endif
+
+  SystemCoreClockUpdate();
+
+  HAL_ResumeTick();
 }
 
 

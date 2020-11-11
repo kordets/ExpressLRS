@@ -1,0 +1,24 @@
+Import("env", "projenv")
+import stlink
+import UARTupload
+import opentx
+import upload_via_esp8266_backpack
+
+stm = env.get('PIOPLATFORM', '') in ['ststm32']
+
+# don't overwrite if custom command defined
+if stm and "$UPLOADER $UPLOADERFLAGS" in env.get('UPLOADCMD', '$UPLOADER $UPLOADERFLAGS'):
+    target_name = env['PIOENV'].upper()
+    print("STM ENv: '%s'" % target_name)
+    if "TX_R9M" in target_name:
+        if "WIFI" in target_name:
+            env.Replace(UPLOADCMD=upload_via_esp8266_backpack.on_upload)
+        else:
+            #env.AddPostAction("buildprog", [opentx.gen_elrs, opentx.gen_frsky])
+            env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", [opentx.gen_elrs, opentx.gen_frsky])
+            if "STOCK" not in target_name:
+                env.Replace(UPLOADCMD=stlink.on_upload)
+    elif "_BF_PASSTHROUGH" in target_name or "_BF" in target_name: # BF_Passthrough
+        env.Replace(UPLOADCMD=UARTupload.on_upload)
+    else: #elif "_STLINK" in target_name:
+        env.Replace(UPLOADCMD=stlink.on_upload)

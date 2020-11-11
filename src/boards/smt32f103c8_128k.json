@@ -14,7 +14,7 @@
         "0x0004"
       ]
     ],
-    "ldscript": "ldscript.ld",
+    "ldscript": "variants/F103XX/ldscript.ld",
     "mcu": "stm32f103c8t6",
     "variants_dir": "variants",
     "variant": "F103XX",

@@ -1,6 +1,4 @@
-Import("env")
 import os
-import stlink
 
 def gen_multi_bin(source, target, env):
     target_bin = target[0]
@@ -64,7 +62,3 @@ def gen_frsky(source, target, env):
     print("    Copy %s to SD card and choose flash external" % bin_target)
     print("=====================================================================================================================================\n")
 
-env.AddPostAction("buildprog", gen_elrs)
-env.AddPostAction("buildprog", gen_frsky)
-
-env.Replace(UPLOADCMD=stlink.on_upload)

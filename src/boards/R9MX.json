@@ -2,17 +2,19 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32L433xx",
+    "extra_flags": "-DSTM32L4xx -DSTM32L43x -DSTM32L433xx",
     "f_cpu": "80000000L",
-    "mcu": "stm32l433rc",
+    "ldscript": "variants/R9MX/ldscript.ld",
+    "mcu": "stm32l433cby6",
     "product_line": "STM32L433xx",
-    "variant": "NUCLEO_L433RC_P"
+    "variants_dir": "variants",
+    "variant": "R9MX"
   },
   "debug": {
     "default_tools": [
       "stlink"
     ],
-    "jlink_device": "STM32L433RC",
+    "jlink_device": "STM32L433CB",
     "onboard_tools": [
       "stlink"
     ],
@@ -25,11 +27,11 @@
     "mbed",
     "stm32cube"
   ],
-  "name": "ST Nucleo L433RC-P",
+  "name": "FrSky R9MX receiver",
   "upload": {
     "maximum_ram_size": 65536,
-    "maximum_size": 262144,
-    "protocol": "stlink",
+    "maximum_size": 98304,
+    "protocol": "custom",
     "protocols": [
       "jlink",
       "stlink",
@@ -37,6 +39,6 @@
       "mbed"
     ]
   },
-  "url": "https://www.st.com/en/evaluation-tools/nucleo-l433rc-p.html",
+  "url": "https://www.st.com/en/microcontrollers-microprocessors/stm32l433cb.html",
   "vendor": "ST"
 }
