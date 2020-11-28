@@ -48,6 +48,21 @@ uint32_t uart_peripheral_get(uint32_t rx, uint32_t tx)
     return 0;
 }
 
+uint32_t uart_peripheral_get(uint32_t pin)
+{
+    switch (pin) {
+        case GPIO('A', 10):
+        case GPIO('A', 9):
+        case GPIO('B', 7):
+        case GPIO('B', 6):
+            return (uint32_t)USART1_BASE;
+        case GPIO('A', 3):
+        case GPIO('A', 2):
+            return (uint32_t)USART2_BASE;
+    }
+    return 0;
+}
+
 void uart_pins_get(uint32_t periph, uint32_t *rx_pin, uint32_t *tx_pin, uint8_t alt)
 {
     switch (periph) {

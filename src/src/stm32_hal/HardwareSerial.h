@@ -70,7 +70,8 @@ public:
 
     void* dma_unit_tx;
     void* dma_unit_rx;
-    void* p_usart;
+    void* p_usart_tx;
+    void* p_usart_rx;
     uint8_t dma_ch_tx;
     uint8_t dma_ch_rx;
 
@@ -80,7 +81,8 @@ protected:
     struct gpio_out p_duplex_pin;
 
 private:
-    uint8_t usart_irq;
+    uint8_t usart_irq_rx;
+    uint8_t usart_irq_tx;
     uint8_t p_use_dma;
     uint8_t dma_irq_tx;
     uint8_t dma_irq_rx;

@@ -227,20 +227,28 @@ https://github.com/jaxxzer
 #define GPIO_PIN_MISO        PB14
 #define GPIO_PIN_SCK         PB13
 #define GPIO_PIN_RST         PC14
-#define GPIO_PIN_RCSIGNAL_RX PA10 // USART1
-#define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
+#if defined(TARGET_R9SLIM_PLUS)
+#  define GPIO_PIN_RCSIGNAL_RX PB11 // USART3
+#  define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
+#else
+#  define GPIO_PIN_RCSIGNAL_RX PA10 // USART1
+#  define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
+#endif
 #if defined(TARGET_R9MX)
 #  define GPIO_PIN_LED_RED   PB2
 #  define GPIO_PIN_LED_GREEN PB3
 //#  define GPIO_PIN_BUTTON    PB0  // pullup e.g. LOW when pressed
+#elif defined(TARGET_R9SLIM_PLUS)
+#  define GPIO_PIN_LED_RED   PA11
+#  define GPIO_PIN_LED_GREEN PA12
+//#  define GPIO_PIN_BUTTON    PC13 // pullup e.g. LOW when pressed
 #else
 #  define GPIO_PIN_LED_RED   PC1
 #  define GPIO_PIN_LED_GREEN PB3
 //#  define GPIO_PIN_BUTTON    PC13 // pullup e.g. LOW when pressed
-#endif
-
 //#define GPIO_PIN_DEBUG_RX    PA3 // confirmed, USART2
 //#define GPIO_PIN_DEBUG_TX    PA2 // confirmed, USART2
+#endif
 
 // External pads
 // #define R9m_Ch1    PA8
