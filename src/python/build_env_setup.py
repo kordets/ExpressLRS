@@ -18,7 +18,7 @@ if stm and "$UPLOADER $UPLOADERFLAGS" in env.get('UPLOADCMD', '$UPLOADER $UPLOAD
             env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", [opentx.gen_elrs, opentx.gen_frsky])
             if "STOCK" not in target_name:
                 env.Replace(UPLOADCMD=stlink.on_upload)
-    elif "_BF_PASSTHROUGH" in target_name or "_BF" in target_name: # BF_Passthrough
+    elif "_BF_PASSTHROUGH" in target_name or "_BF" in target_name:
         env.Replace(UPLOADCMD=UARTupload.on_upload)
-    else: #elif "_STLINK" in target_name:
+    else: # "_STLINK"
         env.Replace(UPLOADCMD=stlink.on_upload)

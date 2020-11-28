@@ -2,6 +2,11 @@ Import("env")
 import os
 import fhss_random
 import hashlib
+try:
+    from git import Repo
+except ImportError:
+    env.Execute("$PYTHONEXE -m pip install GitPython")
+    from git import Repo
 
 def parse_flags(path):
     domains_found = 0
@@ -66,6 +71,14 @@ if not parse_flags("user_defines.txt"):
     raise Exception(err)
 # try to parse user private params
 parse_flags("user_defines_private.txt")
+
+git_repo = Repo(os.getcwd(), search_parent_directories=True)
+git_root = git_repo.git.rev_parse("--show-toplevel")
+ExLRS_Repo = Repo(git_root)
+hexsha = ExLRS_Repo.head.object.hexsha
+sha = ",".join(["0x%s" % x for x in hexsha[:6]])
+print("Current SHA: %s" % sha)
+env['BUILD_FLAGS'].append("-DLATEST_COMMIT="+sha)
 
 print("\n[INFO] build flags: %s\n" % env['BUILD_FLAGS'])
 
