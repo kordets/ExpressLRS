@@ -5,8 +5,6 @@ platform.platform()
 
 platform_name = platform.system().lower()
 
-print("Args: %s" % sys.argv)
-
 python_exe = "python" # '"%s"' % sys.argv[1]
 python_file = '"%s"' % sys.argv[2]
 command = '"%s %s %s"' % (python_exe, python_file, sys.argv[3])

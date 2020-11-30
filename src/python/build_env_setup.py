@@ -14,8 +14,8 @@ if stm and "$UPLOADER $UPLOADERFLAGS" in env.get('UPLOADCMD', '$UPLOADER $UPLOAD
         if "WIFI" in target_name:
             env.Replace(UPLOADCMD=upload_via_esp8266_backpack.on_upload)
         else:
-            #env.AddPostAction("buildprog", [opentx.gen_elrs, opentx.gen_frsky])
-            env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", [opentx.gen_elrs, opentx.gen_frsky])
+            env.AddPostAction("buildprog", [opentx.gen_elrs, opentx.gen_frsky])
+            #env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", [opentx.gen_elrs, opentx.gen_frsky])
             if "STOCK" not in target_name:
                 env.Replace(UPLOADCMD=stlink.on_upload)
     elif "_BF_PASSTHROUGH" in target_name or "_BF" in target_name:
