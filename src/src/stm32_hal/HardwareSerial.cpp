@@ -38,16 +38,22 @@
 #define USART_SR_RXNE   USART_ISR_RXNE
 #define USART_SR_ORE    USART_ISR_ORE
 #define USART_SR_TXE    USART_ISR_TXE
+#elif defined(STM32F3xx)
+#include <stm32f3xx_ll_usart.h>
+#include <stm32f3xx_ll_bus.h>
+#include <stm32f3xx_ll_dma.h>
+#define StatReg         ISR
+#define RxDataReg       RDR
+#define TxDataReg       TDR
+#define USART_SR_IDLE   USART_ISR_IDLE
+#define USART_SR_RXNE   USART_ISR_RXNE
+#define USART_SR_ORE    USART_ISR_ORE
+#define USART_SR_TXE    USART_ISR_TXE
 #endif
 #include <string.h>
 
 #define UART_ENABLE_DMA_RX 0 // Don't enable yet
 #define UART_ENABLE_DMA_TX 1
-
-#define DIV_ROUND_CLOSEST(x, divisor) ({       \
-    typeof(divisor) __divisor = divisor;       \
-    (((x) + ((__divisor) / 2)) / (__divisor)); \
-})
 
 
 #ifdef DEBUG_SERIAL
@@ -79,6 +85,12 @@ constexpr uint8_t serial_cnt = 0
     + 1
 #endif
 #ifdef USART3
+    + 1
+#endif
+#ifdef UART4
+    + 1
+#endif
+#ifdef UART5
     + 1
 #endif
     ;
@@ -485,7 +497,7 @@ uint32_t HardwareSerial::write(const uint8_t *buff, uint32_t len)
 #if !UART_USE_TX_POOL_ONLY
         tx_pool_add(buff, len);
 #endif
-        if (!LL_DMA_IsEnabledChannel(DMA1, dma_ch_tx))
+        if (!LL_DMA_IsEnabledChannel((DMA_TypeDef *)dma_unit_tx, dma_ch_tx))
             DMA_transmit(this, dma_ch_tx);
     } else {
 #if UART_USE_TX_POOL_ONLY

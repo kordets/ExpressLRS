@@ -34,10 +34,14 @@ void* i2c_setup(I2C_HandleTypeDef * handle, uint32_t rate, uint8_t own_addr)
     handle->Init.DutyCycle = (100000 < rate) ? I2C_DUTYCYCLE_16_9 : I2C_DUTYCYCLE_2;
 #elif defined(STM32L0xx)
     /* STM32L0xx runs with 32MHz clock! */
-    handle->Init.Timing = rate == 100000 ? 0x10E0474A : 0x00B01626;
+    handle->Init.Timing = (rate == 100000) ? 0x10E0474A : 0x00B01626;
 #elif defined(STM32L4xx)
     /* STM32L4xx runs with 80MHz clock! */
-    handle->Init.Timing = rate == 100000 ? 0x60903132 : 0x10D11C2F;
+    handle->Init.Timing = (rate == 100000) ? 0x60903132 : 0x10D11C2F;
+#elif defined(STM32F3xx)
+    /* STM32F3xx runs with 72MHz clock! */
+    // FIXME: this is not correct!
+    handle->Init.Timing = (rate == 100000) ? 0x30f05052 : 0x10c11a2b;
 #else
 #error "No valid I2C config!"
 #endif
