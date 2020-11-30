@@ -227,6 +227,7 @@ HardwareSerial::HardwareSerial(uint32_t rx, uint32_t tx, uint8_t dma)
     p_use_dma = dma ? (USE_DMA_RX | USE_DMA_TX) : USE_DMA_NONE;
 }
 
+#if 0
 HardwareSerial::HardwareSerial(void *peripheral, uint8_t dma)
 {
     USART_TypeDef * uart = (USART_TypeDef *)peripheral;
@@ -234,6 +235,7 @@ HardwareSerial::HardwareSerial(void *peripheral, uint8_t dma)
     p_usart_tx = p_usart_rx = uart;
     p_use_dma = dma ? (USE_DMA_RX | USE_DMA_TX) : USE_DMA_NONE;
 }
+#endif
 
 void HardwareSerial::setTx(uint32_t pin)
 {
@@ -565,5 +567,5 @@ void HardwareSerial::hw_enable_transmitter(void)
 #ifndef PRINTF_USE_DMA
 #define PRINTF_USE_DMA 0
 #endif
-HardwareSerial Serial1(USART1, PRINTF_USE_DMA);
+HardwareSerial Serial1(GPIO('A', 10), GPIO('A', 9), PRINTF_USE_DMA);
 #endif

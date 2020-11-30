@@ -11,7 +11,6 @@ class HwSerial : public HardwareSerial
 public:
     HwSerial(int uart_nr, int32_t duplex_pin = UNDEF_PIN);
     HwSerial(uint32_t _rx, uint32_t _tx, int32_t duplex_pin = UNDEF_PIN);
-    HwSerial(void *peripheral, int32_t duplex_pin = UNDEF_PIN);
 
     void Begin(uint32_t baud, uint32_t config = SERIAL_8N1);
 

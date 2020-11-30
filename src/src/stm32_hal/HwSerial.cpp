@@ -28,12 +28,6 @@ HwSerial::HwSerial(uint32_t _rx, uint32_t _tx, int32_t pin)
     p_duplex_pin = gpio_out_setup(pin, 0);
 }
 
-HwSerial::HwSerial(void *peripheral, int32_t pin)
-    : HardwareSerial(peripheral, 1)
-{
-    p_duplex_pin = gpio_out_setup(pin, 0);
-}
-
 void HwSerial::Begin(uint32_t baud, uint32_t config)
 {
     HardwareSerial::begin((unsigned long)baud, (uint8_t)config);

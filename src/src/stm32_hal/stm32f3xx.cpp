@@ -49,36 +49,48 @@ void dma_request_config(uint32_t periph, uint8_t type, uint8_t index)
 uint32_t uart_peripheral_get(uint32_t rx, uint32_t tx)
 {
     if ((rx == GPIO('A', 10) && tx == GPIO('A', 9)) ||
-        (rx == GPIO('B', 7) && tx == GPIO('B', 6)))
+        (rx == GPIO('B',  7) && tx == GPIO('B', 6)) ||
+        (rx == GPIO('C',  5) && tx == GPIO('C', 4)))
         return (uint32_t)USART1;
-    else if (rx == GPIO('A', 3) && tx == GPIO('A', 2))
+    else if ((rx == GPIO('A',  3) && tx == GPIO('A',  2)) ||
+             (rx == GPIO('A', 15) && tx == GPIO('A', 14)) ||
+             (rx == GPIO('B',  4) && tx == GPIO('B',  3)) ||
+             (rx == GPIO('D',  6) && tx == GPIO('D',  5)))
         return (uint32_t)USART2;
-    else if ((rx == GPIO('D', 9) && tx == GPIO('D', 8)) ||
-             (rx == GPIO('B', 11) && tx == GPIO('B', 10)))
+    else if ((rx == GPIO('B', 11) && tx == GPIO('B', 10)) ||
+             (rx == GPIO('C', 11) && tx == GPIO('C', 10)) ||
+             (rx == GPIO('D',  9) && tx == GPIO('D',  8)))
         return (uint32_t)USART3;
 
-    /* TODO: Add UART4 & UART5 */
     return 0;
 }
 
 uint32_t uart_peripheral_get(uint32_t pin)
 {
     switch (pin) {
-        case GPIO('A', 10):
         case GPIO('A', 9):
-        case GPIO('B', 7):
+        case GPIO('A', 10):
         case GPIO('B', 6):
+        case GPIO('B', 7):
+        case GPIO('C', 4):
+        case GPIO('C', 5):
             return (uint32_t)USART1_BASE;
-        case GPIO('A', 3):
         case GPIO('A', 2):
+        case GPIO('A', 3):
+        case GPIO('A', 14):
+        case GPIO('A', 15):
+        case GPIO('B', 3):
+        case GPIO('B', 4):
+        case GPIO('D', 5):
+        case GPIO('D', 6):
             return (uint32_t)USART2_BASE;
-        case GPIO('D', 9):
-        case GPIO('D', 8):
-        case GPIO('B', 11):
         case GPIO('B', 10):
+        case GPIO('B', 11):
+        case GPIO('C', 10):
+        case GPIO('C', 11):
+        case GPIO('D', 8):
+        case GPIO('D', 9):
             return (uint32_t)USART3_BASE;
-
-        /* TODO: Add UART4 & UART5 */
     }
     return 0;
 }
@@ -87,19 +99,17 @@ void uart_pins_get(uint32_t periph, uint32_t *rx_pin, uint32_t *tx_pin, uint8_t 
 {
     switch (periph) {
         case USART1_BASE:
-            *rx_pin = !alt ? GPIO('A', 10) : GPIO('B', 7);
-            *tx_pin = !alt ? GPIO('A', 9) : GPIO('B', 6);
+            *rx_pin = (alt == 0) ? GPIO('A', 10) : (alt == 1) ? GPIO('B', 7) : GPIO('C', 5);
+            *tx_pin = (alt == 0) ? GPIO('A',  9) : (alt == 1) ? GPIO('B', 6) : GPIO('C', 4);
             break;
         case USART2_BASE:
-            *rx_pin = GPIO('A', 3);
-            *tx_pin = GPIO('A', 2);
+            *rx_pin = (alt == 0) ? GPIO('A', 3) : (alt == 1) ? GPIO('A', 15) : GPIO('B', 4);
+            *tx_pin = (alt == 0) ? GPIO('A', 2) : (alt == 1) ? GPIO('A', 14) : GPIO('B', 3);
             break;
         case USART3_BASE:
-            *rx_pin = !alt ? GPIO('B', 11) : GPIO('D', 9);
-            *tx_pin = !alt ? GPIO('B', 10) : GPIO('D', 8);
+            *rx_pin = (alt == 0) ? GPIO('B', 11) : (alt == 1) ? GPIO('D', 9) : GPIO('C', 11);
+            *tx_pin = (alt == 0) ? GPIO('B', 10) : (alt == 1) ? GPIO('D', 8) : GPIO('C', 10);
             break;
-
-        /* TODO: Add UART4 & UART5 */
     }
 }
 

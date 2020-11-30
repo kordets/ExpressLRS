@@ -177,7 +177,7 @@ static gpio_irq_conf_str gpio_irq_conf[GPIO_NUM_PINS] = {
     {.irqnb = EXTI4_15_IRQn, .callback = NULL}, //GPIO_PIN_14
     {.irqnb = EXTI4_15_IRQn, .callback = NULL}  //GPIO_PIN_15
 #else
-#ifndef EXTI2_IRQn
+#if defined(STM32F3xx)
 #define EXTI2_IRQn EXTI2_TSC_IRQn
 #endif
     {.irqnb = EXTI0_IRQn, .callback = NULL},     //GPIO_PIN_0
