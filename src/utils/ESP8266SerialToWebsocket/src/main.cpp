@@ -8,15 +8,10 @@
 #include <WiFiManager.h>
 #endif /* WIFI_MANAGER */
 #include <ESP8266HTTPUpdateServer.h>
-#include <FS.h>
-#ifdef USE_LITTLE_FS
-#include <LittleFS.h>
-#define FILESYSTEM LittleFS
-#else
-#define FILESYSTEM SPIFFS
-#endif
 
+#include "main.h"
 #include "stm32Updater.h"
+#include "stk500.h"
 #include "msp.h"
 
 #ifdef ESP_NOW
@@ -33,6 +28,7 @@
 //reference for spiffs upload https://taillieu.info/index.php/internet-of-things/esp8266/335-esp8266-uploading-files-to-the-server
 
 //#define INVERTED_SERIAL // Comment this out for non-inverted serial
+
 
 #ifndef WIFI_AP_SSID
 #define WIFI_AP_SSID "ExpressLRS AP"
@@ -62,7 +58,6 @@
 #endif
 #endif // ESP_NOW
 
-
 MDNSResponder mdns;
 
 ESP8266WebServer server(80);
@@ -71,10 +66,7 @@ WebSocketsServer webSocket = WebSocketsServer(81);
 ESP8266HTTPUpdateServer httpUpdater;
 
 File fsUploadFile; // a File object to temporarily store the received file
-FSInfo fs_info;
 String uploadedfilename; // filename of uploaded file
-
-uint32_t TotalUploadedBytes;
 
 uint8_t socketNumber;
 
@@ -125,9 +117,7 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
         function start() {
             document.getElementById("logField").scrollTop = document.getElementById("logField").scrollHeight;
             websock = new WebSocket('ws://' + window.location.hostname + ':81/');
-            websock.onopen = function (evt) {
-              console.log('websock open');
-            };
+            websock.onopen = function (evt) { console.log('websock open'); };
             websock.onclose = function(e) {
               console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
               setTimeout(function() {
@@ -353,7 +343,8 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
     <div>
       <form method='POST' action='/upload' enctype='multipart/form-data'>
           R9M Firmware:
-          <input type='file' accept='.bin' name='filesystem'>
+          <input type='file' accept='.bin,.elrs' name='firmware'>
+          <input type='text' value='0x08002000' name='flash_address' size='10' style='width:auto'>
           <input type='submit' value='Upload and Flash R9M'>
       </form>
     </div>
@@ -620,17 +611,47 @@ void handleRoot()
   server.send_P(200, "text/html", INDEX_HTML);
 }
 
-
-bool flashR9M()
+bool flashR9M(uint32_t flash_addr)
 {
+  bool result = 0;
   webSocket.broadcastTXT("R9M Firmware Flash Requested!");
-  stm32flasher_hardware_init();
-  webSocket.broadcastTXT("Going to flash the following file: " + uploadedfilename);
-  bool result = esp8266_spifs_write_file(uploadedfilename.c_str());
-  if (result == 0)
-    reset_stm32_to_app_mode(); // boot into app
+  webSocket.broadcastTXT("  the firmware file: '" + uploadedfilename + "'");
+  if (uploadedfilename.endsWith(".elrs")) {
+    result = stk500_write_file(uploadedfilename.c_str());
+  } else if (uploadedfilename.endsWith(".bin")) {
+    result = esp8266_spifs_write_file(uploadedfilename.c_str(), flash_addr);
+    if (result == 0)
+      reset_stm32_to_app_mode(); // boot into app
+  }
   Serial.begin(460800);
   return result;
+}
+
+void handleFileUploadEnd()
+{
+  uint32_t flash_base = BEGIN_ADDRESS;
+  //String message = "\nRequest params:\n";
+  for (uint8_t i = 0; i < server.args(); i++) {
+    String name = server.argName(i);
+    String value = server.arg(i);
+      //message += " " + name + ": " + value + "\n";
+      if (name == "flash_address") {
+        flash_base = strtol(&value.c_str()[2], NULL, 16);
+        break;
+      }
+  }
+  //webSocket.broadcastTXT(message);
+
+  bool success = flashR9M(flash_base);
+
+  if (uploadedfilename.length() && FILESYSTEM.exists(uploadedfilename))
+    FILESYSTEM.remove(uploadedfilename);
+
+  server.sendHeader("Location", "/return");          // Redirect the client to the success page
+  server.send(303);
+  webSocket.broadcastTXT(
+    (success) ? "Update Successful!": "Update Failure!");
+  server.send(200);
 }
 
 void handleFileUpload()
@@ -638,15 +659,23 @@ void handleFileUpload()
   HTTPUpload &upload = server.upload();
   if (upload.status == UPLOAD_FILE_START)
   {
+    /* Remove old file */
+    if (uploadedfilename.length() && FILESYSTEM.exists(uploadedfilename))
+      FILESYSTEM.remove(uploadedfilename);
 
+    FSInfo fs_info;
     if (FILESYSTEM.info(fs_info))
     {
-      String output;
-      output += "Filesystem: used: ";
-      output += String(fs_info.usedBytes);
+      String output = "Filesystem: used: ";
+      output += fs_info.usedBytes;
       output += " / free: ";
-      output += String(fs_info.totalBytes);
+      output += fs_info.totalBytes;
       webSocket.broadcastTXT(output);
+
+      if (fs_info.usedBytes > 0) {
+        webSocket.broadcastTXT("formatting filesystem");
+        FILESYSTEM.format();
+      }
     }
     else
     {
@@ -668,10 +697,8 @@ void handleFileUpload()
     if (fsUploadFile)
     {
       fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
-      TotalUploadedBytes += int(upload.currentSize);
-      String output = "";
-      output += "Uploaded: ";
-      output += String(TotalUploadedBytes);
+      String output = "Uploaded: ";
+      output += fsUploadFile.position();
       output += " bytes";
       webSocket.broadcastTXT(output);
     }
@@ -680,28 +707,17 @@ void handleFileUpload()
   {
     if (fsUploadFile)
     {                       // If the file was successfully created
-      fsUploadFile.close(); // Close the file again
-      String totsize = String(upload.totalSize);
-      webSocket.broadcastTXT("Total uploaded size: " + totsize);
-      TotalUploadedBytes = 0;
+      String totsize = "Total uploaded size ";
+      totsize += fsUploadFile.position();
+      totsize += " of ";
+      totsize += upload.totalSize;
+      webSocket.broadcastTXT(totsize);
       server.send(100);
-      if (flashR9M())
-      {
-        server.sendHeader("Location", "/return"); // Redirect the client to the success page
-        server.send(303);
-        webSocket.broadcastTXT("Update Sucess!!!");
-      }
-      else
-      {
-        server.sendHeader("Location", "/return"); // Redirect the client to the success page
-        server.send(303);
-        webSocket.broadcastTXT("Update Failed!!!");
-      }
+      fsUploadFile.close(); // Close the file again
     }
     else
     {
       server.send(500, "text/plain", "500: couldn't create file");
-      FILESYSTEM.format();
     }
   }
 }
@@ -904,7 +920,7 @@ void setup()
 
   server.on(
       "/upload", HTTP_POST,       // if the client posts to the upload page
-      []() { server.send(200); }, // Send status 200 (OK) to tell the client we are ready to receive
+      handleFileUploadEnd,
       handleFileUpload            // Receive and save the file
   );
 

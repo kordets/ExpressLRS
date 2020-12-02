@@ -1,7 +1,12 @@
 #include "stm32Updater.h"
+#include "main.h"
 #include <WebSocketsServer.h>
 
 //adapted from https://github.com/mengguang/esp8266_stm32_isp
+
+
+#define BLOCK_SIZE 128
+
 
 extern WebSocketsServer webSocket;
 
@@ -47,9 +52,6 @@ void reset_stm32_to_app_mode()
 
 void stm32flasher_hardware_init()
 {
-	webSocket.broadcastTXT("STM32 Flasher Pin IO init");
-	pinMode(RESET_PIN, INPUT);
-	pinMode(BOOT0_PIN, INPUT);
 	Serial.begin(115200, SERIAL_8E1);
 	Serial.setTimeout(5000);
 }
@@ -58,6 +60,12 @@ void debug_log()
 {
 	webSocket.broadcastTXT(log_buffer);
 }
+
+
+uint8_t init_chip();
+uint8_t cmd_generic(uint8_t command);
+uint8_t cmd_get();
+
 
 uint8_t isp_serial_write(uint8_t *buffer, uint8_t length)
 {
@@ -279,11 +287,11 @@ uint8_t cmd_write_memory(uint32_t address, uint8_t length)
 
 // if bootversion < 0x30
 // pg 7 of https://www.st.com/resource/en/application_note/cd00264342-usart-protocol-used-in-the-stm32-bootloader-stmicroelectronics.pdf
-static uint8_t cmd_erase_all_memory(uint32_t filesize)
+static uint8_t cmd_erase_all_memory(uint32_t const start_addr, uint32_t filesize)
 {
 	if (cmd_generic(0x43) == 1)
 	{
-#if (FLASH_OFFSET == 0)
+#if 0 //(FLASH_OFFSET == 0)
 		DEBUG_PRINT("erasing all memory...");
 		// Global erase aka mass erase
 		uint8_t cmd[2];
@@ -294,10 +302,10 @@ static uint8_t cmd_erase_all_memory(uint32_t filesize)
 #else
 		// Erase only defined pages
 		uint8_t checksum = 0, page;
-		uint8_t pages = ((FLASH_SIZE - FLASH_OFFSET) / FLASH_PAGE_SIZE);
+		uint8_t pages = (FLASH_SIZE / FLASH_PAGE_SIZE);
 		if (filesize)
 			pages = (filesize + (FLASH_PAGE_SIZE - 1)) / FLASH_PAGE_SIZE;
-		uint8_t page_offset = (FLASH_OFFSET / FLASH_PAGE_SIZE);
+		uint8_t page_offset = ((start_addr - FLASH_START) / FLASH_PAGE_SIZE);
 		DEBUG_PRINT("erasing pages: %u...%u", page_offset, (page_offset + pages));
 		// Send to DFU
 		Serial.write((uint8_t)(pages-1));
@@ -318,7 +326,7 @@ static uint8_t cmd_erase_all_memory_extended()
 {
 	if (cmd_generic(0x44) == 1)
 	{
-#if (FLASH_OFFSET == 0)
+#if 0 //(FLASH_OFFSET == 0)
 		uint8_t cmd[3];
 		cmd[0] = 0xFF;
 		cmd[1] = 0xFF;
@@ -332,10 +340,10 @@ static uint8_t cmd_erase_all_memory_extended()
 	return 0;
 }
 
-uint8_t cmd_erase(uint32_t filesize, uint8_t bootloader_ver)
+uint8_t cmd_erase(uint32_t const start_addr, uint32_t filesize, uint8_t bootloader_ver)
 {
 	if (bootloader_ver < 0x30)
-		return cmd_erase_all_memory(filesize);
+		return cmd_erase_all_memory(start_addr, filesize);
 	return cmd_erase_all_memory_extended();
 }
 
@@ -351,14 +359,14 @@ uint8_t cmd_go(uint32_t address)
 	return 0;
 }
 
-uint8_t esp8266_spifs_write_file(const char *filename)
+uint8_t esp8266_spifs_write_file(const char *filename, uint32_t begin_addr)
 {
-	if (!SPIFFS.exists(filename))
+	if (!FILESYSTEM.exists(filename))
 	{
 		DEBUG_PRINT("[ERROR] file: %s doesn't exist!", filename);
 		return 0;
 	}
-	File fp = SPIFFS.open(filename, "r");
+	File fp = FILESYSTEM.open(filename, "r");
 	uint32_t filesize = fp.size();
 	DEBUG_PRINT("filesize: %d", filesize);
 	if ((FLASH_SIZE - FLASH_OFFSET) < filesize) {
@@ -367,6 +375,13 @@ uint8_t esp8266_spifs_write_file(const char *filename)
 		return 0;
 	}
 
+	if (begin_addr < FLASH_START)
+		begin_addr += FLASH_START;
+    String message = "Using flash base: 0x";
+    message += String(begin_addr, 16);
+    webSocket.broadcastTXT(message);
+
+	stm32flasher_hardware_init();
 	reset_stm32_to_isp_mode();
 	isp_serial_flush();
 
@@ -386,7 +401,7 @@ uint8_t esp8266_spifs_write_file(const char *filename)
 		return 0;
 	}
 
-	if (cmd_erase(filesize, bootloader_ver) != 1)
+	if (cmd_erase(begin_addr, filesize, bootloader_ver) != 1)
 	{
 		DEBUG_PRINT("[ERROR] erase Failed!");
 		fp.close();
@@ -412,7 +427,7 @@ uint8_t esp8266_spifs_write_file(const char *filename)
 		if ((junk % 40) == 0 || junk >= junks)
 			DEBUG_PRINT("Write %u%%", proc);
 
-		uint8_t result = cmd_write_memory(BEGIN_ADDRESS + fp.position() - nread, nread);
+		uint8_t result = cmd_write_memory(begin_addr + fp.position() - nread, nread);
 		if (result != 1)
 		{
 			DEBUG_PRINT("[ERROR] file write failed.");
@@ -438,7 +453,7 @@ uint8_t esp8266_spifs_write_file(const char *filename)
 		if ((junk % 40) == 0 || junk >= junks)
 			DEBUG_PRINT("Verify %u%%", proc);
 
-		uint8_t result = cmd_read_memory(BEGIN_ADDRESS + fp.position() - nread, nread);
+		uint8_t result = cmd_read_memory(begin_addr + fp.position() - nread, nread);
 		if (result != 1)
 		{
 			DEBUG_PRINT("[ERROR] read memory failed: %d", fp.position());
