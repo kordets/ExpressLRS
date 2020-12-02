@@ -12,8 +12,8 @@ def gen_multi_bin(source, target, env):
     print("Copy %s to SD card and choose flash external multi" % bin_target)
 
 def gen_elrs(source, target, env):
-    if not "_stock" in env['PIOENV']:
-        return
+    #if not "_stock" in env['PIOENV']:
+    #    return
     source_bin = source[0]
     bin_path = os.path.dirname(source_bin.rstr())
     bin_target = os.path.join(bin_path, 'firmware.elrs')
