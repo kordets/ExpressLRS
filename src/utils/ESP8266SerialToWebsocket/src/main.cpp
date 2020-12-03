@@ -335,7 +335,7 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
     <div>
       <form method='POST' action='/update' enctype='multipart/form-data'>
           Self Firmware:
-          <input type='file' accept='.bin' name='firmware'>
+          <input type='file' accept='.bin,.bin.gz' name='backpack_fw'>
           <input type='submit' value='Upload and Flash Self'>
       </form>
     </div>
@@ -344,13 +344,13 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
       <form method='POST' action='/upload' enctype='multipart/form-data'>
           R9M Firmware:
           <input type='file' accept='.bin,.elrs' name='firmware'>
-          <input type='text' value='0x08002000' name='flash_address' size='10' style='width:auto'>
-          <input type='submit' value='Upload and Flash R9M'>
+          <input type='text' value='0x2000' name='flash_address' size='6'>
+          <input type='submit' value='Upload and Flash STM32'>
       </form>
     </div>
     <br>
     <div>
-    <button onclick="command_stm32('reset')">R9M Reset</button>
+    <button onclick="command_stm32('reset')">STM32 Reset</button>
     </div>
 
   </center>
@@ -601,27 +601,22 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   }
 }
 
-void sendReturn()
-{
-  server.send_P(200, "text/html", GO_BACK);
-}
+/***********************************************************************************/
+/*************                   STM32 OTA UPGRADE                     *************/
 
-void handleRoot()
+int8_t flash_stm32(uint32_t flash_addr)
 {
-  server.send_P(200, "text/html", INDEX_HTML);
-}
-
-bool flashR9M(uint32_t flash_addr)
-{
-  bool result = 0;
-  webSocket.broadcastTXT("R9M Firmware Flash Requested!");
+  int8_t result = -1;
+  webSocket.broadcastTXT("STM32 Firmware Flash Requested!");
   webSocket.broadcastTXT("  the firmware file: '" + uploadedfilename + "'");
-  if (uploadedfilename.endsWith(".elrs")) {
+  if (uploadedfilename.endsWith("firmware.elrs")) {
     result = stk500_write_file(uploadedfilename.c_str());
-  } else if (uploadedfilename.endsWith(".bin")) {
+  } else if (uploadedfilename.endsWith("firmware.bin")) {
     result = esp8266_spifs_write_file(uploadedfilename.c_str(), flash_addr);
     if (result == 0)
       reset_stm32_to_app_mode(); // boot into app
+  } else {
+    webSocket.broadcastTXT("Invalid file!");
   }
   Serial.begin(460800);
   return result;
@@ -642,7 +637,7 @@ void handleFileUploadEnd()
   }
   //webSocket.broadcastTXT(message);
 
-  bool success = flashR9M(flash_base);
+  int8_t success = flash_stm32(flash_base);
 
   if (uploadedfilename.length() && FILESYSTEM.exists(uploadedfilename))
     FILESYSTEM.remove(uploadedfilename);
@@ -651,7 +646,7 @@ void handleFileUploadEnd()
   server.send(303);
   webSocket.broadcastTXT(
     (success) ? "Update Successful!": "Update Failure!");
-  server.send(200);
+  server.send((success < 0) ? 400 : 200);
 }
 
 void handleFileUpload()
@@ -720,6 +715,72 @@ void handleFileUpload()
       server.send(500, "text/plain", "500: couldn't create file");
     }
   }
+}
+
+/***********************************************************************************/
+/*************                    ESP OTA UPGRADE                      *************/
+#define LOCAL_OTA 0
+#if LOCAL_OTA
+void handleEspUpgrade(void)
+{
+  HTTPUpload& upload = server.upload();
+  if (upload.status == UPLOAD_FILE_START) {
+    //Serial.setDebugOutput(true);
+    WiFiUDP::stopAll();
+    //Serial.printf("Update: %s\n", upload.filename.c_str());
+    webSocket.broadcastTXT("*** ESP OTA ***\n  file: " + upload.filename);
+
+    /*if (upload.name != "backpack_fw") {
+      webSocket.broadcastTXT("Invalid upload type!");
+      return;
+    } else*/ if (upload.filename.startsWith("backpack.bin")) {
+      webSocket.broadcastTXT("Invalid file! Update aborted...");
+      return;
+    }
+
+    uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+    if (!Update.begin(maxSketchSpace, U_FLASH)) { //start with max available size
+      //Update.printError(Serial);
+      webSocket.broadcastTXT("File is too big!");
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+      //Update.printError(Serial);
+      webSocket.broadcastTXT("Junk write failed!");
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (Update.end(true)) { //true to set the size to the current progress
+      //Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+      webSocket.broadcastTXT("Update Success! Rebooting...");
+    } else {
+      //Update.printError(Serial);
+      webSocket.broadcastTXT("Update failed!");
+    }
+    //Serial.setDebugOutput(false);
+  } else if (upload.status == UPLOAD_FILE_ABORTED) {
+    Update.end();
+  }
+  delay(0); //same as yield();
+}
+
+void handleEspUpgradeFinalize(void)
+{
+  server.sendHeader("Connection", "close");
+  server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+  ESP.restart();
+}
+#endif // LOCAL_OTA
+
+/***********************************************************************************/
+
+void sendReturn()
+{
+  server.send_P(200, "text/html", GO_BACK);
+}
+
+void handleRoot()
+{
+  server.send_P(200, "text/html", INDEX_HTML);
 }
 
 void handleNotFound()
@@ -917,12 +978,12 @@ void setup()
   server.on("/", handleRoot);
   server.on("/return", sendReturn);
   server.on("/mac", handleMacAddress);
-
-  server.on(
-      "/upload", HTTP_POST,       // if the client posts to the upload page
-      handleFileUploadEnd,
-      handleFileUpload            // Receive and save the file
-  );
+#if LOCAL_OTA
+  server.on("/update", HTTP_POST, // ESP OTA upgrade
+    handleEspUpgradeFinalize, handleEspUpgrade);
+#endif // LOCAL_OTA
+  server.on("/upload", HTTP_POST, // STM32 OTA upgrade
+    handleFileUploadEnd, handleFileUpload);
 
   server.onNotFound(handleRoot);
   httpUpdater.setup(&server);
