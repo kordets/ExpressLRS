@@ -111,6 +111,8 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
             border-radius: 5px;
             border: none;
         }
+        #validationMessage {color: red;}
+        .hide {display: none;}
     </style>
     <script>
         var websock;
@@ -332,22 +334,62 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 
     <hr/>
 	  <h2>Danger Zone</h2>
+    <p>
     <div>
       <form method='POST' action='/update' enctype='multipart/form-data'>
           Self Firmware:
-          <input type='file' accept='.bin,.bin.gz' name='backpack_fw'>
-          <input type='submit' value='Upload and Flash Self'>
+          <input type='file' accept='.bin,.bin.gz' name='backpack_fw' id='esp_fw'>
+          <input type='submit' value='Flash Self' id='esp_submit' disabled='disabled'>
       </form>
     </div>
     <br>
     <div>
       <form method='POST' action='/upload' enctype='multipart/form-data'>
-          R9M Firmware:
-          <input type='file' accept='.bin,.elrs' name='firmware'>
-          <input type='text' value='0x2000' name='flash_address' size='6'>
-          <input type='submit' value='Upload and Flash STM32'>
+          STM32 Firmware:
+          <input type='file' accept='.bin,.elrs' name='firmware' id='stm_fw'>
+          <input type='text' value='0x2000' name='flash_address' size='6' id='stm_addr' class="hide">
+          <input type='submit' value='Flash STM32' id='stm_submit' disabled='disabled'>
       </form>
     </div>
+    </p>
+    <p><span id="validationMessage" class="hide">
+      Please check firmware file is correct!
+    </span></p>
+
+<script type="text/javascript">
+  const message = document.getElementById('validationMessage');
+  document.getElementById('esp_fw').onchange = function (ev) {
+    const FIRMWARE_PATTERN = /backpack\.bin$/g;
+    const uploadButton = document.getElementById('esp_submit');
+    const value = ev.target.value;
+    if (FIRMWARE_PATTERN.test(value)) {
+      uploadButton.removeAttribute('disabled');
+      message.classList.add('hide');
+    } else {
+      uploadButton.setAttribute('disabled', 'disabled');
+      message.classList.remove('hide');
+    }
+  };
+  document.getElementById('stm_fw').onchange = function (ev) {
+    const FW_PATTERN_BIN = /firmware\.bin$/g;
+    const FW_PATTERN_ELRS = /firmware\.elrs$/g;
+    const uploadButton = document.getElementById('stm_submit');
+    const address = document.getElementById('stm_addr');
+    const value = ev.target.value;
+    address.classList.add('hide');
+    if (FW_PATTERN_BIN.test(value)) {
+      uploadButton.removeAttribute('disabled');
+      address.classList.remove('hide');
+      message.classList.add('hide');
+    } else if (FW_PATTERN_ELRS.test(value)) {
+      uploadButton.removeAttribute('disabled');
+      message.classList.add('hide');
+    } else {
+      uploadButton.setAttribute('disabled', 'disabled');
+      message.classList.remove('hide');
+    }
+  };
+</script>
     <br>
     <div>
     <button onclick="command_stm32('reset')">STM32 Reset</button>
