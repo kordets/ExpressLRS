@@ -6,6 +6,7 @@ import logging
 import os
 import serials_find
 import BFinitPassthrough
+import re
 
 SCRIPT_DEBUG = 0
 BAUDRATE_DEFAULT = 420000
@@ -56,13 +57,15 @@ def uart_upload(port, filename, baudrate):
 
         currAttempt = 0
         gotBootloader = False
+        # legacy bootloader requires a 500ms delay
+        delay_seq2 = .5
 
         dbg_print("\nAttempting to reboot into bootloader...\n")
 
         while gotBootloader == False:
 
             currAttempt += 1
-            dbg_print("[%2u] retry...\n" % currAttempt)
+            dbg_print("[%1u] retry...\n" % currAttempt)
             time.sleep(.5)
             if 10 < currAttempt:
                 msg = "[FAILED] to get to BL in reasonable time\n"
@@ -81,23 +84,27 @@ def uart_upload(port, filename, baudrate):
                 except UnicodeDecodeError:
                     continue
                 if SCRIPT_DEBUG and line:
-                    dbg_print(" **DBG : '%s'\n" % (line.strip(), ))
-                if "Bootloader for ExpressLRS" in line:
-                    # Read next couple of lines
-                    for idx in range(3):
-                        line = s.readline().decode('utf-8')
-                        if "BL_TYPE" in line:
-                            # do check...
-                            bl_ver = line.strip()[8:].strip()
-                            dbg_print("    Bootloader found : '%s'\n" % (bl_ver, ))
-                            #break
-                        elif "hold down button" in line.lower():
-                            # this is last print before init cmd is expected
-                            break
-                    # notify bootloader to start uploading
+                    dbg_print(" **DBG : '%s'\n" % line.strip())
+                
+                if "BL_TYPE" in line:
+                    bl_type = line.strip()[8:].strip()
+                    dbg_print("    Bootloader type found : '%s'\n" % bl_type)
+                    # Newer bootloaders do not require delay but keep
+                    # a 100ms just in case
+                    delay_seq2 = .1
+                    continue
+
+                versionMatch = re.search('=== (v.*) ===', line, re.IGNORECASE)
+                if versionMatch:
+                    bl_version = versionMatch.group(1)
+                    dbg_print("    Bootloader version found : '%s'\n" % bl_version)
+                    continue
+
+                elif "hold down button" in line.lower():
+                    time.sleep(delay_seq2)
                     s.write(BootloaderInitSeq2)
                     s.flush()
-                    dbg_print("    Got into bootloader after: %u attempts\n" % (currAttempt))
+                    dbg_print("    Got into bootloader after: %u attempts\n" % currAttempt)
                     gotBootloader = True
                     break
 
@@ -114,7 +121,7 @@ def uart_upload(port, filename, baudrate):
             except UnicodeDecodeError:
                 continue
             if SCRIPT_DEBUG and char:
-                dbg_print(" **DBG : '%s'\n" % (char, ))
+                dbg_print(" **DBG : '%s'\n" % char)
             if char == 'CCC':
                 break
             if ((time.time() - start) > 15):
@@ -134,7 +141,7 @@ def uart_upload(port, filename, baudrate):
     filesize = os.stat(filename).st_size
     filechunks = filesize/128
 
-    dbg_print("\nuploading %d bytes...\n" % (filesize,))
+    dbg_print("\nuploading %d bytes...\n" % filesize)
 
     def StatusCallback(total_packets, success_count, error_count):
         sys.stdout.flush()
