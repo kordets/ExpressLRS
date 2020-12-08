@@ -86,6 +86,7 @@ private:
     uint8_t p_use_dma;
     uint8_t dma_irq_tx;
     uint8_t dma_irq_rx;
+    uint8_t half_duplex;
 
     // for DMA TX
     struct tx_pool_s tx_pool[16];

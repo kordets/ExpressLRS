@@ -8,7 +8,13 @@
 #else
 #include "LoRa_SX127x.h"
 #endif
+#if RX_GHST_ENABLED
+#include "GHST.h"
+#define RX_CLASS GHST
+#else
 #include "CRSF_RX.h"
+#define RX_CLASS CRSF_RX
+#endif
 #include "FHSS.h"
 #include "rx_LinkQuality.h"
 #include "HwTimer.h"
@@ -44,7 +50,7 @@ SX1280Driver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
 #else
 SX127xDriver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
 #endif
-CRSF_RX DRAM_FORCE_ATTR crsf(CrsfSerial); //pass a serial port object to the class for it to use
+RX_CLASS DRAM_FORCE_ATTR crsf(CrsfSerial); //pass a serial port object to the class for it to use
 
 connectionState_e DRAM_ATTR connectionState;
 static volatile uint8_t DRAM_ATTR NonceRXlocal; // nonce that we THINK we are up to.
@@ -70,6 +76,7 @@ static crsf_channels_t DRAM_ATTR CrsfChannels;
 ////////////////  Filters  ////////////////////
 static LPF DRAM_FORCE_ATTR LPF_FreqError(5);
 static LPF DRAM_FORCE_ATTR LPF_UplinkRSSI(5);
+static LPF DRAM_FORCE_ATTR LPF_UplinkSNR(5);
 
 //////////////////////////////////////////////////////////////
 ////// Variables for Telemetry and Link Quality //////////////
@@ -133,16 +140,16 @@ static void ICACHE_RAM_ATTR handle_tlm_ratio(uint8_t interval)
 
 void ICACHE_RAM_ATTR FillLinkStats()
 {
-    int8_t LastRSSI = Radio.LastPacketRSSI;
-    //CrsfChannels.ch15 = UINT10_to_CRSF(MAP(LastRSSI, -100, -50, 0, 1023));
-    //CrsfChannels.ch14 = UINT10_to_CRSF(MAP_U16(crsf.LinkStatistics.uplink_Link_quality, 0, 100, 0, 1023));
-    int32_t rssiDBM = LPF_UplinkRSSI.update(LastRSSI);
+    int32_t rssiDBM = Radio.LastPacketRSSI;
+    rssiDBM = LPF_UplinkRSSI.update(rssiDBM);
     // our rssiDBM is currently in the range -128 to 98, but BF wants a value in the range
     // 0 to 255 that maps to -1 * the negative part of the rssiDBM, so cap at 0.
-    if (rssiDBM > 0)
-        rssiDBM = 0;
+    if (0 < rssiDBM) rssiDBM = 0;
+    else if (rssiDBM < INT8_MIN) rssiDBM = INT8_MIN;
+    //CrsfChannels.ch15 = UINT10_to_CRSF(MAP(rssiDBM, -100, -50, 0, 1023));
+    //CrsfChannels.ch14 = UINT10_to_CRSF(MAP_U16(crsf.LinkStatistics.uplink_Link_quality, 0, 100, 0, 1023));
     crsf.LinkStatistics.uplink_RSSI_1 = -1 * rssiDBM; // to match BF
-    crsf.LinkStatistics.uplink_SNR = Radio.LastPacketSNR * 10;
+    crsf.LinkStatistics.uplink_SNR = LPF_UplinkSNR.update(Radio.LastPacketSNR * 10);
 }
 
 uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
@@ -609,6 +616,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     TxTimer.updateInterval(config->interval);
     LPF_FreqError.init(0);
     LPF_UplinkRSSI.init(0);
+    LPF_UplinkSNR.init(0);
 #if !SERVO_OUTPUTS_ENABLED
     crsf.LinkStatistics.uplink_RSSI_2 = 0;
     crsf.LinkStatistics.rf_Mode = config->rate_osd_num;
@@ -685,6 +693,10 @@ void setup()
     Radio.SetSyncWord(getSyncWord());
     Radio.Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, GPIO_PIN_NSS);
     Radio.SetOutputPower(0b1111); // default RX to max power for tlm
+
+#if (GPIO_PIN_ANTENNA_SELECT != UNDEF_PIN)
+    gpio_out_setup(GPIO_PIN_ANTENNA_SELECT, 0);
+#endif
 
     // Set call back for timer ISR
     TxTimer.callbackTock = &HWtimerCallback;

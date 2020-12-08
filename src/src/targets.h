@@ -230,6 +230,11 @@ https://github.com/jaxxzer
 #if defined(TARGET_R9SLIM_PLUS)
 #  define GPIO_PIN_RCSIGNAL_RX PB11 // USART3
 #  define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
+#elif defined(TARGET_R900MINI_RX)
+// Inverted half dupplex
+#  define GPIO_PIN_RCSIGNAL_INVERTED 1
+#  define GPIO_PIN_RCSIGNAL_RX PA9
+#  define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
 #else
 #  define GPIO_PIN_RCSIGNAL_RX PA10 // USART1
 #  define GPIO_PIN_RCSIGNAL_TX PA9  // USART1
@@ -239,6 +244,16 @@ https://github.com/jaxxzer
 #  define GPIO_PIN_LED_GREEN PB3
 //#  define GPIO_PIN_BUTTON    PB0  // pullup e.g. LOW when pressed
 #elif defined(TARGET_R9SLIM_PLUS)
+#  define GPIO_PIN_LED_RED   PA11
+#  define GPIO_PIN_LED_GREEN PA12
+//#  define GPIO_PIN_BUTTON    PC13 // pullup e.g. LOW when pressed
+// ****** antenna switch pins *******
+/* PB3: RX = HIGH, TX = LOW */
+#  define GPIO_PIN_RX_ENABLE   PB3
+/* PB9: antenna 1 (left) = HIGH, antenna 2 (right) = LOW
+ * Note: Right Antenna is selected by default, LOW */
+#  define GPIO_PIN_ANTENNA_SELECT PB9
+#elif defined(TARGET_R900MINI_RX)
 #  define GPIO_PIN_LED_RED   PA11
 #  define GPIO_PIN_LED_GREEN PA12
 //#  define GPIO_PIN_BUTTON    PC13 // pullup e.g. LOW when pressed
@@ -382,6 +397,9 @@ https://github.com/jaxxzer
 #error "BUSY pin is mandatory witth SX1280!"
 #endif // RADIO_SX128x
 #define GPIO_PIN_BUSY UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_ANTENNA_SELECT
+#define GPIO_PIN_ANTENNA_SELECT UNDEF_PIN
 #endif
 
 #ifndef GPIO_PIN_DEBUG_RX
