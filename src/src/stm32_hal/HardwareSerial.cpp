@@ -20,37 +20,41 @@
 #include <stm32l0xx_ll_usart.h>
 #include <stm32l0xx_ll_bus.h>
 #include <stm32l0xx_ll_dma.h>
-#define StatReg         ISR
-#define RxDataReg       RDR
-#define TxDataReg       TDR
-#define USART_SR_IDLE   USART_ISR_IDLE
-#define USART_SR_RXNE   USART_ISR_RXNE
-#define USART_SR_ORE    USART_ISR_ORE
-#define USART_SR_TXE    USART_ISR_TXE
 #elif defined(STM32L4xx)
 #include <stm32l4xx_ll_usart.h>
 #include <stm32l4xx_ll_bus.h>
 #include <stm32l4xx_ll_dma.h>
-#define StatReg         ISR
-#define RxDataReg       RDR
-#define TxDataReg       TDR
-#define USART_SR_IDLE   USART_ISR_IDLE
-#define USART_SR_RXNE   USART_ISR_RXNE
-#define USART_SR_ORE    USART_ISR_ORE
-#define USART_SR_TXE    USART_ISR_TXE
 #elif defined(STM32F3xx)
 #include <stm32f3xx_ll_usart.h>
 #include <stm32f3xx_ll_bus.h>
 #include <stm32f3xx_ll_dma.h>
-#define StatReg         ISR
-#define RxDataReg       RDR
-#define TxDataReg       TDR
-#define USART_SR_IDLE   USART_ISR_IDLE
-#define USART_SR_RXNE   USART_ISR_RXNE
-#define USART_SR_ORE    USART_ISR_ORE
-#define USART_SR_TXE    USART_ISR_TXE
 #endif
 #include <string.h>
+
+#ifndef StatReg
+#define StatReg         ISR
+#endif
+#ifndef RxDataReg
+#define RxDataReg       RDR
+#endif
+#ifndef TxDataReg
+#define TxDataReg       TDR
+#endif
+#ifndef USART_SR_IDLE
+#define USART_SR_IDLE   USART_ISR_IDLE
+#endif
+#ifndef USART_SR_RXNE
+#define USART_SR_RXNE   USART_ISR_RXNE
+#endif
+#ifndef USART_SR_ORE
+#define USART_SR_ORE    USART_ISR_ORE
+#endif
+#ifndef USART_SR_TXE
+#define USART_SR_TXE    USART_ISR_TXE
+#endif
+#ifndef USART_SR_TC
+#define USART_SR_TC     USART_ISR_TC
+#endif
 
 #define UART_ENABLE_DMA_RX 0 // Don't enable yet
 #define UART_ENABLE_DMA_TX 1
@@ -550,7 +554,7 @@ void HardwareSerial::hw_enable_receiver(void)
     USART_TypeDef * uart = (USART_TypeDef *)p_usart_rx;
     if (half_duplex)
         // Wait until transfer is completed
-        while (!(uart->SR & USART_SR_TC));
+        while (!(uart->StatReg & USART_SR_TC));
 #if BUFFER_OE != UNDEF_PIN
     if (gpio_out_valid(p_duplex_pin)) {
         gpio_out_write(p_duplex_pin, 0);

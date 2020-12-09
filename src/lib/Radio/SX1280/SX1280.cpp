@@ -142,7 +142,7 @@ void SX1280Driver::SetAutoFs(uint8_t enabled)
 {
     uint8_t cmd[] = {
         SX1280_RADIO_SET_AUTOFS,
-        enabled ? 0x1 : 0x0
+        (uint8_t)(enabled ? 0x1 : 0x0)
     };
     TransferBuffer(cmd, sizeof(cmd), 0);
 }
