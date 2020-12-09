@@ -14,7 +14,7 @@ static volatile uint8_t stats_updated;
 void GHST::Begin(void)
 {
     rc_data.hdr.addr = GHST_ADDR_FC;
-    rc_data.hdr.len = sizeof(rc_data) - offsetof(ghstRcFrame_t, type) - 1; /* CRC is not included */
+    rc_data.hdr.len = sizeof(rc_data) - offsetof(ghstRcFrame_t, type);
     rc_data.type = GHST_UL_RC_CHANS_HS4_5TO8;
 
     TLMbattSensor.capacity = 0;
@@ -22,6 +22,11 @@ void GHST::Begin(void)
     TLMbattSensor.voltage = 0;
 
     stats_updated = 0;
+
+    SerialInPacketStart = 0;
+    SerialInPacketLen = 0;
+    SerialInPacketPtr = 0;
+    frameActive = false;
 
     _dev->flush_read();
 }
