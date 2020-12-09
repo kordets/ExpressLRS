@@ -43,9 +43,12 @@ def bf_passthrough_init(port, requestedBaudrate):
 
             # Searching: 'serial <index> 64 ...'
             config = line.split()
-            if config[2] == "64":
-                dbg_print("    ** Serial RX config detected: '%s'" % line)
-                SerialRXindex = config[1]
+            try:
+                if config[2] == "64":
+                    dbg_print("    ** Serial RX config detected: '%s'" % line)
+                    SerialRXindex = config[1]
+            except IndexError:
+                pass
 
     dbg_print()
 

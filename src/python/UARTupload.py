@@ -8,7 +8,7 @@ import serials_find
 import BFinitPassthrough
 import re
 
-SCRIPT_DEBUG = 0
+SCRIPT_DEBUG = 1
 BAUDRATE_DEFAULT = 420000
 
 def dbg_print(line=''):
@@ -28,8 +28,9 @@ def uart_upload(port, filename, baudrate, ghst=False):
 
     BootloaderInitSeq1 = bytes([0xEC,0x04,0x32,0x62,0x6c,0x0A]) # CRSF
     if ghst:
-        BootloaderInitSeq1 = bytes([0x89,0x04,0x32,0x62,0x6c,0xAA]) # GHST
+        BootloaderInitSeq1 = bytes([0x89,0x04,0x32,0x62,0x6c,0x0A]) # GHST
         half_duplex = True
+        dbg_print("  Using GHST (half duplex)!\n")
     BootloaderInitSeq2 = bytes([0x62,0x62,0x62,0x62,0x62,0x62])
 
     if not os.path.exists(filename):
@@ -70,15 +71,21 @@ def uart_upload(port, filename, baudrate, ghst=False):
 
             currAttempt += 1
             dbg_print("[%1u] retry...\n" % currAttempt)
-            time.sleep(.5)
+            #time.sleep(.5)
             if 10 < currAttempt:
                 msg = "[FAILED] to get to BL in reasonable time\n"
                 dbg_print(msg)
                 raise Exception(msg)
 
+            # clear RX buffer before continuing
+            s.reset_input_buffer()
+
             # request reboot
-            s.write(BootloaderInitSeq1)
+            cnt = s.write(BootloaderInitSeq1)
             s.flush()
+            if half_duplex:
+                s.read(cnt)
+
             start = time.time()
             while ((time.time() - start) < 2):
                 try:
@@ -106,8 +113,10 @@ def uart_upload(port, filename, baudrate, ghst=False):
 
                 elif "hold down button" in line.lower():
                     time.sleep(delay_seq2)
-                    s.write(BootloaderInitSeq2)
+                    cnt = s.write(BootloaderInitSeq2)
                     s.flush()
+                    if half_duplex:
+                        s.read(cnt)
                     dbg_print("    Got into bootloader after: %u attempts\n" % currAttempt)
                     gotBootloader = True
                     break
