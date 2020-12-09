@@ -10,7 +10,6 @@ import re
 
 SCRIPT_DEBUG = 0
 BAUDRATE_DEFAULT = 420000
-GHST = False
 
 def dbg_print(line=''):
     sys.stdout.write(line)
@@ -18,7 +17,9 @@ def dbg_print(line=''):
     return
 
 
-def uart_upload(port, filename, baudrate):
+def uart_upload(port, filename, baudrate, ghst=False):
+    half_duplex = False
+
     dbg_print("=================== FIRMWARE UPLOAD ===================\n")
     dbg_print("  Bin file '%s'\n" % filename)
     dbg_print("  Port %s @ %s\n" % (port, baudrate))
@@ -26,8 +27,9 @@ def uart_upload(port, filename, baudrate):
     logging.basicConfig(level=logging.ERROR)
 
     BootloaderInitSeq1 = bytes([0xEC,0x04,0x32,0x62,0x6c,0x0A]) # CRSF
-    if GHST:
+    if ghst:
         BootloaderInitSeq1 = bytes([0x89,0x04,0x32,0x62,0x6c,0xAA]) # GHST
+        half_duplex = True
     BootloaderInitSeq2 = bytes([0x62,0x62,0x62,0x62,0x62,0x62])
 
     if not os.path.exists(filename):
@@ -158,9 +160,10 @@ def uart_upload(port, filename, baudrate):
 
     def putc(data, timeout=3):
         cnt = s.write(data)
-        s.flush()
-        if GHST:
-            # half duplex protocol => clean RX buffer
+        if half_duplex:
+            s.flush()
+            # Clean RX buffer in case of half duplex
+            #   All written data is read into RX buffer
             s.read(cnt)
         return cnt
 
@@ -181,6 +184,7 @@ def uart_upload(port, filename, baudrate):
 
 
 def on_upload(source, target, env):
+    ghst = False
     firmware_path = str(source[0])
 
     upload_port = env.get('UPLOAD_PORT', None)
@@ -190,7 +194,14 @@ def on_upload(source, target, env):
     if upload_speed is None:
         upload_speed = BAUDRATE_DEFAULT
 
-    uart_upload(upload_port, firmware_path, upload_speed)
+    upload_flags = env.get('UPLOAD_FLAGS', [])
+    for line in upload_flags:
+        flags = line.split()
+        for flag in flags:
+            if "GHST=" in flag:
+                ghst = eval(flag.split("=")[1])
+
+    uart_upload(upload_port, firmware_path, upload_speed, ghst)
 
 
 if __name__ == '__main__':
