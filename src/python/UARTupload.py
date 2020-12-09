@@ -10,7 +10,7 @@ import re
 
 SCRIPT_DEBUG = 0
 BAUDRATE_DEFAULT = 420000
-
+GHST = False
 
 def dbg_print(line=''):
     sys.stdout.write(line)
@@ -25,7 +25,9 @@ def uart_upload(port, filename, baudrate):
 
     logging.basicConfig(level=logging.ERROR)
 
-    BootloaderInitSeq1 = bytes([0xEC,0x04,0x32,0x62,0x6c,0x0A])
+    BootloaderInitSeq1 = bytes([0xEC,0x04,0x32,0x62,0x6c,0x0A]) # CRSF
+    if GHST:
+        BootloaderInitSeq1 = bytes([0x89,0x04,0x32,0x62,0x6c,0xAA]) # GHST
     BootloaderInitSeq2 = bytes([0x62,0x62,0x62,0x62,0x62,0x62])
 
     if not os.path.exists(filename):
@@ -85,7 +87,7 @@ def uart_upload(port, filename, baudrate):
                     continue
                 if SCRIPT_DEBUG and line:
                     dbg_print(" **DBG : '%s'\n" % line.strip())
-                
+
                 if "BL_TYPE" in line:
                     bl_type = line.strip()[8:].strip()
                     dbg_print("    Bootloader type found : '%s'\n" % bl_type)
@@ -155,7 +157,14 @@ def uart_upload(port, filename, baudrate):
         return s.read(size) or None
 
     def putc(data, timeout=3):
-        return s.write(data)
+        cnt = s.write(data)
+        s.flush()
+        if GHST:
+            # half duplex protocol => clean RX buffer
+            s.read(cnt)
+        return cnt
+
+    s.reset_input_buffer()
 
     modem = XMODEM(getc, putc, mode='xmodem')
     #modem.log.setLevel(logging.DEBUG)
