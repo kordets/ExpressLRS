@@ -19,6 +19,7 @@ const uint8_t DRAM_FORCE_ATTR crc8tab[256] = {
     0xD6, 0x03, 0xA9, 0x7C, 0x28, 0xFD, 0x57, 0x82, 0xFF, 0x2A, 0x80, 0x55, 0x01, 0xD4, 0x7E, 0xAB,
     0x84, 0x51, 0xFB, 0x2E, 0x7A, 0xAF, 0x05, 0xD0, 0xAD, 0x78, 0xD2, 0x07, 0x53, 0x86, 0x2C, 0xF9};
 
+// this is same as crc8_dvb_s2
 uint8_t ICACHE_RAM_ATTR CalcCRC(uint8_t data, uint8_t crc)
 {
     return crc8tab[crc ^ data];
@@ -26,8 +27,7 @@ uint8_t ICACHE_RAM_ATTR CalcCRC(uint8_t data, uint8_t crc)
 
 uint8_t ICACHE_RAM_ATTR CalcCRC(volatile uint8_t const *data, uint16_t length, uint8_t crc)
 {
-    while (length--)
-    {
+    while (length--) {
         crc = crc8tab[crc ^ *data++];
     }
     return crc;
@@ -35,8 +35,7 @@ uint8_t ICACHE_RAM_ATTR CalcCRC(volatile uint8_t const *data, uint16_t length, u
 
 uint8_t ICACHE_RAM_ATTR CalcCRC(uint8_t const *data, uint16_t length, uint8_t crc)
 {
-    while (length--)
-    {
+    while (length--) {
         crc = crc8tab[crc ^ *data++];
     }
     return crc;

@@ -110,7 +110,7 @@ void GHST::sendMSPFrameToFC(uint8_t const *const packet, uint8_t len) const
 
 void GHST::sendFrameToFC(uint8_t *buff, uint8_t size) const
 {
-    buff[size - 1] = crc8_dvb_s2(&buff[sizeof(ghstHeader_t)], (size - sizeof(ghstHeader_t) - 1));
+    buff[size - 1] = CalcCRC(&buff[sizeof(ghstHeader_t)], (size - sizeof(ghstHeader_t) - 1));
 #if !NO_DATA_TO_FC
     uint32_t irq = _SAVE_IRQ();
     _dev->write(buff, size);
@@ -181,7 +181,7 @@ uint8_t *GHST::ParseInByte(uint8_t inChar)
                 SerialInPacketLen = 0;
             } else {
                 // Calc crc on the fly
-                SerialInCrc = crc8_dvb_s2(inChar, SerialInCrc);
+                SerialInCrc = CalcCRC(inChar, SerialInCrc);
             }
         }
     }
@@ -201,7 +201,7 @@ void GHST::processPacket(uint8_t const *data)
             break;
         }
         case GHST_DL_PACK_STAT: {
-            memcpy(&TLMbattSensor , data, sizeof(TLMbattSensor));
+            memcpy(&TLMbattSensor, data, sizeof(TLMbattSensor));
             break;
         }
     }
