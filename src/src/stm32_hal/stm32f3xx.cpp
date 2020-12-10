@@ -118,7 +118,8 @@ void uart_config_afio(uint32_t periph, uint32_t rx_pin, uint32_t tx_pin)
     uint32_t afio = GPIO_FUNCTION(7);
     if (periph == UART4_BASE || periph == UART5_BASE)
         afio = GPIO_FUNCTION(5);
-    gpio_peripheral(rx_pin, afio, 1);
+    if (rx_pin != tx_pin && rx_pin != (uint32_t)-1)
+        gpio_peripheral(rx_pin, afio, 1);
     gpio_peripheral(tx_pin, afio, 0);
 }
 

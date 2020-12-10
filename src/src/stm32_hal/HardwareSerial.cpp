@@ -155,7 +155,7 @@ void USART_IDLE_IRQ_handler(uint32_t index)
     if (serial_cnt <= index) return;
     HardwareSerial *serial = _started_serials[index];
     if (!serial) return;
-    USART_TypeDef * uart = (USART_TypeDef *)serial->p_usart_rx;
+    __IO USART_TypeDef * uart = (USART_TypeDef *)serial->p_usart_rx;
 
     uint32_t SR = uart->StatReg, CR1 = uart->CR1;
 
@@ -183,10 +183,8 @@ void USART_IDLE_IRQ_handler(uint32_t index)
     }
 
     uart = (USART_TypeDef *)serial->p_usart_tx;
-    SR = uart->StatReg;
-    CR1 = uart->CR1;
     // Check if TX is enabled and TX Empty IRQ triggered
-    if ((SR & USART_SR_TXE) && (CR1 & USART_CR1_TXEIE)) {
+    if ((uart->StatReg & USART_SR_TXE) && (uart->CR1 & USART_CR1_TXEIE)) {
         //  Check if data available
 #if UART_USE_TX_POOL_ONLY
         if (serial->tx_buffer_len) {
@@ -251,7 +249,24 @@ void HardwareSerial::setRx(uint32_t pin)
     rx_pin = pin;
 }
 
-static void configure_uart_peripheral(USART_TypeDef * uart, uint32_t baud, uint8_t dma_rx, uint8_t dma_tx)
+static uint8_t uart_pin_is_tx(uint32_t pin)
+{
+  switch (pin) {
+    case GPIO('A', 2):
+    case GPIO('A', 9):
+    case GPIO('A', 14):
+    case GPIO('B', 3):
+    case GPIO('B', 6):
+    case GPIO('B', 9):
+    case GPIO('B', 10):
+    case GPIO('C', 4):
+    case GPIO('C', 10):
+      return 1;
+  }
+  return 0;
+}
+
+static void configure_uart_peripheral(USART_TypeDef * uart, uint32_t baud, uint8_t half_duplex)
 {
     enable_pclock((uint32_t)uart);
     uint32_t pclk = get_pclock_frequency((uint32_t)uart);
@@ -262,14 +277,8 @@ static void configure_uart_peripheral(USART_TypeDef * uart, uint32_t baud, uint8
 #endif
     /* Configure other UART registers */
     LL_USART_ConfigAsyncMode(uart);
-    if (dma_rx)
-        LL_USART_EnableDMAReq_RX(uart);
-    else
-        LL_USART_DisableDMAReq_RX(uart);
-    if (dma_tx)
-        LL_USART_EnableDMAReq_TX(uart);
-    else
-        LL_USART_DisableDMAReq_TX(uart);
+    if (half_duplex)
+        LL_USART_EnableHalfDuplex(uart);
 }
 
 void HardwareSerial::begin(unsigned long baud, uint8_t mode)
@@ -278,7 +287,7 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     USART_TypeDef * uart = NULL;
     DMA_TypeDef * dmaptr;
 
-    half_duplex = (rx_pin == tx_pin) || (rx_pin == (uint32_t)UNDEF_PIN);
+    half_duplex = ((rx_pin == tx_pin) || (rx_pin == (uint32_t)UNDEF_PIN));
 
     p_usart_rx = (USART_TypeDef*)uart_peripheral_get(rx_pin);
     p_usart_tx = (USART_TypeDef*)uart_peripheral_get(tx_pin);
@@ -420,20 +429,28 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     DR_TX = USART_CR1_UE | USART_CR1_TE;
     DR_RX |= ((dma_unit_rx) ? USART_CR1_IDLEIE : USART_CR1_RXNEIE);
     DR_TX |= ((dma_unit_tx) ? 0U : USART_CR1_TXEIE);
-    if ((p_usart_rx == p_usart_tx) && !half_duplex) {
+    if (!half_duplex) {
         if ((BUFFER_OE == UNDEF_PIN) || (!gpio_out_valid(p_duplex_pin))) {
             // Full duplex
+            //DR_RX |= USART_CR1_TE;
             DR_TX |= DR_RX;
         }
     }
 
     /*********** USART Init ***********/
-    configure_uart_peripheral((USART_TypeDef*)p_usart_tx, baud, !!dma_unit_rx, !!dma_unit_tx);
-    if ((p_usart_rx != p_usart_tx) && !half_duplex) {
-        configure_uart_peripheral((USART_TypeDef*)p_usart_rx, baud, !!dma_unit_rx, !!dma_unit_tx);
+    configure_uart_peripheral((USART_TypeDef*)p_usart_tx, baud, uart_pin_is_tx(tx_pin));
+    if (p_usart_rx != p_usart_tx) {
+        configure_uart_peripheral((USART_TypeDef*)p_usart_rx, baud, uart_pin_is_tx(rx_pin));
     }
-    if (half_duplex)
-        LL_USART_EnableHalfDuplex((USART_TypeDef*)p_usart_tx);
+
+    if (dma_unit_rx)
+        LL_USART_EnableDMAReq_RX((USART_TypeDef*)p_usart_rx);
+    else
+        LL_USART_DisableDMAReq_RX((USART_TypeDef*)p_usart_rx);
+    if (dma_unit_tx)
+        LL_USART_EnableDMAReq_TX((USART_TypeDef*)p_usart_tx);
+    else
+        LL_USART_DisableDMAReq_TX((USART_TypeDef*)p_usart_tx);
 
     /* Configure to receiver mode by default */
     hw_enable_receiver();
@@ -551,10 +568,12 @@ uint32_t HardwareSerial::write(const uint8_t *buff, uint32_t len)
 
 void HardwareSerial::hw_enable_receiver(void)
 {
-    USART_TypeDef * uart = (USART_TypeDef *)p_usart_rx;
-    if (half_duplex)
+    USART_TypeDef * const uart = (USART_TypeDef *)p_usart_rx;
+    if (half_duplex) {
+        USART_TypeDef * const uart_tx = (USART_TypeDef *)p_usart_tx;
         // Wait until transfer is completed
-        while (!(uart->StatReg & USART_SR_TC));
+        while (!(uart_tx->StatReg & USART_SR_TC));
+    }
 #if BUFFER_OE != UNDEF_PIN
     if (gpio_out_valid(p_duplex_pin)) {
         gpio_out_write(p_duplex_pin, 0);

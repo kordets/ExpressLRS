@@ -87,7 +87,8 @@ void uart_pins_get(uint32_t periph, uint32_t *rx_pin, uint32_t *tx_pin, uint8_t 
 
 void uart_config_afio(uint32_t periph, uint32_t rx_pin, uint32_t tx_pin)
 {
-    gpio_peripheral(rx_pin, GPIO_FUNCTION(7), 1);
+    if (rx_pin != tx_pin && rx_pin != (uint32_t)-1)
+        gpio_peripheral(rx_pin, GPIO_FUNCTION(7), 1);
     gpio_peripheral(tx_pin, GPIO_FUNCTION(7), 0);
 }
 

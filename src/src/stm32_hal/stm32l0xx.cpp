@@ -80,7 +80,8 @@ void uart_pins_get(uint32_t periph, uint32_t *rx_pin, uint32_t *tx_pin, uint8_t 
 void uart_config_afio(uint32_t periph, uint32_t rx_pin, uint32_t tx_pin)
 {
     // USART1 has alternative 0 config when pins are PB6 and PB7
-    gpio_peripheral(rx_pin, GPIO_FUNCTION((rx_pin == GPIO('B', 7) ? 0 : 4)), 1);
+    if (rx_pin != tx_pin && rx_pin != (uint32_t)-1)
+        gpio_peripheral(rx_pin, GPIO_FUNCTION((rx_pin == GPIO('B', 7) ? 0 : 4)), 1);
     gpio_peripheral(tx_pin, GPIO_FUNCTION((tx_pin == GPIO('B', 6) ? 0 : 4)), 0);
 }
 
