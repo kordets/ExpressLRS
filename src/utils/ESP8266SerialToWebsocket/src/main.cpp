@@ -1076,7 +1076,7 @@ int serialEvent()
     {
       if (inChar == '\r') {
         continue;
-      } else if (inChar == '\n') {
+      } else if (inChar == '\n' || 128 <= inputString.length()) {
         return 0;
       }
       inputString += inChar;

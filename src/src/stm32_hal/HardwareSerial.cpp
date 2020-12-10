@@ -224,6 +224,7 @@ HardwareSerial::HardwareSerial(uint32_t rx, uint32_t tx, uint8_t dma)
 {
     rx_pin = rx;
     tx_pin = tx;
+    p_duplex_pin = (struct gpio_out){.regs = NULL, .bit = 0};
     p_usart_tx = p_usart_rx = NULL;
     usart_irq_rx = usart_irq_tx = 0xff;
     p_use_dma = dma ? (USE_DMA_RX | USE_DMA_TX) : USE_DMA_NONE;
@@ -430,15 +431,15 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     DR_RX |= ((dma_unit_rx) ? USART_CR1_IDLEIE : USART_CR1_RXNEIE);
     DR_TX |= ((dma_unit_tx) ? 0U : USART_CR1_TXEIE);
     if (!half_duplex) {
-        if ((BUFFER_OE == UNDEF_PIN) || (!gpio_out_valid(p_duplex_pin))) {
+        if (!gpio_out_valid(p_duplex_pin)) {
             // Full duplex
-            //DR_RX |= USART_CR1_TE;
-            DR_TX |= DR_RX;
+            DR_RX |= USART_CR1_TE;  // Keep also TX active
+            DR_TX |= DR_RX;         // Keep also RX active
         }
     }
 
     /*********** USART Init ***********/
-    configure_uart_peripheral((USART_TypeDef*)p_usart_tx, baud, uart_pin_is_tx(tx_pin));
+    configure_uart_peripheral((USART_TypeDef*)p_usart_tx, baud, half_duplex);
     if (p_usart_rx != p_usart_tx) {
         configure_uart_peripheral((USART_TypeDef*)p_usart_rx, baud, uart_pin_is_tx(rx_pin));
     }
@@ -522,7 +523,7 @@ uint32_t HardwareSerial::write(const uint8_t *buff, uint32_t len)
 #if UART_USE_TX_POOL_ONLY
     tx_pool_add(buff, len);
 #endif
-    if (p_use_dma & USE_DMA_TX) {
+    if (dma_unit_tx) {
 #if !UART_USE_TX_POOL_ONLY
         tx_pool_add(buff, len);
 #endif
@@ -569,16 +570,15 @@ uint32_t HardwareSerial::write(const uint8_t *buff, uint32_t len)
 void HardwareSerial::hw_enable_receiver(void)
 {
     USART_TypeDef * const uart = (USART_TypeDef *)p_usart_rx;
-    if (half_duplex) {
+    uint8_t duplex = gpio_out_valid(p_duplex_pin);
+    if (half_duplex || duplex) {
         USART_TypeDef * const uart_tx = (USART_TypeDef *)p_usart_tx;
         // Wait until transfer is completed
         while (!(uart_tx->StatReg & USART_SR_TC));
     }
-#if BUFFER_OE != UNDEF_PIN
-    if (gpio_out_valid(p_duplex_pin)) {
+    if (duplex) {
         gpio_out_write(p_duplex_pin, 0);
     }
-#endif // BUFFER_OE
     uart->CR1 = DR_RX;
 }
 
@@ -586,11 +586,9 @@ void HardwareSerial::hw_enable_transmitter(void)
 {
     USART_TypeDef * uart = (USART_TypeDef *)p_usart_tx;
     uart->CR1 = DR_TX;
-#if BUFFER_OE != UNDEF_PIN
     if (gpio_out_valid(p_duplex_pin)) {
         gpio_out_write(p_duplex_pin, 1);
     }
-#endif // BUFFER_OE
 }
 
 #if defined(TARGET_R9M_TX)
