@@ -155,50 +155,55 @@ void USART_IDLE_IRQ_handler(uint32_t index)
     if (serial_cnt <= index) return;
     HardwareSerial *serial = _started_serials[index];
     if (!serial) return;
-    __IO USART_TypeDef * uart = (USART_TypeDef *)serial->p_usart_rx;
+    __IO USART_TypeDef * uart;
 
-    uint32_t SR = uart->StatReg, CR1 = uart->CR1;
+    if (serial->usart_rx_idx == index) {
+        uart = (USART_TypeDef *)serial->p_usart_rx;
+        uint32_t SR = uart->StatReg, CR1 = uart->CR1;
 
-    /* Check for IDLE line interrupt */
-    if ((SR & USART_SR_IDLE) && (CR1 & USART_CR1_IDLEIE)) {
-        (void)uart->RxDataReg;
-        uint8_t head_pos = sizeof(serial->rx_buffer) -
-            LL_DMA_GetDataLength((DMA_TypeDef *)serial->dma_unit_rx, serial->dma_ch_rx);
-        /*
-        uint8_t head = serial->rx_head;
-        uint8_t tail = head + (uint8_t)(head_pos - head);
-        if (tail >= serial->rx_tail)
-            serial->rx_tail = tail;
-        */
-        serial->rx_head = head_pos;
-    }
-    /* Check for RX data */
-    else if ((SR & (USART_SR_RXNE | USART_SR_ORE)) && (CR1 & USART_CR1_RXNEIE)) {
-        uint8_t next = serial->rx_head;
-        uint8_t data = uart->RxDataReg;
-        if ((next + 1) != serial->rx_tail) {
-            serial->rx_buffer[next] = data;
-            serial->rx_head = next + 1;
+        /* Check for IDLE line interrupt */
+        if ((SR & USART_SR_IDLE) && (CR1 & USART_CR1_IDLEIE)) {
+            (void)uart->RxDataReg;
+            uint8_t head_pos = sizeof(serial->rx_buffer) -
+                LL_DMA_GetDataLength((DMA_TypeDef *)serial->dma_unit_rx, serial->dma_ch_rx);
+            /*
+            uint8_t head = serial->rx_head;
+            uint8_t tail = head + (uint8_t)(head_pos - head);
+            if (tail >= serial->rx_tail)
+                serial->rx_tail = tail;
+            */
+            serial->rx_head = head_pos;
+        }
+        /* Check for RX data */
+        else if ((SR & (USART_SR_RXNE | USART_SR_ORE)) && (CR1 & USART_CR1_RXNEIE)) {
+            uint8_t next = serial->rx_head;
+            uint8_t data = uart->RxDataReg;
+            if ((next + 1) != serial->rx_tail) {
+                serial->rx_buffer[next] = data;
+                serial->rx_head = next + 1;
+            }
         }
     }
 
-    uart = (USART_TypeDef *)serial->p_usart_tx;
-    // Check if TX is enabled and TX Empty IRQ triggered
-    if ((uart->StatReg & USART_SR_TXE) && (uart->CR1 & USART_CR1_TXEIE)) {
-        //  Check if data available
+    if (serial->usart_tx_idx == index) {
+        uart = (USART_TypeDef *)serial->p_usart_tx;
+        // Check if TX is enabled and TX Empty IRQ triggered
+        if ((uart->StatReg & USART_SR_TXE) && (uart->CR1 & USART_CR1_TXEIE)) {
+            //  Check if data available
 #if UART_USE_TX_POOL_ONLY
-        if (serial->tx_buffer_len) {
-            uart->TxDataReg = *serial->tx_buffer_ptr++;
-            serial->tx_buffer_len--;
-        } else if (UART_transmit(serial) < 0) {
-            serial->hw_enable_receiver();
-        }
+            if (serial->tx_buffer_len) {
+                uart->TxDataReg = *serial->tx_buffer_ptr++;
+                serial->tx_buffer_len--;
+            } else if (UART_transmit(serial) < 0) {
+                serial->hw_enable_receiver();
+            }
 #else
-        if (serial->tx_head <= serial->tx_tail)
-            serial->hw_enable_receiver();
-        else
-            uart->TxDataReg = serial->tx_buffer[serial->tx_tail++];
+            if (serial->tx_head <= serial->tx_tail)
+                serial->hw_enable_receiver();
+            else
+                uart->TxDataReg = serial->tx_buffer[serial->tx_tail++];
 #endif
+        }
     }
 }
 
@@ -228,6 +233,7 @@ HardwareSerial::HardwareSerial(uint32_t rx, uint32_t tx, uint8_t dma)
     p_usart_tx = p_usart_rx = NULL;
     usart_irq_rx = usart_irq_tx = 0xff;
     p_use_dma = dma ? (USE_DMA_RX | USE_DMA_TX) : USE_DMA_NONE;
+    usart_tx_idx = usart_rx_idx = 0xff;
 }
 
 #if 0
@@ -297,15 +303,18 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
 
     if (p_usart_tx == USART1) {
         usart_irq_tx = USART1_IRQn;
+        write_u8(&usart_tx_idx, 0);
         write_u32(&_started_serials[0], (uint32_t)this);
 #ifdef USART2
     } else if (p_usart_tx == USART2) {
         usart_irq_tx = USART2_IRQn;
+        write_u8(&usart_tx_idx, 1);
         write_u32(&_started_serials[1], (uint32_t)this);
 #endif // USART2
 #ifdef USART3
     } else if (p_usart_tx == USART3) {
         usart_irq_tx = USART3_IRQn;
+        write_u8(&usart_tx_idx, 2);
         write_u32(&_started_serials[2], (uint32_t)this);
 #endif // USART3
     } else {
@@ -316,21 +325,26 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     if (p_usart_rx != p_usart_tx) {
         if (p_usart_rx == USART1) {
             usart_irq_rx = USART1_IRQn;
+            write_u8(&usart_rx_idx, 0);
             write_u32(&_started_serials[0], (uint32_t)this);
-    #ifdef USART2
+#ifdef USART2
         } else if (p_usart_rx == USART2) {
             usart_irq_rx = USART2_IRQn;
+            write_u8(&usart_rx_idx, 1);
             write_u32(&_started_serials[1], (uint32_t)this);
-    #endif // USART2
-    #ifdef USART3
+#endif // USART2
+#ifdef USART3
         } else if (p_usart_rx == USART3) {
             usart_irq_rx = USART3_IRQn;
+            write_u8(&usart_rx_idx, 2);
             write_u32(&_started_serials[2], (uint32_t)this);
-    #endif // USART3
+#endif // USART3
         } else {
             // Invalid HW UART config!
             return;
         }
+    } else {
+        write_u8(&usart_rx_idx, usart_tx_idx);
     }
 
     dma_unit_rx = dma_unit_tx = NULL;
@@ -360,8 +374,8 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
             enable_pclock((uint32_t)dmaptr);
             dma_unit_rx = dmaptr;
 
-            dma_ch_rx = dma_channel_get((uint32_t)p_usart_rx, DMA_USART_RX, 0);
-            dma_irq_rx = dma_irq_get((uint32_t)p_usart_rx, DMA_USART_RX, 0);
+            dma_ch_rx = dma_channel_get((uint32_t)uart, DMA_USART_RX, 0);
+            dma_irq_rx = dma_irq_get((uint32_t)uart, DMA_USART_RX, 0);
 
             /* RX DMA stream config */
             LL_DMA_DisableChannel(dmaptr, dma_ch_rx);
@@ -399,8 +413,8 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
             enable_pclock((uint32_t)dmaptr);
             dma_unit_tx = dmaptr;
 
-            dma_ch_tx = dma_channel_get((uint32_t)p_usart_tx, DMA_USART_TX, 0);
-            dma_irq_tx = dma_irq_get((uint32_t)p_usart_tx, DMA_USART_TX, 0);
+            dma_ch_tx = dma_channel_get((uint32_t)uart, DMA_USART_TX, 0);
+            dma_irq_tx = dma_irq_get((uint32_t)uart, DMA_USART_TX, 0);
 
             /* TX DMA stream config */
             LL_DMA_DisableChannel(dmaptr, dma_ch_tx);
@@ -430,7 +444,7 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     DR_TX = USART_CR1_UE | USART_CR1_TE;
     DR_RX |= ((dma_unit_rx) ? USART_CR1_IDLEIE : USART_CR1_RXNEIE);
     DR_TX |= ((dma_unit_tx) ? 0U : USART_CR1_TXEIE);
-    if (!half_duplex) {
+    if (!half_duplex && (p_usart_tx == p_usart_rx)) {
         if (!gpio_out_valid(p_duplex_pin)) {
             // Full duplex
             DR_RX |= USART_CR1_TE;  // Keep also TX active

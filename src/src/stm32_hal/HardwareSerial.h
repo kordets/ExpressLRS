@@ -74,6 +74,8 @@ public:
     void* p_usart_rx;
     uint8_t dma_ch_tx;
     uint8_t dma_ch_rx;
+    uint8_t usart_tx_idx;
+    uint8_t usart_rx_idx;
 
 protected:
     uint32_t rx_pin;
