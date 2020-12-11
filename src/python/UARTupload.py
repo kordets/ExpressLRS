@@ -8,8 +8,9 @@ import serials_find
 import BFinitPassthrough
 import re
 
-SCRIPT_DEBUG = 1
+SCRIPT_DEBUG = 0
 BAUDRATE_DEFAULT = 420000
+
 
 def dbg_print(line=''):
     sys.stdout.write(line)
