@@ -12,34 +12,51 @@ def dbg_print(line=''):
     sys.stdout.flush()
 
 
-def bf_passthrough_init(port, requestedBaudrate):
+def bf_passthrough_init(port, requestedBaudrate, half_duplex=False):
     sys.stdout.flush()
     dbg_print("======== PASSTHROUGH INIT ========")
     dbg_print("  Trying to initialize %s @ %s" % (port, requestedBaudrate))
 
-    s = serial.Serial(port=port, baudrate=115200, bytesize=8, parity='N', stopbits=1, timeout=5, xonxoff=0, rtscts=0)
+    s = serial.Serial(port=port, baudrate=115200, bytesize=8, parity='N', stopbits=1, timeout=1, xonxoff=0, rtscts=0)
+    s.reset_input_buffer()
 
-    s.write(chr(0x23).encode('utf-8'))
-    time.sleep(1)
-    s.write(("serial\n").encode('utf-8'))
-    time.sleep(1)
+    cnt = s.write("#".encode('utf-8'))
+    s.flush()
+    if half_duplex:
+        s.read(cnt)
+    start = s.read_until("#".encode('utf-8'))
+    if not start:
+        raise PassthroughEnabled("No CLI available. Already in passthrough mode?")
+    try:
+        start = start.decode('utf-8')
+    except UnicodeDecodeError:
+        raise PassthroughEnabled("Invalid response!")
 
     inChars = ""
     SerialRXindex = ""
 
     dbg_print("\nAttempting to detect FC UART configuration...")
 
-    while s.in_waiting:
-        try:
-            inChars += s.read().decode('utf-8')
-        except UnicodeDecodeError:
-            # just discard possible RC / TLM data
-            pass
+    s.timeout = 5
+    s.reset_input_buffer()
+    cnt = s.write("serial\r\n".encode('utf-8'))
+    s.flush()
+    if half_duplex:
+        s.read(cnt)
 
-    for line in inChars.split('\n'):
+    while True:
+        try:
+            line = s.readline().decode('utf-8')
+        except UnicodeDecodeError:
+            continue
+        line = line.strip()
+        #print("FC: '%s'" % line)
+        if not line or line is "#":
+            break
+
         if line.startswith("serial"):
             line = line.strip()
-            dbg_print(line)
+            dbg_print("  '%s'" % line)
 
             # Searching: 'serial <index> 64 ...'
             config = line.split()
@@ -47,6 +64,7 @@ def bf_passthrough_init(port, requestedBaudrate):
                 if config[2] == "64":
                     dbg_print("    ** Serial RX config detected: '%s'" % line)
                     SerialRXindex = config[1]
+                    break
             except IndexError:
                 pass
 
@@ -58,7 +76,7 @@ def bf_passthrough_init(port, requestedBaudrate):
         dbg_print()
         raise PassthroughEnabled("FC connection failed");
 
-    cmd = "serialpassthrough %s %s " % (SerialRXindex, requestedBaudrate, )
+    cmd = "serialpassthrough %s %s" % (SerialRXindex, requestedBaudrate, )
 
     dbg_print("Setting serial passthrough...")
     dbg_print("  CMD: '%s'" % cmd)

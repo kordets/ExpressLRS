@@ -52,9 +52,9 @@ def uart_upload(port, filename, baudrate, ghst=False):
 
         # Init Betaflight passthrough
         try:
-            BFinitPassthrough.bf_passthrough_init(port, baudrate)
-        except BFinitPassthrough.PassthroughEnabled:
-            pass
+            BFinitPassthrough.bf_passthrough_init(port, baudrate, half_duplex)
+        except BFinitPassthrough.PassthroughEnabled as bf_err:
+            dbg_print("  FC Init error: '%s'" % bf_err)
 
         # Init bootloader next
         s = serial.Serial(port=port, baudrate=baudrate, bytesize=8, parity='N', stopbits=1, timeout=5, xonxoff=0, rtscts=0)
