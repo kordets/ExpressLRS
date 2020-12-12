@@ -38,23 +38,26 @@ void ICACHE_RAM_ATTR RadioInterface::WaitOnBusy() const
 void ICACHE_RAM_ATTR RadioInterface::TxEnable()
 {
     isr_state_set(TX_DONE);
-    if (!gpio_out_valid(_RXen)) return;
-    gpio_out_write(_RXen, 0);
-    gpio_out_write(_TXen, 1);
+    if (gpio_out_valid(_RXen))
+        gpio_out_write(_RXen, 0);
+    if (gpio_out_valid(_TXen))
+        gpio_out_write(_TXen, 1);
 }
 
 void ICACHE_RAM_ATTR RadioInterface::RxEnable()
 {
     isr_state_set(RX_DONE);
-    if (!gpio_out_valid(_RXen)) return;
-    gpio_out_write(_TXen, 0);
-    gpio_out_write(_RXen, 1);
+    if (gpio_out_valid(_TXen))
+        gpio_out_write(_TXen, 0);
+    if (gpio_out_valid(_RXen))
+        gpio_out_write(_RXen, 1);
 }
 
 void ICACHE_RAM_ATTR RadioInterface::TxRxDisable()
 {
     isr_state_set(NONE);
-    if (!gpio_out_valid(_RXen)) return;
-    gpio_out_write(_RXen, 0);
-    gpio_out_write(_TXen, 0);
+    if (gpio_out_valid(_RXen))
+        gpio_out_write(_RXen, 0);
+    if (gpio_out_valid(_TXen))
+        gpio_out_write(_TXen, 0);
 }
