@@ -74,7 +74,8 @@ void shutdown(const char * reason)
 
 void _Error_Handler(const char * error, int line)
 {
-    shutdown(error);
+    DEBUG_PRINTF("%s : %d\n", error, line);
+    shutdown("_Error_Handler");
     (void)line;
 }
 
