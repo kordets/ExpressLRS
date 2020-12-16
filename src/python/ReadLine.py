@@ -1,5 +1,7 @@
 import time
 
+encoding = "utf-8"
+
 # Helper class to return serial output on a list of custom delimiters
 # Will return no matter what after timeout has passed.
 class ReadLine:
@@ -9,26 +11,33 @@ class ReadLine:
         self.clear()
         self.set_delimiters(delimiters)
 
+    def encode(self, data):
+        return data.encode(encoding)
+
     def clear(self):
         self.buf = bytearray()
+
+    def set_serial(self, serial):
+        self.serial = serial
 
     def set_timeout(self, timeout):
         self.timeout = timeout
 
     def set_delimiters(self, delimiters):
         self.delimiters = [
-            bytes(d, "utf-8") if type(d) == str else d for d in delimiters]
+            bytes(d, encoding) if type(d) == str else d for d in delimiters]
 
     def read_line(self, timeout=None):
         if timeout is None or timeout <= 0.:
             timeout = self.timeout
+        buf = self.buf
         for delimiter in self.delimiters:
-            i = self.buf.find(delimiter)
+            i = buf.find(delimiter)
             if i >= 0:
                 offset = i+len(delimiter)
-                r = self.buf[:offset]
-                self.buf = self.buf[offset:]
-                return r
+                r = buf[:offset]
+                self.buf = buf[offset:]
+                return self.__convert_to_str(r)
 
         start = time.time()
         while ((time.time() - start) < timeout):
@@ -37,16 +46,22 @@ class ReadLine:
             if not data:
                 continue
             for delimiter in self.delimiters:
-                i = bytearray(self.buf + data).find(delimiter)
+                i = bytearray(buf + data).find(delimiter)
                 if i >= 0:
                     offset = i+len(delimiter)
-                    r = self.buf + data[:offset]
+                    r = buf + data[:offset]
                     self.buf = bytearray(data[offset:])
-                    return r
+                    return self.__convert_to_str(r)
             # No match
-            self.buf.extend(data)
+            buf.extend(data)
 
-        # Timeout, return buffer and reset it
-        data = self.buf
+        # Timeout, reset buffer and return empty string
+        #print("TIMEOUT! Got:\n>>>>>>\n{}\n<<<<<<\n".format(buf))
         self.buf = bytearray()
-        return data
+        return ""
+
+    def __convert_to_str(self, data):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            return ""

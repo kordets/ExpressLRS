@@ -9,7 +9,7 @@ import BFinitPassthrough
 import ReadLine
 import re
 
-SCRIPT_DEBUG = 1
+SCRIPT_DEBUG = 0
 BAUDRATE_DEFAULT = 420000
 
 
@@ -40,13 +40,14 @@ def uart_upload(port, filename, baudrate, ghst=False):
         dbg_print(msg)
         raise Exception(msg)
 
-    s = serial.Serial(port=port, baudrate=baudrate, bytesize=8, parity='N', stopbits=1, timeout=5, xonxoff=0, rtscts=0)
+    s = serial.Serial(port=port, baudrate=baudrate,
+        bytesize=8, parity='N', stopbits=1,
+        timeout=5, inter_byte_timeout=None, xonxoff=0, rtscts=0)
+
+    rl = ReadLine.ReadLine(s, 2., ["CCC"])
 
     # Check if bootloader *and* passthrough is already active
-    try:
-        gotBootloader = 'CCC' in s.read(3).decode('utf-8')
-    except UnicodeDecodeError:
-        gotBootloader = False
+    gotBootloader = 'CCC' in rl.read_line()
 
     if not gotBootloader:
         s.close()
@@ -54,39 +55,43 @@ def uart_upload(port, filename, baudrate, ghst=False):
         # Init Betaflight passthrough
         try:
             BFinitPassthrough.bf_passthrough_init(port, baudrate, half_duplex)
-        except BFinitPassthrough.PassthroughEnabled as bf_err:
-            dbg_print("  FC Init error: '%s'" % bf_err)
+        except BFinitPassthrough.PassthroughEnabled as info:
+            dbg_print("  Warning: '%s'\n" % info)
+        except BFinitPassthrough.PassthroughFailed as failed:
+            raise
 
-        # Init bootloader next
-        s = serial.Serial(port=port, baudrate=baudrate, bytesize=8, parity='N', stopbits=1, timeout=5, xonxoff=0, rtscts=0)
+        # Prepare to upload
+        s = serial.Serial(port=port, baudrate=baudrate,
+            bytesize=8, parity='N', stopbits=1,
+            timeout=.5, xonxoff=0, rtscts=0)
+        rl.set_serial(s)
 
-        # Check again if we're in the bootloader now that passthrough is setup; This is for button-method flashing
-        try:
-            gotBootloader = 'CCC' in s.read(3).decode('utf-8')
-        except UnicodeDecodeError:
-            pass
+        # Check again if we're in the bootloader now that passthrough is setup;
+        #   Note: This is for button-method flashing
+        gotBootloader = 'CCC' in rl.read_line()
 
         # Init bootloader
-        if gotBootloader == False:
+        if not gotBootloader:
             # legacy bootloader requires a 500ms delay
             delay_seq2 = .5
 
-            s.timeout = .5
-            s.write_timeout = .5
-
-            retryTimeout = 2.0
-            rl = ReadLine.ReadLine(s, retryTimeout)
+            rl.set_timeout(2.0)
+            rl.set_delimiters(["\n", "CCC"])
 
             currAttempt = 0
             dbg_print("\nAttempting to reboot into bootloader...\n")
 
             while gotBootloader == False:
-
                 currAttempt += 1
                 if 10 < currAttempt:
                     msg = "[FAILED] to get to BL in reasonable time\n"
                     dbg_print(msg)
                     raise Exception(msg)
+
+                if 5 < currAttempt:
+                    # Enable debug logs after 5 retries
+                    global SCRIPT_DEBUG
+                    SCRIPT_DEBUG = True
 
                 dbg_print("[%1u] retry...\n" % currAttempt)
 
@@ -99,12 +104,12 @@ def uart_upload(port, filename, baudrate, ghst=False):
                 if half_duplex:
                    s.read(cnt)
 
-                start = time.time()
-                while ((time.time() - start) < retryTimeout):
-                    try:
-                        line = rl.read_line().decode('utf-8')
-                    except UnicodeDecodeError:
-                        continue
+                while True:
+                    line = rl.read_line()
+                    if not line:
+                        # timeout
+                        break
+
                     if SCRIPT_DEBUG and line:
                         dbg_print(" **DBG : '%s'\n" % line.strip())
 
@@ -138,26 +143,13 @@ def uart_upload(port, filename, baudrate, ghst=False):
 
             dbg_print("    Got into bootloader after: %u attempts\n" % currAttempt)
 
-            # change timeout to 30sec
-            s.timeout = 30.
-            s.write_timeout = 5.
-
             # sanity check! Make sure the bootloader is started
             dbg_print("Wait sync...")
-            start = time.time()
-            while True:
-                try:
-                    char = s.read(3).decode('utf-8')
-                except UnicodeDecodeError:
-                    continue
-                if SCRIPT_DEBUG and char:
-                    dbg_print(" **DBG : '%s'\n" % char)
-                if char == 'CCC':
-                    break
-                if ((time.time() - start) > 15):
-                    msg = "[FAILED] Unable to communicate with bootloader...\n"
-                    dbg_print(msg)
-                    raise Exception(msg)
+            rl.set_delimiters(["CCC"])
+            if "CCC" not in rl.read_line(15.):
+                msg = "[FAILED] Unable to communicate with bootloader...\n"
+                dbg_print(msg)
+                raise Exception(msg)
             dbg_print(" sync OK\n")
         else:
             dbg_print("\nWe were already in bootloader\n")
@@ -171,17 +163,17 @@ def uart_upload(port, filename, baudrate, ghst=False):
     # open binary
     stream = open(filename, 'rb')
     filesize = os.stat(filename).st_size
-    filechunks = filesize/128
+    filechunks = filesize / 128
 
     dbg_print("\nuploading %d bytes...\n" % filesize)
 
     def StatusCallback(total_packets, success_count, error_count):
         #sys.stdout.flush()
         if (total_packets % 10 == 0):
+            dbg = str(round((total_packets / filechunks) * 100)) + "%"
             if (error_count > 0):
-                dbg_print(str(round((total_packets/filechunks)*100)) + "% err: " + str(error_count) + "\n")
-            else:
-                dbg_print(str(round((total_packets/filechunks)*100)) + "%\n")
+                dbg += ", err: " + str(error_count)
+            dbg_print(dbg + "\n")
 
     def getc(size, timeout=3):
         return s.read(size) or None
