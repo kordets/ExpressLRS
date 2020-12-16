@@ -1,20 +1,22 @@
-import time
+import time, serial
 
 encoding = "utf-8"
 
-# Helper class to return serial output on a list of custom delimiters
-# Will return no matter what after timeout has passed.
-class ReadLine:
-    def __init__(self, serial, timeout=2, delimiters=["\n", "CCC"]):
+class SerialHelper:
+    def __init__(self, serial, timeout=2, delimiters=["\n", "CCC"], half_duplex=False):
         self.serial = serial
         self.timeout = timeout
+        self.half_duplex = half_duplex
         self.clear()
         self.set_delimiters(delimiters)
 
     def encode(self, data):
-        return data.encode(encoding)
+        if type(data) == str:
+            return data.encode(encoding)
+        return data
 
     def clear(self):
+        self.serial.reset_input_buffer()
         self.buf = bytearray()
 
     def set_serial(self, serial):
@@ -59,6 +61,18 @@ class ReadLine:
         #print("TIMEOUT! Got:\n>>>>>>\n{}\n<<<<<<\n".format(buf))
         self.buf = bytearray()
         return ""
+
+    def write(self, data, half_duplex=None):
+        if half_duplex is None:
+            half_duplex = self.half_duplex
+        serial = self.serial
+        data = self.encode(data)
+        cnt = serial.write(data)
+        serial.flush()
+        if half_duplex:
+            # Clean RX buffer in case of half duplex
+            #   All written data is read into RX buffer
+            serial.read(cnt)
 
     def __convert_to_str(self, data):
         try:

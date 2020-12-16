@@ -1,7 +1,7 @@
 import serial, time, sys, re
 from xmodem import XMODEM
 import serials_find
-import ReadLine
+import SerialHelper
 
 SCRIPT_DEBUG = 0
 
@@ -28,38 +28,31 @@ def bf_passthrough_init(port, requestedBaudrate, half_duplex=False):
     s = serial.Serial(port=port, baudrate=115200,
         bytesize=8, parity='N', stopbits=1,
         timeout=1, xonxoff=0, rtscts=0)
-    s.reset_input_buffer()
 
-    rl = ReadLine.ReadLine(s, 3., ['# ', 'CCC'])
-
+    rl = SerialHelper.SerialHelper(s, 3., ['CCC'])
+    rl.clear()
+    start = rl.read_line(2.).strip()
+    if "CCC" in start:
+        raise PassthroughEnabled("Passthrough already enabled and bootloader active")
     # Send start command '#'
-    cnt = s.write(rl.encode("#\n"))
-    s.flush()
-    if half_duplex:
-        s.read(cnt)
+    rl.clear()
+    rl.set_delimiters("# ")
+    rl.write("#\r\n", half_duplex)
     start = rl.read_line().strip()
     #dbg_print("BF INIT: '%s'" % start.replace("\r", ""))
     if not start or not start.endswith("#"):
         raise PassthroughEnabled("No CLI available. Already in passthrough mode?")
-    elif "CCC" in start:
-        raise PassthroughEnabled("Passthrough already enabled and bootloader active")
 
     SerialRXindex = ""
 
     dbg_print("\nAttempting to detect FC UART configuration...")
 
-    s.timeout = 2
-    s.reset_input_buffer()
-    cnt = s.write(rl.encode("serial\r\n"))
-    s.flush()
-    if half_duplex:
-        s.read(cnt)
-
-    rl.set_delimiters(["\n", "CCC"])
+    rl.set_delimiters(["\n"])
     rl.clear()
+    rl.write("serial\r\n")
 
     while True:
-        line = rl.read_line(2).strip()
+        line = rl.read_line().strip()
         #print("FC: '%s'" % line)
         if not line or "#" in line:
             break
@@ -81,8 +74,7 @@ def bf_passthrough_init(port, requestedBaudrate, half_duplex=False):
 
     dbg_print("Enabling serial passthrough...")
     dbg_print("  CMD: '%s'" % cmd)
-    s.write(rl.encode(cmd + '\n'))
-    s.flush()
+    rl.write(cmd + '\n')
     time.sleep(.2)
     s.close()
 

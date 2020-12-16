@@ -6,10 +6,10 @@ import logging
 import os
 import serials_find
 import BFinitPassthrough
-import ReadLine
+import SerialHelper
 import re
 
-SCRIPT_DEBUG = 0
+SCRIPT_DEBUG = 1
 BAUDRATE_DEFAULT = 420000
 
 
@@ -44,7 +44,7 @@ def uart_upload(port, filename, baudrate, ghst=False):
         bytesize=8, parity='N', stopbits=1,
         timeout=5, inter_byte_timeout=None, xonxoff=0, rtscts=0)
 
-    rl = ReadLine.ReadLine(s, 2., ["CCC"])
+    rl = SerialHelper.SerialHelper(s, 2., ["CCC"], half_duplex)
 
     # Check if bootloader *and* passthrough is already active
     gotBootloader = 'CCC' in rl.read_line()
@@ -63,8 +63,9 @@ def uart_upload(port, filename, baudrate, ghst=False):
         # Prepare to upload
         s = serial.Serial(port=port, baudrate=baudrate,
             bytesize=8, parity='N', stopbits=1,
-            timeout=.5, xonxoff=0, rtscts=0)
+            timeout=1, xonxoff=0, rtscts=0)
         rl.set_serial(s)
+        rl.clear()
 
         # Check again if we're in the bootloader now that passthrough is setup;
         #   Note: This is for button-method flashing
@@ -75,8 +76,8 @@ def uart_upload(port, filename, baudrate, ghst=False):
             # legacy bootloader requires a 500ms delay
             delay_seq2 = .5
 
-            rl.set_timeout(2.0)
-            rl.set_delimiters(["\n", "CCC"])
+            rl.set_timeout(2.)
+            rl.set_delimiters(["\n"], "CCC")
 
             currAttempt = 0
             dbg_print("\nAttempting to reboot into bootloader...\n")
@@ -96,25 +97,22 @@ def uart_upload(port, filename, baudrate, ghst=False):
                 dbg_print("[%1u] retry...\n" % currAttempt)
 
                 # clear RX buffer before continuing
-                s.reset_input_buffer()
-
+                rl.clear()
                 # request reboot
-                cnt = s.write(BootloaderInitSeq1)
-                s.flush()
-                if half_duplex:
-                   s.read(cnt)
+                rl.write(BootloaderInitSeq1)
 
-                while True:
-                    line = rl.read_line()
+                start = time.time()
+                while ((time.time() - start) < 2.):
+                    line = rl.read_line().strip()
                     if not line:
                         # timeout
-                        break
+                        continue
 
                     if SCRIPT_DEBUG and line:
-                        dbg_print(" **DBG : '%s'\n" % line.strip())
+                        dbg_print(" **DBG : '%s'\n" % line)
 
                     if "BL_TYPE" in line:
-                        bl_type = line.strip()[8:].strip()
+                        bl_type = line[8:].strip()
                         dbg_print("    Bootloader type found : '%s'\n" % bl_type)
                         # Newer bootloaders do not require delay but keep
                         # a 100ms just in case
@@ -126,12 +124,9 @@ def uart_upload(port, filename, baudrate, ghst=False):
                         bl_version = versionMatch.group(1)
                         dbg_print("    Bootloader version found : '%s'\n" % bl_version)
 
-                    elif "hold down button" in line.lower():
+                    elif "hold down button" in line:
                         time.sleep(delay_seq2)
-                        cnt = s.write(BootloaderInitSeq2)
-                        s.flush()
-                        if half_duplex:
-                            s.read(cnt)
+                        rl.write(BootloaderInitSeq2)
                         gotBootloader = True
                         break
 
