@@ -10,80 +10,57 @@
 
 R9DAC::R9DAC()
 {
-    CurrVoltageMV = 0;
     CurrVoltageRegVal = 0;
     ADDR = 0;
-    DAC_State = UNKNOWN;
 }
 
 void R9DAC::init(uint8_t sda, uint8_t scl, uint8_t addr, int8_t pin_switch, int8_t pin_amp)
 {
-    ADDR = addr;
-    if (0 <= pin_switch)
-    {
+    if (0 <= pin_switch) {
         pin_RFswitch = gpio_out_setup(pin_switch, 0);
     }
-    if (0 <= pin_amp)
-    {
+    if (0 <= pin_amp) {
         pin_RFamp = gpio_out_setup(pin_amp, 1);
     }
-    DAC_State = UNKNOWN;
 
-    Wire.setSDA(sda); // set is needed or it wont work :/
+    Wire.setSDA(sda);
     Wire.setSCL(scl);
     Wire.begin();
+    ADDR = addr;
 }
 
 void R9DAC::standby()
 {
-#if 0 // takes too long
-    if (DAC_State != STANDBY)
-    {
-        Wire.beginTransmission(ADDR);
-        Wire.write(0x00);
-        Wire.write(0x00);
-        Wire.endTransmission();
-        DAC_State = STANDBY;
-    }
-#else
     if (gpio_out_valid(pin_RFswitch))
         gpio_out_write(pin_RFswitch, HIGH);
     if (gpio_out_valid(pin_RFamp))
         gpio_out_write(pin_RFamp, LOW);
-#endif
 }
 
 void R9DAC::resume()
 {
-#if 0 // takes too long
-    if (DAC_State != RUNNING)
-    {
-        setVoltageRegDirect(CurrVoltageRegVal);
-        DAC_State = RUNNING;
-    }
-#else
     if (gpio_out_valid(pin_RFswitch))
         gpio_out_write(pin_RFswitch, LOW);
     if (gpio_out_valid(pin_RFamp))
         gpio_out_write(pin_RFamp, HIGH);
-#endif
 }
 
-void R9DAC::setVoltageMV(uint32_t voltsMV)
+void R9DAC::setVoltageMV(uint32_t const voltsMV)
 {
     uint8_t ScaledVolts = MAP(voltsMV, 0, VCC, 0, 255);
     setVoltageRegDirect(ScaledVolts);
-    CurrVoltageMV = voltsMV;
 }
 
-void R9DAC::setVoltageRegDirect(uint8_t voltReg)
+void R9DAC::setVoltageRegDirect(uint8_t const voltReg)
 {
-    if (voltReg == CurrVoltageRegVal)
+    if (voltReg == CurrVoltageRegVal || !ADDR)
         return;
+    //uint8_t RegH = ((voltReg & 0b11110000) >> 4) + (0b0000 << 4);
+    //uint8_t RegL = (voltReg & 0b00001111) << 4;
+    uint8_t const RegH = (voltReg >> 4) & 0x0F;
+    uint8_t const RegL = (voltReg << 4) & 0xF0;
 
     CurrVoltageRegVal = voltReg;
-    uint8_t RegH = ((voltReg & 0b11110000) >> 4) + (0b0000 << 4);
-    uint8_t RegL = (voltReg & 0b00001111) << 4;
 
     Wire.beginTransmission(ADDR);
     Wire.write(RegH);
@@ -93,7 +70,7 @@ void R9DAC::setVoltageRegDirect(uint8_t voltReg)
 
 void R9DAC::setPower(PowerLevels_e &power)
 {
-    uint32_t reqVolt = LUT[get_lut_index(power)].volts;
+    uint32_t const reqVolt = LUT[get_lut_index(power)].volts;
     setVoltageMV(reqVolt);
 }
 

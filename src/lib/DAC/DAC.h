@@ -32,7 +32,7 @@ private:
 
     const r9dac_lut_s LUT[R9_PWR_MAX] = {
         // mw, dB, gain, APC2volts*1000, figures assume 2dBm input
-#if 1
+#if 0
         {10, 11, 9, 800},
         {25, 14, 12, 920},
         {50, 17, 15, 1030},
@@ -43,24 +43,16 @@ private:
         {2000, 33, 31, 2160},
 #else
         // Alessandro modified values
-        {10, 11, 9, 725},
-        {25, 14, 12, 900},
+        {10, 10, 8, 650},
+        {25, 14, 12, 860},
         {50, 17, 15, 1000},
-        {100, 20, 18, 1125},
-        {250, 24, 22, 1350},
-        {500, 27, 25, 1600},
-        {1000, 30, 28, 1950},
+        {100, 20, 18, 1160},
+        {250, 24, 22, 1420},
+        {500, 27, 25, 1730},
+        {1000, 30, 28, 2100},
         {2000, 33, 31, 2600}, // Danger untested at high power
 #endif
     };
-
-    enum
-    {
-        UNKNOWN = 0,
-        RUNNING = 1,
-        STANDBY = 2
-
-    } DAC_State;
 
     struct gpio_out pin_RFswitch;
     struct gpio_out pin_RFamp;
@@ -68,6 +60,8 @@ private:
     uint8_t CurrVoltageRegVal;
     uint8_t ADDR;
 
+    void setVoltageMV(uint32_t voltsMV);
+    void setVoltageRegDirect(uint8_t voltReg);
     uint8_t get_lut_index(PowerLevels_e &power);
 
 public:
@@ -75,8 +69,6 @@ public:
     void init(uint8_t SDA_, uint8_t SCL_, uint8_t ADDR_, int8_t pin_switch = -1, int8_t pin_amp = -1);
     void standby();
     void resume();
-    void setVoltageMV(uint32_t voltsMV);
-    void setVoltageRegDirect(uint8_t voltReg);
     void setPower(PowerLevels_e &power);
 };
 
