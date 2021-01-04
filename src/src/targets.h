@@ -116,7 +116,7 @@ https://github.com/jaxxzer
 #elif TARGET_R9SLIMPLUS_RX               // R9SLIMPLUS USES DUAL UART CONFIGURATION FOR TX1/RX1
     #define GPIO_PIN_RCSIGNAL_RX    PB11 // RX1 PIN OF CONNECTOR 1 ON SLIMPLUS
     #define GPIO_PIN_RCSIGNAL_TX    PA9  // TX1 PIN OF CONNECTOR 1 ON SLIMPLUS
-#elif TARGET_R900MINI_RX                 
+#elif TARGET_R900MINI_RX
     #define GPIO_PIN_RCSIGNAL_RX    PA3 // convinient pin for direct chip solder
     #define GPIO_PIN_RCSIGNAL_TX    PA2 // convinient pin for direct chip solder
 #else //default R9MM_R9MINI or R9MX
@@ -252,7 +252,7 @@ https://github.com/jaxxzer
 #define GPIO_PIN_RCSIGNAL_TX    PB10 // not yet confirmed
 #define GPIO_PIN_LED_GREEN      PA15 // Green LED
 #define GPIO_PIN_LED_RED        PB3  // Red LED
-#define GPIO_PIN_LED_RED        PB4  // Blue LED
+#define GPIO_PIN_LED_BLUE       PB4  // Blue LED
 
 #define GPIO_PIN_DEBUG_RX    	PA3  // not yet confirmed
 #define GPIO_PIN_DEBUG_TX    	PA2  // not yet confirmed
