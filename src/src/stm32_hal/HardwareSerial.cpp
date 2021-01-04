@@ -606,8 +606,13 @@ void HardwareSerial::hw_enable_transmitter(void)
 }
 
 #if defined(TARGET_R9M_TX)
-#ifndef PRINTF_USE_DMA
-#define PRINTF_USE_DMA 0
+#ifndef SERIAL1_USE_DMA
+#define SERIAL1_USE_DMA 0
 #endif
-HardwareSerial Serial1(GPIO('A', 10), GPIO('A', 9), PRINTF_USE_DMA);
+HardwareSerial Serial1(GPIO('A', 10), GPIO('A', 9), SERIAL1_USE_DMA);
+
+#ifndef SERIAL2_USE_DMA
+#define SERIAL2_USE_DMA 0
+#endif
+HardwareSerial Serial2(GPIO('A', 3), GPIO('A', 2), SERIAL2_USE_DMA);
 #endif

@@ -113,4 +113,5 @@ private:
 
 #if defined(TARGET_R9M_TX)
 extern HardwareSerial Serial1;
+extern HardwareSerial Serial2;
 #endif

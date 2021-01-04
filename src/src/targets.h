@@ -323,6 +323,16 @@ https://github.com/jaxxzer
 
 #define GPIO_PIN_LED_RED_INV    0
 #define GPIO_PIN_LED_GREEN_INV  0
+
+// Serial2 is connected to external pins of R9M
+#if TELEMETRY_EXTERNAL
+#define BT_SERIAL       Serial2
+#ifndef TELEMETRY_EXTERNAL_BAUDRATE
+#define TELEMETRY_EXTERNAL_BAUDRATE 57600
+#endif /* TELEMETRY_EXTERNAL_BAUDRATE */
+#define BT_SERIAL_BAUD  TELEMETRY_EXTERNAL_BAUDRATE
+#endif /* TELEMETRY_EXTERNAL */
+
 #endif
 
 

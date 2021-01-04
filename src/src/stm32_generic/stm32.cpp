@@ -144,6 +144,9 @@ void platform_setup(void)
     CTRL_SERIAL.begin(460800);
     CTRL_SERIAL.setTimeout(5);
 #endif // CTRL_SERIAL
+#if defined(BT_SERIAL)
+    BT_SERIAL.begin(BT_SERIAL_BAUD);
+#endif // BT_SERIAL
 
     /**** SWTICHES ****/
 #if defined(GPIO_PIN_DIP1) && defined(GPIO_PIN_DIP2)

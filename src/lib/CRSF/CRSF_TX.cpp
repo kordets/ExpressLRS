@@ -73,6 +73,11 @@ void ICACHE_RAM_ATTR CRSF_TX::CrsfFramePushToFifo(uint8_t *buff, uint8_t size) c
     buff[size - 1] = CalcCRC(&buff[2], (buff[1] - 1));
     _dev->write(buff, size);
     platform_wd_feed();
+#if defined(BT_SERIAL)
+    // Send to BT serial
+    BT_SERIAL.write(buff, size);
+    platform_wd_feed();
+#endif // BT_SERIAL
 }
 
 void CRSF_TX::LinkStatisticsSend(void) const
