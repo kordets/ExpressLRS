@@ -346,6 +346,7 @@ https://github.com/jaxxzer
 #define CTRL_SERIAL Serial1
 // Serial2 is connected to external pins of R9M
 #if TELEMETRY_EXTERNAL
+#error "TELEMETRY_EXTERNAL is not needed!"
 #define BT_SERIAL       Serial2
 #ifndef TELEMETRY_EXTERNAL_BAUDRATE
 #define TELEMETRY_EXTERNAL_BAUDRATE 57600

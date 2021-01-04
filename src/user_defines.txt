@@ -101,11 +101,6 @@
 # Note: AUX1 is expected as a ARM switch
 #-DTX_SKIP_SYNC_WHEN_ARMED=1
 
-######################################
-### Telmeetry packets are sent out from back of the R9M module
-#-DTELEMETRY_EXTERNAL=1
-#-DTELEMETRY_EXTERNAL_BAUDRATE=57600
-
 ################################
 ### Set your UID or PHRASE.
 # Only one of these is allowed!
