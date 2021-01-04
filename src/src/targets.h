@@ -286,8 +286,8 @@ https://github.com/jaxxzer
 #define GPIO_PIN_LED_GREEN_INV  0
 
 #elif defined(TARGET_R9M_TX)
+
 #define GPIO_PIN_NSS         PB12
-#define GPIO_PIN_DIO0        PA15
 #define GPIO_PIN_MOSI        PB15
 #define GPIO_PIN_MISO        PB14
 #define GPIO_PIN_SCK         PB13
@@ -296,19 +296,43 @@ https://github.com/jaxxzer
 #define GPIO_PIN_SCL         PB6
 #define GPIO_PIN_RCSIGNAL_RX PB11 // USART3 RX for S.Port
 #define GPIO_PIN_RCSIGNAL_TX PB10 // USART3 TX for S.Port, needs BUFFER_OE
+
+#if defined(R9M_lITE_TX)
+#define GPIO_PIN_DIO0        PC15
+#define GPIO_PIN_LED_RED     PA1 // Red LED // not yet confirmed
+#define GPIO_PIN_LED_GREEN   PA4 // Green LED // not yet confirmed
+
+#define GPIO_PIN_RX_ENABLE   PC13 // HIGH = RX, LOW = TX
+
+#elif defined(R9M_lITE_PRO_TX)
+#error "LITE PRO is not ok yet!"
+
+#undef GPIO_PIN_RST
+#define GPIO_PIN_RST         PA9  // NRESET
+#define GPIO_PIN_DIO0        PA8  // confirmed
+#define GPIO_PIN_LED_RED     PB3  // Red LED
+#define GPIO_PIN_LED_GREEN   PA15 // Green LED
+#define GPIO_PIN_LED_BLUE    PB4  // Blue LED
+
+//#define GPIO_PIN_RFamp_APC1       PA4  //2.7V
+//#define GPIO_PIN_RFamp_APC2       PA5  //100mW@590mV, 200mW@870mV, 500mW@1.093V, 1W@1.493V
+#define GPIO_PIN_RFswitch_CONTROL PA6  // confirmed  //HIGH = RX, LOW = TX
+
+#define GPIO_PIN_VRF1        PA7  // 26SU Sample RF1
+#define GPIO_PIN_VRF2        PB1  // 26SU Sample RF2
+#define GPIO_PIN_SWR         PA0  // SWR? ADC1_IN1
+
+#define GPIO_PIN_RX_ENABLE   PC13 //PB3 // need to confirm
+
+#else /* R9M_TX */
+
+#define GPIO_PIN_DIO0        PA15
 #define GPIO_PIN_LED_RED     PA11 // Red LED
 #define GPIO_PIN_LED_GREEN   PA12 // Green LED
 #define GPIO_PIN_BUTTON      PA8  // pullup e.g. LOW when pressed
 #define GPIO_PIN_BUZZER      PB1  // confirmed
 #define GPIO_PIN_DIP1        PA12 // dip switch 1
 #define GPIO_PIN_DIP2        PA11 // dip switch 2
-
-//#define GPIO_PIN_DEBUG_RX PA3 // confirmed, USART2
-//#define GPIO_PIN_DEBUG_TX PA2 // confirmed, USART2
-
-#define BUFFER_OE     PA5  //CONFIRMED
-#define SPORT         PB10 //CONFIRMED connected to tx3 and rx3 through 40ohn resistor. Needs BufferOE. inverted
-//#define GPIO_PIN_DIO1 PA1  //Not Needed, HEARTBEAT pin
 
 #define GPIO_PIN_RFamp_APC1       PA6 //CONFIRMED SANDRO// APC2 is connected through a I2C dac and is handled elsewhere
 #define GPIO_PIN_RFswitch_CONTROL PB3 //CONFIRMED SANDRO HIGH = RX, LOW = TX
@@ -320,10 +344,6 @@ https://github.com/jaxxzer
 
 // Serial1 is connected to internal ESP module if in use
 #define CTRL_SERIAL Serial1
-
-#define GPIO_PIN_LED_RED_INV    0
-#define GPIO_PIN_LED_GREEN_INV  0
-
 // Serial2 is connected to external pins of R9M
 #if TELEMETRY_EXTERNAL
 #define BT_SERIAL       Serial2
@@ -333,14 +353,32 @@ https://github.com/jaxxzer
 #define BT_SERIAL_BAUD  TELEMETRY_EXTERNAL_BAUDRATE
 #endif /* TELEMETRY_EXTERNAL */
 
+//#define GPIO_PIN_DIO1 PA1  //Not Needed, HEARTBEAT pin
+#endif /* R9M_LITE_TX */
+
+//#define GPIO_PIN_DEBUG_RX PA3 // confirmed, USART2
+//#define GPIO_PIN_DEBUG_TX PA2 // confirmed, USART2
+
+#define BUFFER_OE     PA5  //CONFIRMED
+#define SPORT         PB10 //CONFIRMED connected to tx3 and rx3 through 40ohn resistor. Needs BufferOE. inverted
+
+#define GPIO_PIN_LED_RED_INV    0
+#define GPIO_PIN_LED_GREEN_INV  0
 #endif
-
-
 
 
 /**********************************
            DEFAULTS
  **********************************/
+#ifndef GPIO_PIN_RFswitch_CONTROL
+#define GPIO_PIN_RFswitch_CONTROL UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_RFamp_APC1
+#define GPIO_PIN_RFamp_APC1 UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_RFamp_APC2
+#define GPIO_PIN_RFamp_APC2 UNDEF_PIN
+#endif
 
 #ifndef GPIO_PIN_OLED_SDA
 #define GPIO_PIN_OLED_SDA UNDEF_PIN
