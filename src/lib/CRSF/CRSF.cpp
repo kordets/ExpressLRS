@@ -36,7 +36,7 @@ void CRSF::Begin()
     TLMbattSensor.voltage = 0;
     //TLMbattSensor.remaining = 100;
 
-    TLMGPSsensor.valid = 0;
+    tlm_gps_valid = 0;
 
     _dev->flush_read();
 }
@@ -118,18 +118,18 @@ void ICACHE_RAM_ATTR CRSF::GpsStatsExtract(uint8_t const *const input)
             TLMGPSsensor.altitude <<= 8;
             TLMGPSsensor.altitude += input[3];
             TLMGPSsensor.satellites = input[4];
-            TLMGPSsensor.valid = true;
+            tlm_gps_valid = 1;
             break;
     }
 }
 
 uint8_t ICACHE_RAM_ATTR CRSF::GpsStatsPack(uint8_t *const output)
 {
-    uint8_t type = (TLMGPSsensor.valid << 4) + CRSF_FRAMETYPE_GPS;
-    if (!TLMGPSsensor.valid)
+    uint8_t type = (tlm_gps_valid << 4) + CRSF_FRAMETYPE_GPS;
+    if (!tlm_gps_valid)
         return 0;
     // GPS block is split into pieces
-    switch (TLMGPSsensor.valid--) {
+    switch (tlm_gps_valid--) {
         case 3:
             output[0] = (uint8_t)(TLMGPSsensor.latitude >> 24);
             output[1] = (uint8_t)(TLMGPSsensor.latitude >> 16);

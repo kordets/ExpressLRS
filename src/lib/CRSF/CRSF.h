@@ -199,7 +199,7 @@ typedef struct crsf_sensor_gps_s
     uint16_t heading;
     uint16_t altitude;
     uint8_t satellites;
-    uint8_t valid; // available to send (1) - reused for CRC when sending
+    uint8_t crc;
 } PACKED crsf_sensor_gps_t;
 
 typedef struct crsf_msp_packet_fc_s
@@ -275,6 +275,7 @@ public:
     crsfPayloadLinkstatistics_s LinkStatistics; // Link Statisitics Stored as Struct
     crsf_sensor_battery_s TLMbattSensor;
     crsf_sensor_gps_s TLMGPSsensor;
+    uint8_t tlm_gps_valid;
 
 protected:
     uint8_t *ParseInByte(uint8_t inChar);

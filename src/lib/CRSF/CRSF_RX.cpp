@@ -137,7 +137,7 @@ void CRSF_RX::processPacket(uint8_t const *data)
 
             TLMGPSsensor.satellites = data[15];
 
-            TLMGPSsensor.valid = 3; // Slipt into 3 tlm pkts
+            tlm_gps_valid = 3; // Slipt into 3 tlm pkts
             break;
         }
 

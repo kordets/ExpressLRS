@@ -102,14 +102,14 @@ void CRSF_TX::BatteryStatisticsProcess(void) const
 
 void CRSF_TX::GpsSensorSend(void) const
 {
-    if (TLMGPSsensor.valid)
+    if (tlm_gps_valid)
         send_buffers |= SEND_GPS;
 }
 void CRSF_TX::GpsSensorProcess(void)
 {
     send_buffers &= ~SEND_GPS;
-    CrsfFramePushToFifo((uint8_t *)&TLMGPSsensor, sizeof(crsf_sensor_gps_t));
-    TLMGPSsensor.valid = false;
+    CrsfFramePushToFifo((uint8_t *)&TLMGPSsensor, sizeof(TLMGPSsensor));
+    tlm_gps_valid = 0;
 }
 
 void CRSF_TX::sendLUAresponseToRadio(uint8_t * const data, uint8_t const size) const
