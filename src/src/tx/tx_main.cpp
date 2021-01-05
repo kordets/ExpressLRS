@@ -516,7 +516,7 @@ static void msp_data_cb(uint8_t const *const input)
      *  [3...] payload + crc
      */
     mspHeaderV1_t *hdr = (mspHeaderV1_t *)input;
-    uint8_t payloadSize = hdr->payloadSize + 1U; // include size
+    uint16_t payloadSize = hdr->payloadSize + 1U; // include size
 
    DEBUG_PRINTF("MSP from radio: ");
 
@@ -690,7 +690,8 @@ void loop()
         // Send MSP resp if allowed and packet ready
         if (can_send && msp_packet_rx.iterated())
         {
-            DEBUG_PRINTF("DL MSP rcvd => radio\n");
+            DEBUG_PRINTF("DL MSP rcvd. func: %x, size: %u\n",
+                msp_packet_rx.function, msp_packet_rx.payloadSize);
             if (!msp_packet_rx.error)
                 crsf.sendMspPacketToRadio(msp_packet_rx);
             msp_packet_rx.reset();

@@ -138,11 +138,10 @@ void CRSF_TX::sendMspPacketToRadio(mspPacket_t &msp) const
         return;
 
     p_msp_packet.header.frame_size = CRSF_FRAME_SIZE(msp_len);
-    // Fill encapsulated MSP payload
+    // Set flags
     p_msp_packet.flags = MSP_VERSION | MSP_STARTFLAG;
-    for (uint8_t i = 0; i < msp.payloadSize; i++) {
-        p_msp_packet.buffer[i] = msp.payload[i];
-    }
+    // Copy encapsulated MSP payload
+    memcpy(p_msp_packet.buffer, msp.payload, msp.payloadSize);
 
     CrsfFramePushToFifo((uint8_t*)&p_msp_packet, len);
 }

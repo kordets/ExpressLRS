@@ -638,18 +638,19 @@ void msp_data_cb(uint8_t const *const input)
      *  [3...] payload + crc
      */
     mspHeaderV1_t *hdr = (mspHeaderV1_t *)input;
+    uint16_t payloadSize = hdr->payloadSize + 1U; // include size
 
-    if (sizeof(msp_packet_tx.payload) < (hdr->payloadSize + 3U))
+    if (sizeof(msp_packet_tx.payload) < payloadSize)
         /* too big, ignore */
         return;
 
     msp_packet_tx.reset(hdr);
     msp_packet_tx.type = MSP_PACKET_TLM_OTA;
-    msp_packet_tx.payloadSize = hdr->payloadSize + 3;
+    msp_packet_tx.payloadSize = payloadSize;
 
     volatile_memcpy(msp_packet_tx.payload,
-                    (void*)&input[1],       // skip flags
-                    hdr->payloadSize + 3);  // include size, func and crc
+                    (void*)&input[1], // skip flags
+                    payloadSize);
 
     write_u8(&tlm_msp_send, 1); // rdy for sending
 }
