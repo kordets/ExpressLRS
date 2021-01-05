@@ -14,6 +14,11 @@ public:
         init(0);
     }
 
+    int32_t ICACHE_RAM_ATTR value(void)
+    {
+        return SmoothDataINT;
+    }
+
     int32_t ICACHE_RAM_ATTR update(int32_t Indata)
     {
         int RawData;
