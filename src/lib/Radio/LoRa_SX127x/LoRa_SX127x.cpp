@@ -5,9 +5,10 @@
 #include <string.h>
 
 /////////////////////////////////////////////////////////////////
+// Note: ignore default LoRaWAM (0x34/52) sync word!
 
 /* Big thanks to AlessandroAU who tested these to work best!! */
-uint8_t SX127x_AllowedSyncwords[] = {
+uint8_t SX127x_AllowedSyncwords_sf6[] = {
     0,   5,   6,   7,   11,  12,  13,  15, 18,
     21,  23,  26,  29,  30,  31,  33,  34,
     37,  38,  39,  40,  42,  44,  50,  51,
@@ -22,15 +23,29 @@ uint8_t SX127x_AllowedSyncwords[] = {
     212, 213, 219, 220, 221, 223, 227, 229,
     235, 239, 240, 242, 243, 246, 247, 255
 };
+uint8_t SX127x_AllowedSyncwords_sf78[] = {
+    18, 199
+};
 
-uint8_t SyncWorFindValid(uint8_t syncWord)
+uint8_t SyncWordFindValid(uint8_t const syncWord, uint8_t const sf)
 {
-    uint8_t iter;
-    for (iter = 0; iter < sizeof(SX127x_AllowedSyncwords); iter++) {
-        if (syncWord <= SX127x_AllowedSyncwords[iter])
-            return SX127x_AllowedSyncwords[iter];
+    uint8_t *words_ptr;
+    uint8_t iter, num_words;
+    if (sf == SX127X_SF_6) {
+        words_ptr = SX127x_AllowedSyncwords_sf6;
+        num_words = sizeof(SX127x_AllowedSyncwords_sf6);
+    } else if (sf == SX127X_SF_7 || sf == SX127X_SF_8) {
+        words_ptr = SX127x_AllowedSyncwords_sf78;
+        num_words = sizeof(SX127x_AllowedSyncwords_sf78);
+    } else {
+        return 0x12; // return default
     }
-    return SX127x_AllowedSyncwords[0];
+
+    for (iter = 0; iter < num_words; iter++) {
+        if (syncWord <= words_ptr[iter])
+            return words_ptr[iter];
+    }
+    return words_ptr[0];
 }
 
 /////////////////////////////////////////////////////////////////
@@ -120,11 +135,7 @@ void SX127xDriver::End(void)
 
 void SX127xDriver::SetSyncWord(uint8_t syncWord)
 {
-    //writeRegister(SX127X_REG_SYNC_WORD, syncWord);
-    _syncWord = SyncWorFindValid(syncWord);
-    DEBUG_PRINTF("Using sync word %u (input %u)\n",
-                 _syncWord, syncWord);
-    //_syncWord = syncWord;
+    _syncWord = syncWord;
 }
 
 void SX127xDriver::SetOutputPower(uint8_t Power, uint8_t init)
@@ -594,6 +605,9 @@ void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t fre
         writeRegister(0x30, 0x00);
 
     // set the sync word
+    syncWord = SyncWordFindValid(syncWord, sf);
+    DEBUG_PRINTF("Using sync word %u (input %u)\n",
+                 syncWord, _syncWord);
     writeRegister(SX127X_REG_SYNC_WORD, syncWord);
 
     reg = SX127X_AGC_AUTO_ON;
