@@ -755,7 +755,7 @@ void loop()
     else if (_conn_state == STATE_disconnected)
     { /* Cycle only if initial connection search */
 
-        if (config->syncSearchTimeout < (uint32_t)(now - RFmodeNextCycle))
+        if (ExpressLRS_currAirRate->syncSearchTimeout < (uint32_t)(now - RFmodeNextCycle))
         {
             uint8_t max_rate = get_elrs_airRateMax();
             SetRFLinkRate((scanIndex % max_rate)); //switch between rates
