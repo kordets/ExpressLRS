@@ -795,10 +795,12 @@ void loop()
 #if PRINT_RATE && NO_DATA_TO_FC
     if ((1000U <= (uint32_t)(now - print_Rate_cnt_time)) &&
         (_conn_state == STATE_connected)) {
-        DEBUG_PRINTF(" Rate: -%u +%u LQ:%u\n",
+        DEBUG_PRINTF(" Rate: -%u +%u LQ:%u RSSI:%d SNR:%d\n",
             read_u32(&print_rate_cnt_fail),
             read_u32(&print_rate_cnt),
-            read_u8(&uplink_Link_quality));
+            read_u8(&uplink_Link_quality),
+            LPF_UplinkRSSI.value(),
+            LPF_UplinkSNR.value());
         write_u32(&print_rate_cnt, 0);
         write_u32(&print_rate_cnt_fail, 0);
         print_Rate_cnt_time = now;
