@@ -92,7 +92,6 @@ static uint8_t DRAM_ATTR uplink_Link_quality;
 ///////////////////////////////////////////////////////////////
 ///////////// Variables for Sync Behaviour ////////////////////
 static uint32_t DRAM_ATTR RFmodeNextCycle; // set from isr
-static uint32_t DRAM_ATTR RFmodeCycleDelay;
 static uint8_t DRAM_ATTR scanIndex;
 static uint8_t DRAM_ATTR tentative_cnt;
 #if RX_UPDATE_AIR_RATE
@@ -598,9 +597,6 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     FHSSfreqCorrectionReset();
     FHSSsetCurrIndex(0);
 
-    RFmodeCycleDelay = config->syncSearchTimeout +
-                       config->connectionLostTimeout;
-
     handle_tlm_ratio(TLM_RATIO_NO_TLM);
 
     Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(),
@@ -759,7 +755,7 @@ void loop()
     else if (_conn_state == STATE_disconnected)
     { /* Cycle only if initial connection search */
 
-        if (RFmodeCycleDelay < (uint32_t)(now - RFmodeNextCycle))
+        if (config->syncSearchTimeout < (uint32_t)(now - RFmodeNextCycle))
         {
             uint8_t max_rate = get_elrs_airRateMax();
             SetRFLinkRate((scanIndex % max_rate)); //switch between rates
