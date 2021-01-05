@@ -38,13 +38,13 @@ static expresslrs_mod_settings_t DRAM_FORCE_ATTR ExpressLRS_AirRateConfig[] = {
 #endif // RADIO_SX128x_BW800
 #else // RADIO_SX127x
     /* 200Hz */
-    //{BW_500_00_KHZ, SF_6, CR_4_5, 5000, 200, TLM_RATIO_1_64, FHSS_1, OSD_MODE_200Hz, 8, 1000, 1500, 250000u}, // 3.87ms
-    {BW_500_00_KHZ, SF_6, CR_4_7, 5000, 200, TLM_RATIO_1_64, FHSS_1, OSD_MODE_200Hz, 8, 1000, 1500, 250000u}, // 4.38ms
+    //{BW_500_00_KHZ, SF_6, CR_4_5, 5000, 200, TLM_RATIO_1_64, FHSS_1, OSD_MODE_200Hz, 8, 1000, 1000, 250000u}, // 3.87ms
+    {BW_500_00_KHZ, SF_6, CR_4_7, 5000, 200, TLM_RATIO_1_64, FHSS_1, OSD_MODE_200Hz, 8, 1000, 1000, 250000u}, // 4.38ms
     /* 100Hz */
-    //{BW_500_00_KHZ, SF_7, CR_4_7, 10000, 100, TLM_RATIO_1_32, FHSS_1, OSD_MODE_100Hz, 8, 1000, 2000, 500000u}, // 8,77ms
-    {BW_500_00_KHZ, SF_7, CR_4_8, 10000, 100, TLM_RATIO_1_32, FHSS_1, OSD_MODE_100Hz, 8, 1000, 2000, 500000u}, // 9.28ms
+    //{BW_500_00_KHZ, SF_7, CR_4_7, 10000, 100, TLM_RATIO_1_32, FHSS_1, OSD_MODE_100Hz, 8, 1000, 1500, 500000u}, // 8,77ms
+    {BW_500_00_KHZ, SF_7, CR_4_8, 10000, 100, TLM_RATIO_1_32, FHSS_1, OSD_MODE_100Hz, 8, 1000, 1500, 500000u}, // 9.28ms
     /* 50Hz */
-    {BW_500_00_KHZ, SF_8, CR_4_8, 20000, 50, TLM_RATIO_1_16, FHSS_1, OSD_MODE_50Hz, 8, 1000, 2500, 750000u}, // 18.56ms
+    {BW_500_00_KHZ, SF_8, CR_4_8, 20000, 50, TLM_RATIO_1_16, FHSS_1, OSD_MODE_50Hz, 8, 1000, 2000, 750000u}, // 18.56ms
 
 #if RATE_ENABLED_25Hz
     {BW_500_00_KHZ, SF_9, CR_4_8, 40000, 25, TLM_RATIO_1_8, FHSS_1, OSD_MODE_25Hz, 10, 6000, 2500, 0},
@@ -76,17 +76,8 @@ uint8_t get_elrs_airRateMax(void)
 #error "UID is mandatory!"
 #endif
 
-#define SYNC_WORD_LORAWAN  0x34  //  52  - sync word reserved for LoRaWAN networks
-
 uint8_t getSyncWord(void)
 {
     uint8_t UID[6] = {MY_UID};
-    // TX: 0x1d
-    // RX: 0x61 -> NOK
-    // RX: 0x1E, 0x1F, 0x2d, 0x3d, 0x4d, 0x6d -> OK
-    // RX: 0x20, 0x30, 0x40 -> NOK
-    uint8_t syncw = CalcCRC(UID, sizeof(UID));
-    if (syncw == SYNC_WORD_LORAWAN)
-        syncw += 0x1;
-    return syncw;
+    return CalcCRC(UID, sizeof(UID));
 }
