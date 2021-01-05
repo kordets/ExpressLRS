@@ -601,7 +601,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     RFmodeCycleDelay = config->syncSearchTimeout +
                        config->connectionLostTimeout;
 
-    handle_tlm_ratio(config->TLMinterval);
+    handle_tlm_ratio(TLM_RATIO_NO_TLM);
 
     Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(),
                  config->PreambleLen, (OTA_PACKET_CRC == 0));
@@ -793,7 +793,8 @@ void loop()
     platform_wd_feed();
 
 #if PRINT_RATE && NO_DATA_TO_FC
-    if (1000 <= (uint32_t)(now - print_Rate_cnt_time)) {
+    if ((1000U <= (uint32_t)(now - print_Rate_cnt_time)) &&
+        (_conn_state == STATE_connected)) {
         DEBUG_PRINTF(" Rate: -%u +%u LQ:%u\n",
             read_u32(&print_rate_cnt_fail),
             read_u32(&print_rate_cnt),
