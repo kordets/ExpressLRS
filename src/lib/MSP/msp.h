@@ -2,23 +2,13 @@
 
 #include "platform.h"
 #include "helpers.h"
-#include "msptypes.h"
 #include "crc.h"
 
 enum {
     ELRS_INT_MSP_PARAMS = 1,
 };
 
-// Hardcoding payload size to 8 bytes for now, since MSP is
-// limited to a 4 byte payload on the BF side
-//#define MSP_PORT_INBUF_SIZE 16 // was 8
 #define MSP_PORT_INBUF_SIZE 256
-
-#define CHECK_PACKET_PARSING() \
-    if (packet->error)         \
-    {                          \
-        return;                \
-    }
 
 #define MSP_VERSION     (1U << 5)
 #define MSP_STARTFLAG   (1U << 4)
