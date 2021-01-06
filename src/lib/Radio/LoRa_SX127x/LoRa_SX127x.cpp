@@ -9,7 +9,7 @@
 
 /* Big thanks to AlessandroAU who tested these to work best!! */
 uint8_t SX127x_AllowedSyncwords_sf6[] = {
-    0,   5,   6,   7,   11,  12,  13,  15, 18,
+    5,   6,   7,   11,  12,  13,  15,  18,
     21,  23,  26,  29,  30,  31,  33,  34,
     37,  38,  39,  40,  42,  44,  50,  51,
     54,  55,  57,  58,  59,  61,  63,  65,
@@ -23,8 +23,30 @@ uint8_t SX127x_AllowedSyncwords_sf6[] = {
     212, 213, 219, 220, 221, 223, 227, 229,
     235, 239, 240, 242, 243, 246, 247, 255
 };
-uint8_t SX127x_AllowedSyncwords_sf78[] = {
-    18, 199
+
+uint8_t SX127x_AllowedSyncwords_sf7[] = {
+    18, 21, 23, 26, 29, 30, 31, 33, 34, 37,
+    38, 39, 40, 42, 44, 50, 51, 54, 55, 57,
+    58, 59, 61, 63, 65, 67, 68, 71, 77, 78,
+    79, 82, 84, 86, 89, 92, 94, 97, 99, 101,
+    102, 105, 106, 109, 111, 113, 115, 117, 118,
+    119, 121, 122, 124, 126, 127, 129, 130, 138,
+    143, 161, 170, 172, 173, 175, 180, 181, 182,
+    187, 190, 191, 193, 196, 199, 201, 204, 205,
+    209, 212, 213, 219, 220, 221, 223, 227, 229,
+    235, 239, 242, 243, 246, 247, 255
+};
+uint8_t SX127x_AllowedSyncwords_sf8[] = {
+    18, 21, 23, 26, 29, 30, 31, 33, 34, 37,
+    38, 39, 40, 44, 50, 51, 54, 55, 57,
+    58, 59, 61, 63, 65, 67, 68, 71, 77, 78,
+    79, 82, 84, 86, 89, 92, 94, 97, 99, 101,
+    102, 105, 106, 109, 111, 113, 117, 118, 119,
+    121, 122, 124, 126, 127, 129, 130, 138, 143,
+    161, 170, 172, 173, 175, 180, 181, 182, 187,
+    190, 191, 193, 196, 199, 201, 204, 205, 209,
+    212, 213, 219, 220, 221, 223, 227, 229, 235,
+    243, 246, 247, 255
 };
 
 uint8_t SyncWordFindValid(uint8_t const syncWord, uint8_t const sf)
@@ -34,11 +56,14 @@ uint8_t SyncWordFindValid(uint8_t const syncWord, uint8_t const sf)
     if (sf == SX127X_SF_6) {
         words_ptr = SX127x_AllowedSyncwords_sf6;
         num_words = sizeof(SX127x_AllowedSyncwords_sf6);
-    } else if (sf == SX127X_SF_7 || sf == SX127X_SF_8) {
-        words_ptr = SX127x_AllowedSyncwords_sf78;
-        num_words = sizeof(SX127x_AllowedSyncwords_sf78);
+    } else if (sf == SX127X_SF_7) {
+        words_ptr = SX127x_AllowedSyncwords_sf7;
+        num_words = sizeof(SX127x_AllowedSyncwords_sf7);
+    } else if (sf == SX127X_SF_8) {
+        words_ptr = SX127x_AllowedSyncwords_sf8;
+        num_words = sizeof(SX127x_AllowedSyncwords_sf8);
     } else {
-        return 0x12; // return default
+        return SX127X_SYNC_WORD; // return default
     }
 
     for (iter = 0; iter < num_words; iter++) {

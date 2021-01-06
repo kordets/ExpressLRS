@@ -43,7 +43,7 @@ typedef enum
     RFMOD_SX1276
 } RFmodule_;
 
-#define SX127X_SYNC_WORD    0xC8  //  200 - default ExpressLRS sync word - 200Hz
+#define SX127X_SYNC_WORD    201  //  201 - default ExpressLRS sync word
 #define SX127X_SPI_SPEED    10000000
 
 class SX127xDriver: public RadioInterface
