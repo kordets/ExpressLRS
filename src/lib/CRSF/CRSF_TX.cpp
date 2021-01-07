@@ -59,7 +59,7 @@ void CRSF_TX::Begin(void)
     p_otx_sync_packet.otx_id = CRSF_FRAMETYPE_OPENTX_SYNC;
 
     p_msp_packet.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    p_msp_packet.header.frame_size = 0;
+    p_msp_packet.header.frame_size = sizeof(p_msp_packet) - CRSF_FRAME_START_BYTES;
     p_msp_packet.header.type = CRSF_FRAMETYPE_MSP_RESP;
     p_msp_packet.header.dest_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
     p_msp_packet.header.orig_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
@@ -127,23 +127,13 @@ void CRSF_TX::sendMspPacketToRadio(mspPacket_t &msp) const
 {
     if (!p_RadioConnected)
         return;
-
-    // CRC included in payloadSize
-    uint8_t const msp_len = 3 + msp.payloadSize; // dest, orig, flags
-    uint8_t const len = CRSF_EXT_FRAME_SIZE(msp_len);
-
-    if (sizeof(p_msp_packet.buffer) < msp.payloadSize)
-        /* TODO: split into junks... */
-        // just ignore if too big
-        return;
-
-    p_msp_packet.header.frame_size = CRSF_FRAME_SIZE(msp_len);
     // Set flags
-    p_msp_packet.flags = MSP_VERSION | MSP_STARTFLAG;
+    p_msp_packet.flags = MSP_STARTFLAG;
     // Copy encapsulated MSP payload
-    memcpy(p_msp_packet.buffer, msp.payload, msp.payloadSize);
-
-    CrsfFramePushToFifo((uint8_t*)&p_msp_packet, len);
+    memcpy(p_msp_packet.buffer, msp.payload, msp.payloadSize-1);
+    // Set CRC
+    p_msp_packet.crc_msp = msp.payload[(msp.payloadSize-1)];
+    CrsfFramePushToFifo((uint8_t*)&p_msp_packet, sizeof(p_msp_packet));
 }
 
 int CRSF_TX::sendSyncPacketToRadio()

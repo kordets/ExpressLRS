@@ -561,6 +561,7 @@ void MspVtxWrite(const char * input, int num = -1)
   };
 
   // Fill MSP packet
+  msp_out.reset();
   msp_out.type = MSP_PACKET_V1_CMD;
   msp_out.flags = MSP_VERSION | MSP_STARTFLAG;
   msp_out.function = MSP_VTX_SET_CONFIG;

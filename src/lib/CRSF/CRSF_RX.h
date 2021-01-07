@@ -14,7 +14,7 @@ public:
 
     void sendRCFrameToFC(crsf_channels_t * channels) const;
     void LinkStatisticsSend(void) const;
-    void sendMSPFrameToFC(uint8_t const *const packet, uint8_t len) const;
+    void sendMSPFrameToFC(mspPacket_t & msp) const;
 
 private:
     void sendFrameToFC(uint8_t *buff, uint8_t size) const;

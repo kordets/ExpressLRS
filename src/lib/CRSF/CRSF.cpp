@@ -11,7 +11,7 @@ void nullCallback(void){};
 void (*CRSF::disconnected)() = &nullCallback; // called when CRSF stream is lost
 void (*CRSF::connected)() = &nullCallback;    // called when CRSF stream is regained
 
-uint8_t DMA_ATTR SerialInBuffer[CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX)];
+uint8_t DMA_ATTR SerialInBuffer[/*CRSF_EXT_FRAME_SIZE(CRSF_PAYLOAD_SIZE_MAX)*/256];
 
 //#define DBF_PIN_CRSF_PACKET 2
 #ifdef DBF_PIN_CRSF_PACKET

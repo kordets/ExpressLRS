@@ -12,6 +12,7 @@ enum {
 
 #define MSP_VERSION     (1U << 5)
 #define MSP_STARTFLAG   (1U << 4)
+#define MSP_ERRORFLAG   (1U << 5) // MSP RESP
 #define MSP_ELRS_INT    (3U << 0)
 
 typedef enum
@@ -52,20 +53,12 @@ enum
     MSP_VTX_SET_CONFIG = 0x59, // write
 };
 
-typedef struct PACKED
-{
-    uint8_t flags;
-    uint8_t payloadSize;
-    uint8_t function;
-    uint8_t payload[];
-} mspHeaderV1_t;
-
-typedef struct PACKED
+typedef struct
 {
     uint8_t flags;
     uint16_t function;
     uint16_t payloadSize;
-} mspHeaderV2_t;
+} PACKED mspHeaderV2_t;
 
 typedef struct
 {
@@ -85,6 +78,11 @@ typedef struct
                 ((0 < payloadSize && payloadSize <= payloadIterator) || (payloadSize == 0)));
     }
 
+    uint8_t free(void) const
+    {
+        return (type == MSP_PACKET_UNKNOWN);
+    }
+
     void reset(void)
     {
         type = MSP_PACKET_UNKNOWN;
@@ -95,20 +93,6 @@ typedef struct
         error = false;
         sequence_nbr = 0;
         crc = 0;
-    }
-    void ICACHE_RAM_ATTR reset(mspHeaderV1_t *hdr)
-    {
-        reset();
-        flags = hdr->flags;
-        function = hdr->function;
-        payloadSize = hdr->payloadSize;
-    }
-    void ICACHE_RAM_ATTR reset(mspHeaderV2_t *hdr)
-    {
-        reset();
-        flags = hdr->flags;
-        function = hdr->function;
-        payloadSize = hdr->payloadSize;
     }
 
     inline void addByte(uint8_t b)

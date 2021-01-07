@@ -285,6 +285,9 @@ RcChannels_get_arm_channel_state(void)
 /*************************************************************************************
  * TELEMETRY OTA PACKET
  *************************************************************************************/
+#define MSP_OTA_FIRST  (0x1 << 3)
+#define MSP_OTA_HEADER (0x1 << 4)
+#define MSP_OTA_LAST   (0x1 << 5)
 
 typedef struct {
     union {
@@ -311,59 +314,73 @@ RcChannels_tlm_ota_send(uint8_t *const output,
                         uint8_t tx)
 {
     TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)output;
-    uint8_t iter = 0;
-    tlm_ptr->flags = MSP_VERSION + packet.sequence_nbr++;
+    uint8_t iter = 1;
+    tlm_ptr->flags = (packet.sequence_nbr++) & 0x7;
 
     if (packet.sequence_nbr == 1) {
-        /* Start MSP packet */
-        tlm_ptr->flags |= MSP_STARTFLAG;
+        /* First send header */
+        tlm_ptr->flags |= MSP_OTA_FIRST;
+        if (packet.type != MSP_PACKET_TLM_OTA) {
+            tlm_ptr->flags |= MSP_OTA_HEADER;
+            tlm_ptr->hdr.flags = packet.flags;
+            tlm_ptr->hdr.func = packet.function;
+            tlm_ptr->hdr.payloadSize = packet.payloadSize;
+            iter = 0;
+        }
     }
+
+    if (iter) {
+        for (iter = 0; iter < sizeof(tlm_ptr->payload.data); iter++)
+            tlm_ptr->payload.data[iter] = packet.readByte();
+    }
+
+    uint8_t done = packet.iterated();
+    if (done)
+        /* this is last junk */
+        tlm_ptr->flags |= MSP_OTA_LAST;
 
     // add pkt_type
     tlm_ptr->flags <<= 2;
     tlm_ptr->flags += tx ? (uint8_t)UL_PACKET_MSP : (uint8_t)DL_PACKET_TLM_MSP;
-
-    for (iter = 0; iter < sizeof(tlm_ptr->payload.data); iter++)
-        tlm_ptr->payload.data[iter] = packet.readByte();
-
-    return packet.iterated();
+    return done;
 }
 
 uint8_t ICACHE_RAM_ATTR
-RcChannels_tlm_uplink_receive(uint8_t *const input)
+RcChannels_tlm_ota_receive(uint8_t const *const input,
+                           mspPacket_t &packet)
 {
     TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)input;
     tlm_ptr->flags >>= 2; // remove pkt_type
-    return (tlm_ptr->flags & MSP_VERSION) ? sizeof(TlmDataPacket_s) : 0; // return data len
-}
 
-uint8_t ICACHE_RAM_ATTR
-RcChannels_tlm_downlink_receive(uint8_t const *const input,
-                                mspPacket_t &packet)
-{
-    if (packet.iterated())
-        return 1;
-
-    TlmDataPacket_s *tlm_ptr = (TlmDataPacket_s *)input;
-    tlm_ptr->flags >>= 2; // remove pkt_type
-    if (tlm_ptr->flags & MSP_VERSION) {
-        if (tlm_ptr->flags & MSP_STARTFLAG) {
-            // first junk, reset packet and start reception
-            packet.reset();
-            packet.type = MSP_PACKET_TLM_OTA;
-            packet.payloadSize = input[0];
-            packet.function = input[1];
-        } else if ((tlm_ptr->flags & 0xf) == packet.sequence_nbr) {
-            // next junk...
+    if (tlm_ptr->flags & MSP_OTA_FIRST) {
+        /* first junk, reset packet and start reception */
+        packet.reset();
+        packet.type = MSP_PACKET_TLM_OTA;
+        packet.sequence_nbr = tlm_ptr->flags & 0x7;
+        if (tlm_ptr->flags & MSP_OTA_HEADER) {
+            packet.flags = tlm_ptr->hdr.flags;
+            packet.function = tlm_ptr->hdr.func;
+            packet.payloadSize = tlm_ptr->hdr.payloadSize;
+            return 0;
         } else {
-            // error...
+            //packet.payloadSize = tlm_ptr->payload.data[0] + 3;
+            //packet.function = tlm_ptr->payload.data[1];
         }
+    }
 
-        packet.sequence_nbr++;
-
+    if ((tlm_ptr->flags & 0x7) == (packet.sequence_nbr & 0x7)) {
         for (uint8_t iter = 0; iter < sizeof(tlm_ptr->payload.data); iter++)
             packet.addByte(tlm_ptr->payload.data[iter]);
     }
 
-    return packet.iterated();
+    packet.sequence_nbr++;
+
+    if (tlm_ptr->flags & MSP_OTA_LAST) {
+        /* last junk received */
+        packet.setIteratorToSize();
+        //packet.payloadIterator = 0;
+        packet.sequence_nbr = 0;
+        return 1;
+    }
+    return 0;
 }

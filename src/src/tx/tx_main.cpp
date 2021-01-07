@@ -62,7 +62,7 @@ static uint32_t DRAM_ATTR TLMinterval;
 static mspPacket_t msp_packet_tx;
 static mspPacket_t msp_packet_rx;
 static MSP msp_packet_parser;
-static uint8_t DRAM_ATTR tlm_msp_send;
+static uint8_t DRAM_ATTR tlm_msp_send, tlm_msp_rcvd;
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static LPF DRAM_ATTR LPF_dyn_tx_power(3);
 static uint32_t DRAM_ATTR dyn_tx_updated;
@@ -186,7 +186,8 @@ static void process_rx_buffer()
         case DL_PACKET_TLM_MSP:
         {
             //DEBUG_PRINTF("DL MSP junk\n");
-            RcChannels_tlm_downlink_receive((uint8_t*)rx_buffer, msp_packet_rx);
+            if (RcChannels_tlm_ota_receive((uint8_t*)rx_buffer, msp_packet_rx))
+                tlm_msp_rcvd = 1;
             break;
         }
         case DL_PACKET_TLM_LINK:
@@ -292,19 +293,9 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     {
         /* send tlm packet if needed */
         if (RcChannels_tlm_ota_send(tx_buffer, msp_packet_tx) || msp_packet_tx.error) {
-            DEBUG_PRINTF("<< MSP DONE %u\n", msp_packet_tx.error);
             msp_packet_tx.reset();
             tlm_msp_send = 0;
-        } else {
-            DEBUG_PRINTF("<< MSP junk sent\n");
         }
-#if 0
-        DEBUG_PRINTF(" MSP: >");
-        for (uint8_t iter = 0; iter < sizeof(__tx_buffer); iter++) {
-            DEBUG_PRINTF(" %X", tx_buffer[iter]);
-        }
-        DEBUG_PRINTF(" <\n");
-#endif
     }
     else
     {
@@ -506,61 +497,57 @@ static void rc_data_cb(crsf_channels_t const *const channels)
     RcChannels_processChannels(channels);
 }
 
-/* OpenTX sends v1 MSPs */
+/* Parse CRSF encapsulated MSP packet */
 static void msp_data_cb(uint8_t const *const input)
 {
      /* process MSP packet from radio
-     *  [0] header: seq&0xF,
-     *  [1] payload size
-     *  [2] function
-     *  [3...] payload + crc
+     *    Start:
+     *      [0] header: seq&0xF,
+     *      [1] payload size
+     *      [2] function
+     *      [3...7] payload / crc
+     *    Next:
+     *      [0] header
+     *      [1...7] payload / crc
      */
-    mspHeaderV1_t *hdr = (mspHeaderV1_t *)input;
-    uint16_t payloadSize = hdr->payloadSize + 1U; // include size
+    mspHeaderV1_TX_t *hdr = (mspHeaderV1_TX_t *)input;
+    uint16_t iter;
 
-   DEBUG_PRINTF("MSP from radio: ");
-
-    if (read_u8(&tlm_msp_send)) {
-        DEBUG_PRINTF(" msp packet reserved, ignore\n");
-        return;
-    } else if (sizeof(msp_packet_tx.payload) < payloadSize) {
-        /* too big, ignore */
-        DEBUG_PRINTF(" too big, ignore!\n");
+    if (read_u8(&tlm_msp_send) || (TLM_RATIO_NO_TLM == TLMinterval)) {
+        DEBUG_PRINTF("MSP TX packet ignored\n");
         return;
     }
 
-    // BF: MSP from radio: size: 0 flags: 48 func: 88 Lsize: 0 Lflags: 48 Lfunc: 88 received
-
-    DEBUG_PRINTF("size: %u ", hdr->payloadSize);
-    DEBUG_PRINTF("flags: %u ", hdr->flags);
-    DEBUG_PRINTF("func: %u >>\n", hdr->function);
-
-    msp_packet_tx.reset(hdr);
-    msp_packet_tx.type = MSP_PACKET_TLM_OTA;
-    msp_packet_tx.payloadSize = payloadSize;
-
-    volatile_memcpy(msp_packet_tx.payload,
-                    (void*)&input[1], // skip flags
-                    payloadSize);
-
-    write_u8(&tlm_msp_send, 1); // rdy for sending
+    if (hdr->flags & MSP_STARTFLAG) {
+        msp_packet_tx.reset();
+        msp_packet_tx.type = MSP_PACKET_TLM_OTA;
+        msp_packet_tx.payloadSize = hdr->hdr.payloadSize + 2; // incl size+func
+        msp_packet_tx.function = hdr->hdr.function;
+    }
+    for (iter = 0; (iter < sizeof(hdr->payload)) && !msp_packet_tx.iterated(); iter++) {
+        msp_packet_tx.addByte(hdr->payload[iter]);
+    }
+    if (iter < sizeof(hdr->payload)) {
+        // check CRC
+        if ((hdr->payload[iter] == msp_packet_tx.crc) && !msp_packet_tx.error) {
+            msp_packet_tx.addByte(msp_packet_tx.crc);
+            msp_packet_tx.setIteratorToSize();
+            write_u8(&tlm_msp_send, 1); // rdy for sending
+        } else {
+            msp_packet_tx.reset();
+        }
+    }
 }
 
 #ifdef CTRL_SERIAL
 static void MspOtaCommandsSend(mspPacket_t &packet)
 {
-    uint8_t iter;
+    uint16_t iter;
 
-    DEBUG_PRINTF("CTRL_SERIAL MSP: ");
-
-    if (read_u8(&tlm_msp_send)) {
-        DEBUG_PRINTF(" msp packet reserved, ignore\n");
+    if (read_u8(&tlm_msp_send) || (TLM_RATIO_NO_TLM == TLMinterval)) {
+        DEBUG_PRINTF("MSP TX packet ignored\n");
         return;
     }
-
-    DEBUG_PRINTF("size: %u ", packet.payloadSize);
-    DEBUG_PRINTF("flags: %u ", packet.flags);
-    DEBUG_PRINTF("func: %u >>\n", packet.function);
 
     msp_packet_tx.reset();
     msp_packet_tx.type = MSP_PACKET_TLM_OTA;
@@ -575,7 +562,8 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
     msp_packet_tx.addByte(msp_packet_tx.crc);
     msp_packet_tx.setIteratorToSize();
 
-    write_u8(&tlm_msp_send, 1); // rdy for sending
+    if (!msp_packet_tx.error)
+        write_u8(&tlm_msp_send, 1); // rdy for sending
 }
 #endif
 
@@ -688,13 +676,13 @@ void loop()
 
     if (!rx_buffer_handle) {
         // Send MSP resp if allowed and packet ready
-        if (can_send && msp_packet_rx.iterated())
+        if (can_send && tlm_msp_rcvd)
         {
             DEBUG_PRINTF("DL MSP rcvd. func: %x, size: %u\n",
                 msp_packet_rx.function, msp_packet_rx.payloadSize);
-            if (!msp_packet_rx.error)
-                crsf.sendMspPacketToRadio(msp_packet_rx);
+            crsf.sendMspPacketToRadio(msp_packet_rx);
             msp_packet_rx.reset();
+            tlm_msp_rcvd = 0;
         }
 #ifdef CTRL_SERIAL
         else if (ctrl_serial.available()) {

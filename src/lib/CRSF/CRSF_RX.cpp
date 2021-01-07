@@ -56,16 +56,16 @@ void ICACHE_RAM_ATTR CRSF_RX::sendRCFrameToFC(crsf_channels_t * channels) const
     sendFrameToFC((uint8_t*)&p_crsf_channels, sizeof(p_crsf_channels));
 }
 
-void ICACHE_RAM_ATTR CRSF_RX::sendMSPFrameToFC(uint8_t const *const packet, uint8_t len) const
+void ICACHE_RAM_ATTR CRSF_RX::sendMSPFrameToFC(mspPacket_t & msp) const
 {
     uint8_t i;
-
-    if (!len || len > (sizeof(msp_packet.buffer) + 1))
-        return;
-
-    msp_packet.flags = packet[len-1];     // flags, last byte in packet buffer
-    for (i = 0; i < (len - 1); i++) {
-        msp_packet.buffer[i] = packet[i]; // payload
+    msp_packet.flags = MSP_VERSION + msp.sequence_nbr;
+    if (msp.payloadIterator == 0 && msp.sequence_nbr == 0) {
+        msp_packet.flags |= MSP_STARTFLAG;
+    }
+    msp.sequence_nbr++;
+    for (i = 0; i < sizeof(msp_packet.buffer); i++) {
+        msp_packet.buffer[i] = msp.readByte();
     }
     sendFrameToFC((uint8_t*)&msp_packet, sizeof(msp_packet));
 }

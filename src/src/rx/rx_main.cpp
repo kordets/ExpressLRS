@@ -85,8 +85,10 @@ static uint32_t DRAM_ATTR LastValidPacket; //Time the last valid packet was recv
 #if !SERVO_OUTPUTS_ENABLED
 static uint32_t DRAM_ATTR SendLinkStatstoFCintervalNextSend;
 #endif
+static mspPacket_t DRAM_FORCE_ATTR msp_packet_rx;
+static uint32_t DRAM_ATTR msp_packet_rx_sent;
 static mspPacket_t DRAM_FORCE_ATTR msp_packet_tx;
-static uint8_t DRAM_ATTR tlm_msp_send;
+static uint8_t DRAM_ATTR tlm_msp_send, tlm_msp_rcvd;
 static uint8_t DRAM_ATTR uplink_Link_quality;
 
 ///////////////////////////////////////////////////////////////
@@ -212,8 +214,7 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
 
     if ((tlm_msp_send == 1) && (msp_packet_tx.type == MSP_PACKET_TLM_OTA))
     {
-        if (RcChannels_tlm_ota_send(tx_buffer, msp_packet_tx, 0) || msp_packet_tx.error)
-        {
+        if (RcChannels_tlm_ota_send(tx_buffer, msp_packet_tx, 0) || msp_packet_tx.error) {
             msp_packet_tx.reset();
             tlm_msp_send = 0;
         }
@@ -526,8 +527,11 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
         case UL_PACKET_MSP: {
 #if !SERVO_OUTPUTS_ENABLED
             //DEBUG_PRINTF(" M");
-            uint8_t len = RcChannels_tlm_uplink_receive(rx_buffer);
-            crsf.sendMSPFrameToFC(rx_buffer, len);
+            if (RcChannels_tlm_ota_receive(rx_buffer, msp_packet_rx)) {
+                //crsf.sendMSPFrameToFC(msp_packet_rx);
+                //msp_packet_rx.reset();
+                tlm_msp_rcvd = 1;
+            }
 #endif
             break;
         }
@@ -633,22 +637,27 @@ void msp_data_cb(uint8_t const *const input)
      *  [2] function
      *  [3...] payload + crc
      */
-    mspHeaderV1_t *hdr = (mspHeaderV1_t *)input;
-    uint16_t payloadSize = hdr->payloadSize + 1U; // include size
+    mspHeaderV1_RX_t *hdr = (mspHeaderV1_RX_t *)input;
+    uint16_t iter;
 
-    if (sizeof(msp_packet_tx.payload) < payloadSize)
-        /* too big, ignore */
-        return;
-
-    msp_packet_tx.reset(hdr);
-    msp_packet_tx.type = MSP_PACKET_TLM_OTA;
-    msp_packet_tx.payloadSize = payloadSize;
-
-    volatile_memcpy(msp_packet_tx.payload,
-                    (void*)&input[1], // skip flags
-                    payloadSize);
-
-    write_u8(&tlm_msp_send, 1); // rdy for sending
+    if (hdr->flags & MSP_STARTFLAG) {
+        msp_packet_tx.reset();
+        msp_packet_tx.type = MSP_PACKET_TLM_OTA;
+        msp_packet_tx.payloadSize = hdr->hdr.payloadSize + 2; // incl size+func
+        msp_packet_tx.function = hdr->hdr.function;
+    }
+    for (iter = 0; (iter < sizeof(hdr->payload)) && !msp_packet_tx.iterated(); iter++) {
+        msp_packet_tx.addByte(hdr->payload[iter]);
+    }
+    if (iter < sizeof(hdr->payload)) {
+        if (!msp_packet_tx.error) {
+            msp_packet_tx.addByte(hdr->payload[sizeof(hdr->payload)-1]); // include CRC
+            msp_packet_tx.setIteratorToSize();
+            write_u8(&tlm_msp_send, 1); // rdy for sending
+        } else {
+            msp_packet_tx.reset();
+        }
+    }
 }
 
 void setup()
@@ -671,6 +680,7 @@ void setup()
 #endif
 
     msp_packet_tx.reset();
+    msp_packet_rx.reset();
 
     DEBUG_PRINTF("ExpressLRS RX Module...\n");
     platform_setup();
@@ -787,6 +797,16 @@ void loop()
     platform_loop(_conn_state);
 
     platform_wd_feed();
+
+    /* Send MSP in junks to FC */
+    if (read_u8(&tlm_msp_rcvd) && (10 <= (now - msp_packet_rx_sent))) {
+        crsf.sendMSPFrameToFC(msp_packet_rx);
+        if (msp_packet_rx.iterated() || msp_packet_rx.error) {
+            msp_packet_rx.reset();
+            write_u8(&tlm_msp_rcvd, 0);
+        }
+        msp_packet_rx_sent = now;
+    }
 
 #if PRINT_RATE && NO_DATA_TO_FC
     if ((1000U <= (uint32_t)(now - print_Rate_cnt_time)) &&
