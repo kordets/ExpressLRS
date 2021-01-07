@@ -59,13 +59,13 @@ void ICACHE_RAM_ATTR CRSF_RX::sendRCFrameToFC(crsf_channels_t * channels) const
 void ICACHE_RAM_ATTR CRSF_RX::sendMSPFrameToFC(mspPacket_t & msp) const
 {
     uint8_t i;
-    msp_packet.flags = MSP_VERSION + msp.sequence_nbr;
+    msp_packet.msp.flags = MSP_VERSION + msp.sequence_nbr;
     if (msp.payloadIterator == 0 && msp.sequence_nbr == 0) {
-        msp_packet.flags |= MSP_STARTFLAG;
+        msp_packet.msp.flags |= MSP_STARTFLAG;
     }
     msp.sequence_nbr++;
-    for (i = 0; i < sizeof(msp_packet.buffer); i++) {
-        msp_packet.buffer[i] = msp.readByte();
+    for (i = 0; i < sizeof(msp_packet.msp.payload); i++) {
+        msp_packet.msp.payload[i] = msp.readByte();
     }
     sendFrameToFC((uint8_t*)&msp_packet, sizeof(msp_packet));
 }

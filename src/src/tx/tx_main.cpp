@@ -510,7 +510,7 @@ static void msp_data_cb(uint8_t const *const input)
      *      [0] header
      *      [1...7] payload / crc
      */
-    mspHeaderV1_TX_t *hdr = (mspHeaderV1_TX_t *)input;
+    mspHeaderV1_RX_t *hdr = (mspHeaderV1_RX_t *)input;
     uint16_t iter;
 
     if (read_u8(&tlm_msp_send) || (TLM_RATIO_NO_TLM == TLMinterval)) {

@@ -215,7 +215,7 @@ typedef struct
         } hdr;
         uint8_t payload[CRSF_FRAME_RX_MSP_FRAME_SIZE-1];
     };
-} PACKED mspHeaderV1_TX_t;
+} PACKED mspHeaderV1_RX_t;
 
 /* MSP from FC to radio */
 #define CRSF_FRAME_TX_MSP_FRAME_SIZE 58
@@ -226,26 +226,24 @@ typedef struct
         struct {
             uint8_t payloadSize;
             uint8_t function;
-            uint8_t payload[CRSF_FRAME_TX_MSP_FRAME_SIZE-3];
+            uint8_t payload[CRSF_FRAME_TX_MSP_FRAME_SIZE-4];
         } hdr;
-        uint8_t payload[CRSF_FRAME_TX_MSP_FRAME_SIZE-1];
+        uint8_t payload[CRSF_FRAME_TX_MSP_FRAME_SIZE-2];
     };
-} PACKED mspHeaderV1_RX_t;
+    uint8_t crc_msp;
+} PACKED mspHeaderV1_TX_t;
 
 typedef struct crsf_msp_packet_fc_s
 {
     crsf_ext_header_t header;
-    uint8_t flags;
-    uint8_t buffer[CRSF_FRAME_RX_MSP_FRAME_SIZE-1];
+    mspHeaderV1_RX_t msp;
     uint8_t crc;
 } PACKED crsf_msp_packet_fc_t;
 
 typedef struct crsf_msp_packet_radio_s
 {
     crsf_ext_header_t header;
-    uint8_t flags;
-    uint8_t buffer[CRSF_FRAME_TX_MSP_FRAME_SIZE-2];
-    uint8_t crc_msp;
+    mspHeaderV1_TX_t msp;
     uint8_t crc;
 } PACKED crsf_msp_packet_radio_t;
 

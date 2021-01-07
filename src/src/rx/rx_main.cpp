@@ -632,12 +632,13 @@ void msp_data_cb(uint8_t const *const input)
         return;
 
     /* process MSP packet from flight controller
-     *  [0] header: seq&0xF,
-     *  [1] payload size
-     *  [2] function
-     *  [3...] payload + crc
+     *  [0]         header: seq&0xF,
+     *  [1]         payload size
+     *  [2]         function
+     *  [3...56]    payload
+     *  [57]        crc
      */
-    mspHeaderV1_RX_t *hdr = (mspHeaderV1_RX_t *)input;
+    mspHeaderV1_TX_t *hdr = (mspHeaderV1_TX_t *)input;
     uint16_t iter;
 
     if (hdr->flags & MSP_STARTFLAG) {
@@ -651,7 +652,7 @@ void msp_data_cb(uint8_t const *const input)
     }
     if (iter < sizeof(hdr->payload)) {
         if (!msp_packet_tx.error) {
-            msp_packet_tx.addByte(hdr->payload[sizeof(hdr->payload)-1]); // include CRC
+            msp_packet_tx.addByte(hdr->crc_msp); // include CRC
             msp_packet_tx.setIteratorToSize();
             write_u8(&tlm_msp_send, 1); // rdy for sending
         } else {
