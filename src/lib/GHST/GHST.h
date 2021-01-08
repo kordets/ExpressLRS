@@ -3,6 +3,7 @@
 
 #include "HwSerial.h"
 #include "helpers.h"
+#include "msp.h"
 
 /* Definitions copied from Betaflight implementation! */
 
@@ -146,7 +147,7 @@ public:
     void LinkStatisticsPack(uint8_t *const output,
                             uint_fast8_t ul_lq) const;
     uint8_t GpsStatsPack(uint8_t *const output);
-    void sendMSPFrameToFC(uint8_t const *const packet, uint8_t len) const;
+    void sendMSPFrameToFC(mspPacket_t & msp) const;
 
     static void (*MspCallback)(uint8_t const *const input);
 

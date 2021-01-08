@@ -103,9 +103,10 @@ uint8_t GHST::GpsStatsPack(uint8_t *const output)
     return 0;
 }
 
-void GHST::sendMSPFrameToFC(uint8_t const *const packet, uint8_t len) const
+void GHST::sendMSPFrameToFC(mspPacket_t & msp) const
 {
     // TODO: not support atm
+    (void)msp;
 }
 
 void GHST::sendFrameToFC(uint8_t *buff, uint8_t size) const
