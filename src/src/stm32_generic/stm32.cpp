@@ -4,12 +4,16 @@
 #include "common.h"
 #include "POWERMGNT.h"
 #include "gpio.h"
+#include "ws2812.h"
 #include <EEPROM.h>
 
 uint8_t rate_config_dips = 0xff;
 
 #if (GPIO_PIN_LED != UNDEF_PIN)
 struct gpio_out led_red;
+#define LED_STATE_RED(_x) gpio_out_write(led_red, ((!!(_x)) ^ GPIO_PIN_LED_RED_INV))
+#else
+#define LED_STATE_RED(_x) (void)(_x);
 #endif // GPIO_PIN_LED
 #if (GPIO_PIN_LED_GREEN != UNDEF_PIN)
 struct gpio_out led_green;
@@ -17,6 +21,12 @@ struct gpio_out led_green;
 #else
 #define LED_STATE_GREEN(_x) (void)(_x);
 #endif // GPIO_PIN_LED_GREEN
+#if (GPIO_PIN_LED_RGB != UNDEF_PIN)
+#undef LED_STATE_RED
+#undef LED_STATE_GREEN
+#define LED_STATE_RED(_x) ws2812_set_color(((_x)?0xff:0), 0x0, 0x0)
+#define LED_STATE_GREEN(_x) ws2812_set_color(0x0, ((_x)?0xff:0), 0x0)
+#endif
 
 #if (GPIO_PIN_BUZZER != UNDEF_PIN)
 struct gpio_out buzzer;
@@ -162,6 +172,9 @@ void platform_setup(void)
 #endif
 
     /*************** CONFIGURE LEDs *******************/
+#if (GPIO_PIN_LED_RGB != UNDEF_PIN)
+    ws2812_init(GPIO_PIN_LED_RGB);
+#endif // GPIO_PIN_LED_RGB
 #if (GPIO_PIN_LED != UNDEF_PIN)
     led_red = gpio_out_setup(GPIO_PIN_LED, (0 ^ GPIO_PIN_LED_RED_INV));
 #endif
@@ -230,17 +243,23 @@ void platform_loop(int state)
 
 void platform_connection_state(int const state)
 {
-    bool connected = (state == STATE_connected);
+    uint8_t connected = (state == STATE_connected);
+#if (GPIO_PIN_LED_RGB != UNDEF_PIN)
+    ws2812_set_color_u32((connected ? 0xFF00 : 0x00FF));
+#else
     LED_STATE_GREEN(connected);
 #if defined(TX_MODULE)
     //platform_set_led(!connected);
 #endif
+#endif
 }
 
-void platform_set_led(bool state)
+void platform_set_led(uint8_t state)
 {
-#if (GPIO_PIN_LED != UNDEF_PIN)
-    gpio_out_write(led_red, (state ^ GPIO_PIN_LED_RED_INV));
+#if (GPIO_PIN_LED_RGB != UNDEF_PIN)
+    ws2812_set_color_u32((state ? 0x9226eb : 0xc2c215));
+#else
+    LED_STATE_RED(state);
 #endif
 }
 

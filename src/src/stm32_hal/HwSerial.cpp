@@ -7,7 +7,7 @@
 HwSerial CrsfSerial(GPIO_PIN_RCSIGNAL_RX, GPIO_PIN_RCSIGNAL_TX, BUFFER_OE);
 
 HwSerial::HwSerial(uint32_t _rx, uint32_t _tx, int32_t pin)
-    : HardwareSerial(_rx, _tx, 1)
+    : HardwareSerial(_rx, _tx, RCSIGNAL_USE_DMA)
 {
     p_duplex_pin = gpio_out_setup(pin, 0);
 }

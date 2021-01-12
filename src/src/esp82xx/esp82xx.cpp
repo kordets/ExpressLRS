@@ -99,7 +99,7 @@ void platform_connection_state(int state)
 #endif /* AUTO_WIFI_ON_BOOT */
 }
 
-void platform_set_led(bool state)
+void platform_set_led(uint8_t state)
 {
 #if (GPIO_PIN_LED != UNDEF_PIN)
     gpio_out_write(led_pin, state);

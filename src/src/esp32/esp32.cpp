@@ -166,7 +166,7 @@ void platform_connection_state(int state)
     (void)state;
 }
 
-void platform_set_led(bool state)
+void platform_set_led(uint8_t state)
 {
 #if (GPIO_PIN_LED != UNDEF_PIN)
     gpio_out_write(led_out, state);

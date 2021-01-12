@@ -74,7 +74,7 @@
 #define GPIO_PIN_BUSY      2
 #define GPIO_PIN_TX_ENABLE 26
 #define GPIO_PIN_RX_ENABLE 17
-// SPORT
+// S.Port
 #define GPIO_PIN_RCSIGNAL_RX 13
 #define GPIO_PIN_RCSIGNAL_TX 13
 
@@ -344,10 +344,12 @@ https://github.com/jaxxzer
 
 // Serial1 is connected to internal ESP module if in use
 #define CTRL_SERIAL Serial1
+#define DEFINE_SERIAL1
 // Serial2 is connected to external pins of R9M
 #if TELEMETRY_EXTERNAL
 #error "TELEMETRY_EXTERNAL is not needed!"
 #define BT_SERIAL       Serial2
+#define DEFINE_SERIAL2
 #ifndef TELEMETRY_EXTERNAL_BAUDRATE
 #define TELEMETRY_EXTERNAL_BAUDRATE 57600
 #endif /* TELEMETRY_EXTERNAL_BAUDRATE */
@@ -361,10 +363,39 @@ https://github.com/jaxxzer
 //#define GPIO_PIN_DEBUG_TX PA2 // confirmed, USART2
 
 #define BUFFER_OE     PA5  //CONFIRMED
-#define SPORT         PB10 //CONFIRMED connected to tx3 and rx3 through 40ohn resistor. Needs BufferOE. inverted
 
 #define GPIO_PIN_LED_RED_INV    0
 #define GPIO_PIN_LED_GREEN_INV  0
+
+#elif defined(TARGET_TX_DUAL_STM32F1)
+// SPI pins
+#define GPIO_PIN_MOSI      PA7
+#define GPIO_PIN_MISO      PA6
+#define GPIO_PIN_SCK       PA5
+
+// Radio GPIOs (SX1280)
+#define GPIO_PIN_NSS       PB0
+#define GPIO_PIN_DIO0      PB10
+#define GPIO_PIN_DIO1      PB11
+#define GPIO_PIN_RST       PB1
+#define GPIO_PIN_BUSY      PB2
+#define GPIO_PIN_TX_ENABLE PB13
+#define GPIO_PIN_RX_ENABLE PB12
+// Radio GPIOs (SX1276)
+#define GPIO_PIN_NSS_2     PA4
+#define GPIO_PIN_DIO0_2    PB4 //PA3
+
+#define GPIO_PIN_LED_RGB   PB15 // WS2812 RGB
+
+// S.Port (USART2)
+#define GPIO_PIN_RCSIGNAL_RX PA3 //PB4
+#define GPIO_PIN_RCSIGNAL_TX PA2 //PB3
+#define BUFFER_OE            PB9 // Just dummy pin
+#define RCSIGNAL_USE_DMA     0
+
+// ESPbackpack logger (USART1)
+#define CTRL_SERIAL Serial1
+#define DEFINE_SERIAL1
 #endif
 
 
@@ -403,6 +434,12 @@ https://github.com/jaxxzer
 #endif
 #ifndef BUFFER_OE
 #define BUFFER_OE           UNDEF_PIN
+#endif
+#ifndef RCSIGNAL_USE_DMA
+#define RCSIGNAL_USE_DMA 1
+#endif
+#ifndef GPIO_PIN_LED_RGB
+#define GPIO_PIN_LED_RGB    UNDEF_PIN
 #endif
 #ifndef GPIO_PIN_LED_RED
 #define GPIO_PIN_LED_RED    UNDEF_PIN

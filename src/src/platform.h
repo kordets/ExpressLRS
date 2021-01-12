@@ -63,7 +63,7 @@ void platform_setup(void);
 void platform_mode_notify(uint8_t mode);
 void platform_loop(int state);
 void platform_connection_state(int state);
-void platform_set_led(bool state);
+void platform_set_led(uint8_t state);
 void platform_restart(void);
 void platform_wd_feed(void);
 void platform_wifi_start(void);

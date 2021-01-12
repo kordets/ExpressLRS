@@ -14,7 +14,7 @@
 #else
 #define DEBUG_SERIAL Serial
 #endif
-#elif defined(TARGET_R9M_TX)
+#elif defined(TARGET_R9M_TX) || defined(TARGET_TX_DUAL_STM32F1)
 #define DEBUG_SERIAL Serial1
 #elif defined(TARGET_R9M_RX)
 //#define DEBUG_SERIAL CrsfSerial
