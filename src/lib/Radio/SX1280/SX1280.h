@@ -38,7 +38,7 @@ public:
                 uint32_t freq, uint16_t PreambleLength,
                 uint8_t crc = 0);
     void SetSyncWord(uint8_t syncWord) {};
-    void ICACHE_RAM_ATTR SetOutputPower(int8_t power);
+    void SetOutputPower(int8_t power, uint8_t init=0);
     void ICACHE_RAM_ATTR SetFrequency(uint32_t freq);
     int32_t ICACHE_RAM_ATTR GetFrequencyError();
     void ICACHE_RAM_ATTR setPPMoffsetReg(int32_t error_hz, uint32_t frf = 0);
@@ -86,8 +86,3 @@ private:
         transfer(buffer, size, read);
     }
 };
-
-#if RADIO_SX128x
-extern SX1280Driver Radio;
-typedef SX1280Driver SXRadioDriver;
-#endif

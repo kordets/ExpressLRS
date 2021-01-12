@@ -63,7 +63,7 @@ public:
                 uint8_t crc = 0);
 
     void SetSyncWord(uint8_t syncWord);
-    void SetOutputPower(uint8_t Power, uint8_t init=0);
+    void SetOutputPower(int8_t Power, uint8_t init=0);
     void SetFrequency(uint32_t freq, uint8_t mode);
     int32_t GetFrequencyError();
     void setPPMoffsetReg(int32_t error_hz, uint32_t frf = 0);
@@ -105,8 +105,3 @@ private:
     void reg_dio1_tx_done(void);
     void reg_dio1_isr_mask_write(uint8_t mask);
 };
-
-#if !RADIO_SX128x
-extern SX127xDriver Radio;
-typedef SX127xDriver SXRadioDriver;
-#endif

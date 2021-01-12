@@ -111,8 +111,8 @@ uint8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
             DEBUG_PRINTF("TLM ratio %u\n", ratio);
             ratio -= 1;
         } else {
-            Radio.RXdoneCallback1 = SXRadioDriver::rx_nullCallback;
-            Radio.TXdoneCallback1 = SXRadioDriver::tx_nullCallback;
+            Radio.RXdoneCallback1 = Radio.rx_nullCallback;
+            Radio.TXdoneCallback1 = Radio.tx_nullCallback;
             // Set connected if telemetry is not used
             connectionState = STATE_connected;
             DEBUG_PRINTF("TLM disabled\n");

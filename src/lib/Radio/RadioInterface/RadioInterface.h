@@ -31,6 +31,7 @@ public:
 
     void SetPins(int rst, int dio1, int dio2, int dio3,
                  int busy, int txpin, int rxpin);
+    virtual void SetOutputPower(uint8_t Power, uint8_t init=0) {}
 
     enum isr_states ICACHE_RAM_ATTR isr_state_get(void) const {
         return p_state_isr;

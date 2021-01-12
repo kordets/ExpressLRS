@@ -5,7 +5,7 @@
 extern R9DAC r9dac;
 #endif
 
-POWERMGNT::POWERMGNT(SXRadioDriver &radio)
+POWERMGNT::POWERMGNT(RadioInterface &radio)
     : p_radio(radio), p_current_power(PWR_UNKNOWN)
 {
 }
@@ -87,24 +87,24 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
     switch (power)
     {
     case PWR_10mW:
-        Radio.SetOutputPower(-7); // -4
+        p_radio.SetOutputPower(-7); // -4
         break;
     case PWR_25mW:
-        Radio.SetOutputPower(-3); // 0
+        p_radio.SetOutputPower(-3); // 0
         break;
     case PWR_50mW:
-        Radio.SetOutputPower(0); // 3
+        p_radio.SetOutputPower(0); // 3
         break;
     case PWR_250mW:
-        Radio.SetOutputPower(8); // 12??
+        p_radio.SetOutputPower(8); // 12??
         break;
     case PWR_500mW:
-        Radio.SetOutputPower(13);
+        p_radio.SetOutputPower(13);
         break;
     case PWR_100mW:
     default:
         power = PWR_100mW;
-        Radio.SetOutputPower(3); // 6
+        p_radio.SetOutputPower(3); // 6
         break;
     }
 
@@ -113,29 +113,29 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
     switch (power)
     {
     case PWR_10mW:
-        Radio.SetOutputPower(-17);
+        p_radio.SetOutputPower(-17);
         break;
     case PWR_25mW:
-        Radio.SetOutputPower(-13);
+        p_radio.SetOutputPower(-13);
         break;
     case PWR_50mW:
-        Radio.SetOutputPower(-10);
+        p_radio.SetOutputPower(-10);
         break;
     case PWR_250mW:
-        Radio.SetOutputPower(-3);
+        p_radio.SetOutputPower(-3);
         break;
     case PWR_500mW:
-        Radio.SetOutputPower(0);
+        p_radio.SetOutputPower(0);
         break;
     case PWR_100mW:
     default:
         power = PWR_100mW;
-        Radio.SetOutputPower(-7);
+        p_radio.SetOutputPower(-7);
         break;
     }
 
 #elif defined(TARGET_MODULE_LoRa1280)
-    Radio.SetOutputPower(13); // 12.5dBm, ~18mW
+    p_radio.SetOutputPower(13); // 12.5dBm, ~18mW
 
 #else
 #error "!! Unknown module, cannot control power !!"

@@ -55,14 +55,14 @@ typedef enum
 class POWERMGNT
 {
 private:
-    SXRadioDriver &p_radio;
+    RadioInterface &p_radio;
     PowerLevels_e p_current_power = PWR_10mW;
     uint_fast8_t p_dyn_power = 0;
 
     void p_set_power(PowerLevels_e power);
 
 public:
-    POWERMGNT(SXRadioDriver &radio);
+    POWERMGNT(RadioInterface &radio);
     void Begin();
 
     // inc and decPower are used to control dynamic tx power

@@ -299,14 +299,14 @@ void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
 #endif // EFE_NO_DOUBLE
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power)
+void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power, uint8_t init)
 {
     power += 18;
     if (power < 0) power = 0;           //  0 = -18dBm
     else if (power > 31) power = 31;    // 31 = +13dBm
 
     // Skip if already set
-    if (power == current_power)
+    if (power == current_power && !init)
         return;
 
     uint8_t buf[] = {SX1280_RADIO_SET_TXPARAMS, (uint8_t)power, SX1280_RADIO_RAMP_04_US};

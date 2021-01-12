@@ -163,7 +163,7 @@ void SX127xDriver::SetSyncWord(uint8_t syncWord)
     _syncWord = syncWord;
 }
 
-void SX127xDriver::SetOutputPower(uint8_t Power, uint8_t init)
+void ICACHE_RAM_ATTR SX127xDriver::SetOutputPower(int8_t Power, uint8_t init)
 {
     Power &= 0xF; // 4bits
     if (current_power == Power && !init)
