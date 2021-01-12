@@ -965,6 +965,8 @@ void setup()
   Serial.begin(460800); // non-inverted serial
 #endif
 
+  reset_stm32_to_app_mode();
+
   FILESYSTEM.begin();
 
   wifi_station_set_hostname("elrs_tx");
@@ -1014,6 +1016,13 @@ void setup()
   }
   my_ipaddress_info_str = "My IP address = ";
   my_ipaddress_info_str += my_ip.toString();
+
+#if 0 && defined(LATEST_COMMIT)
+  my_ipaddress_info_str += "\nCurrent version (SHA): ";
+  uint8_t commit_sha[] = {LATEST_COMMIT};
+  for (uint8_t iter = 0; iter < sizeof(commit_sha); iter++)
+
+#endif // LATEST_COMMIT
 
   //Serial.print("Connect to http://elrs_tx.local or http://");
   //Serial.println(my_ip);

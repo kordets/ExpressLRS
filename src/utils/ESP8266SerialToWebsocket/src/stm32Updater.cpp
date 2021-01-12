@@ -21,33 +21,34 @@ uint8_t file_buffer[BLOCK_SIZE];
   		debug_log(); \
 	}while(0);
 
+uint8_t isp_serial_flush();
+
+
 void reset_stm32_to_isp_mode()
 {
 	// reset STM32 into DFU mode
 	pinMode(RESET_PIN, OUTPUT);
 	pinMode(BOOT0_PIN, OUTPUT);
 	digitalWrite(BOOT0_PIN, HIGH);
-	delay(100);
+	delay(10);
 	digitalWrite(RESET_PIN, LOW);
 	delay(50);
+	isp_serial_flush();
 	digitalWrite(RESET_PIN, HIGH);
-	delay(500);
+	delay(250);
 	digitalWrite(BOOT0_PIN, LOW);
-	//pinMode(BOOT0_PIN, INPUT);
-	//pinMode(RESET_PIN, INPUT);
 }
 
 void reset_stm32_to_app_mode()
 {
+	DEBUG_PRINT("Reset to APP mode...");
 	pinMode(RESET_PIN, OUTPUT);
 	pinMode(BOOT0_PIN, OUTPUT);
 	digitalWrite(BOOT0_PIN, LOW);
-	delay(100);
+	delay(10);
 	digitalWrite(RESET_PIN, LOW);
-	delay(50);
+	delay(150);
 	digitalWrite(RESET_PIN, HIGH);
-	//pinMode(BOOT0_PIN, INPUT);
-	//pinMode(RESET_PIN, INPUT);
 }
 
 void stm32flasher_hardware_init()
@@ -62,7 +63,6 @@ void debug_log()
 }
 
 
-uint8_t init_chip();
 uint8_t cmd_generic(uint8_t command);
 uint8_t cmd_get();
 
@@ -72,9 +72,8 @@ uint8_t isp_serial_write(uint8_t *buffer, uint8_t length)
 	return Serial.write(buffer, length);
 }
 
-uint8_t isp_serial_read(uint8_t *buffer, uint8_t length)
+uint8_t isp_serial_read(uint8_t *buffer, uint8_t length, uint8_t timeout = 100)
 {
-	uint8_t timeout = 100;
 	// wait until date is available
 	while(!Serial.available() && timeout) {
 		delay(1);
@@ -94,9 +93,8 @@ uint8_t isp_serial_flush()
 	return 1;
 }
 
-uint8_t wait_for_ack(char const *when)
+uint8_t wait_for_ack(char const *when, int8_t timeout = 20)
 {
-	uint8_t timeout = 20;
 	uint8_t cmd = 0;
 	while (timeout--) {
 		uint8_t nread = isp_serial_read(&cmd, 1);
@@ -125,7 +123,7 @@ uint8_t wait_for_ack(char const *when)
 		}
 	}
 
-	if (!timeout)
+	if (timeout <= 0)
 	{
 		DEBUG_PRINT("[ERROR] no response when: %s.", when);
 	}
@@ -137,12 +135,12 @@ uint8_t init_chip()
 {
 	uint8_t cmd = 0x7F;
 
-	DEBUG_PRINT("trying to init chip...");
-
 	for (int i = 0; i < 10; i++)
 	{
+		DEBUG_PRINT("Trying to init chip... %u / %u", i+1, 10);
+		reset_stm32_to_isp_mode();
 		isp_serial_write(&cmd, 1);
-		if (wait_for_ack("init_chip_write_cmd") > 0)
+		if (wait_for_ack("init_chip_write_cmd", 20) > 0)
 		{ // ack or nack
 			DEBUG_PRINT("init chip succeeded.");
 			return 1;
@@ -382,8 +380,6 @@ uint8_t esp8266_spifs_write_file(const char *filename, uint32_t begin_addr)
     webSocket.broadcastTXT(message);
 
 	stm32flasher_hardware_init();
-	reset_stm32_to_isp_mode();
-	isp_serial_flush();
 
 	if (init_chip() != 1) {
 		fp.close();
