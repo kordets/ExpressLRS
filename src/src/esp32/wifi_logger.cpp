@@ -210,17 +210,43 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
             border-radius: 5px;
             border: none;
         }
+        #validationMessage {color: red;}
+        .hide {display: none;}
     </style>
 </head>
 <body>
   <center>
+    <p>
+    ExpressLRS ESP32 TX module
+    </p>
+    <p>
     <div>
       <form method='POST' action='/update' enctype='multipart/form-data'>
           Update Firmware:
-          <input type='file' accept='.bin' name='firmware'>
-          <input type='submit' value='Upload and Flash'>
+          <input type='file' accept='.bin' name='firmware' id='esp_fw'>
+          <input type='submit' value='Flash' id='esp_submit' disabled='disabled'>
       </form>
     </div>
+    </p>
+    <p><span id="validationMessage" class="hide">
+      Please check firmware file is correct!
+    </span></p>
+
+<script type="text/javascript">
+  const message = document.getElementById('validationMessage');
+  document.getElementById('esp_fw').onchange = function (ev) {
+    const FIRMWARE_PATTERN = /firmware\.bin$/g;
+    const uploadButton = document.getElementById('esp_submit');
+    const value = ev.target.value;
+    if (FIRMWARE_PATTERN.test(value)) {
+      uploadButton.removeAttribute('disabled');
+      message.classList.add('hide');
+    } else {
+      uploadButton.setAttribute('disabled', 'disabled');
+      message.classList.remove('hide');
+    }
+  };
+</script>
 
   </center>
 </body>
