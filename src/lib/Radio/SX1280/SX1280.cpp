@@ -91,6 +91,7 @@ void SX1280Driver::Config(SX1280_RadioLoRaBandwidths_t bw,
     uint16_t irqs = (SX1280_IRQ_TX_DONE | SX1280_IRQ_RX_DONE | SX1280_IRQ_RX_TX_TIMEOUT);
     //SetMode(SX1280_MODE_STDBY_XOSC);
     SetMode(SX1280_MODE_STDBY_RC);
+    SetRegulatorMode(SX1280_USE_LDO);
     SetPacketType(SX1280_PACKET_TYPE_LORA);
     SetFrequency(freq);
     ConfigModParams(bw, sf, cr);
@@ -166,6 +167,12 @@ void SX1280Driver::SetHighSensitivityMode(uint8_t enabled)
     buffer[0] = SX1280_RADIO_WRITE_REGISTER;
     buffer[3] = enabled;
     TransferBuffer(buffer, 4, 0);
+}
+
+void SX1280Driver::SetRegulatorMode(uint8_t mode)
+{
+    uint8_t cmd[] = {SX1280_RADIO_SET_REGULATORMODE, mode};
+    TransferBuffer(cmd, sizeof(cmd), 0);
 }
 
 void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
