@@ -65,8 +65,6 @@ uint32_t dma_channel_get(uint32_t periph, uint8_t type, uint8_t index);
 uint32_t dma_irq_get(uint32_t periph, uint8_t type, uint8_t index);
 void dma_request_config(uint32_t periph, uint8_t type, uint8_t index);
 
-uint32_t uart_peripheral_get(uint32_t rx_pin, uint32_t tx_pin);
 uint32_t uart_peripheral_get(uint32_t pin);
-void uart_pins_get(uint32_t periph, uint32_t *rx_pin, uint32_t *tx_pin, uint8_t alt);
 void uart_config_afio(uint32_t periph, uint32_t rx_pin, uint32_t tx_pin);
 #endif

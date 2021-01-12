@@ -46,25 +46,6 @@ void dma_request_config(uint32_t periph, uint8_t type, uint8_t index)
 {
 }
 
-uint32_t uart_peripheral_get(uint32_t rx, uint32_t tx)
-{
-    if ((rx == GPIO('A', 10) && tx == GPIO('A', 9)) ||
-        (rx == GPIO('B',  7) && tx == GPIO('B', 6)) ||
-        (rx == GPIO('C',  5) && tx == GPIO('C', 4)))
-        return (uint32_t)USART1;
-    else if ((rx == GPIO('A',  3) && tx == GPIO('A',  2)) ||
-             (rx == GPIO('A', 15) && tx == GPIO('A', 14)) ||
-             (rx == GPIO('B',  4) && tx == GPIO('B',  3)) ||
-             (rx == GPIO('D',  6) && tx == GPIO('D',  5)))
-        return (uint32_t)USART2;
-    else if ((rx == GPIO('B', 11) && tx == GPIO('B', 10)) ||
-             (rx == GPIO('C', 11) && tx == GPIO('C', 10)) ||
-             (rx == GPIO('D',  9) && tx == GPIO('D',  8)))
-        return (uint32_t)USART3;
-
-    return 0;
-}
-
 uint32_t uart_peripheral_get(uint32_t pin)
 {
     switch (pin) {
@@ -93,24 +74,6 @@ uint32_t uart_peripheral_get(uint32_t pin)
             return (uint32_t)USART3_BASE;
     }
     return 0;
-}
-
-void uart_pins_get(uint32_t periph, uint32_t *rx_pin, uint32_t *tx_pin, uint8_t alt)
-{
-    switch (periph) {
-        case USART1_BASE:
-            *rx_pin = (alt == 0) ? GPIO('A', 10) : (alt == 1) ? GPIO('B', 7) : GPIO('C', 5);
-            *tx_pin = (alt == 0) ? GPIO('A',  9) : (alt == 1) ? GPIO('B', 6) : GPIO('C', 4);
-            break;
-        case USART2_BASE:
-            *rx_pin = (alt == 0) ? GPIO('A', 3) : (alt == 1) ? GPIO('A', 15) : GPIO('B', 4);
-            *tx_pin = (alt == 0) ? GPIO('A', 2) : (alt == 1) ? GPIO('A', 14) : GPIO('B', 3);
-            break;
-        case USART3_BASE:
-            *rx_pin = (alt == 0) ? GPIO('B', 11) : (alt == 1) ? GPIO('D', 9) : GPIO('C', 11);
-            *tx_pin = (alt == 0) ? GPIO('B', 10) : (alt == 1) ? GPIO('D', 8) : GPIO('C', 10);
-            break;
-    }
 }
 
 void uart_config_afio(uint32_t periph, uint32_t rx_pin, uint32_t tx_pin)

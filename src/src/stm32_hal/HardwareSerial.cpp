@@ -236,16 +236,6 @@ HardwareSerial::HardwareSerial(uint32_t rx, uint32_t tx, uint8_t dma)
     usart_tx_idx = usart_rx_idx = 0xff;
 }
 
-#if 0
-HardwareSerial::HardwareSerial(void *peripheral, uint8_t dma)
-{
-    USART_TypeDef * uart = (USART_TypeDef *)peripheral;
-    uart_pins_get((uint32_t)uart, &rx_pin, &tx_pin, 0);
-    p_usart_tx = p_usart_rx = uart;
-    p_use_dma = dma ? (USE_DMA_RX | USE_DMA_TX) : USE_DMA_NONE;
-}
-#endif
-
 void HardwareSerial::setTx(uint32_t pin)
 {
     tx_pin = pin;

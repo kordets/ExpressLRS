@@ -26,7 +26,6 @@ class HardwareSerial
 {
 public:
     HardwareSerial(uint32_t rx, uint32_t tx, uint8_t dma=0);
-    //HardwareSerial(void *peripheral, uint8_t dma=0);
     void setTx(uint32_t tx_pin);
     void setRx(uint32_t rx_pin);
     void begin(unsigned long baud, uint8_t mode = SERIAL_8N1);
