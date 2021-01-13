@@ -1,8 +1,8 @@
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
-
 #include "DAC.h"
 #include "helpers.h"
+
+#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
 #include <Wire.h>
 
 #define VCC 3300
@@ -117,4 +117,13 @@ uint8_t R9DAC::get_lut_index(PowerLevels_e &power)
     return index;
 }
 
+#else
+R9DAC::R9DAC() {}
+void R9DAC::init(uint8_t sda, uint8_t scl, uint8_t addr,
+                 int8_t pin_switch, int8_t pin_amp, int8_t pin_amp2) {}
+void R9DAC::standby() {}
+void R9DAC::resume() {}
+void R9DAC::setPower(PowerLevels_e &power) {}
+
+R9DAC r9dac;
 #endif

@@ -1,13 +1,12 @@
 #pragma once
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
-
 #include "POWERMGNT.h"
 #include "gpio.h"
 #include <stdint.h>
 
 class R9DAC
 {
+#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
 private:
     enum
     {
@@ -64,7 +63,7 @@ private:
     void setVoltageMV(uint32_t voltsMV);
     void setVoltageRegDirect(uint8_t voltReg);
     uint8_t get_lut_index(PowerLevels_e &power);
-
+#endif
 public:
     R9DAC();
     void init(uint8_t SDA_, uint8_t SCL_, uint8_t ADDR_,
@@ -74,4 +73,4 @@ public:
     void setPower(PowerLevels_e &power);
 };
 
-#endif
+extern R9DAC r9dac;

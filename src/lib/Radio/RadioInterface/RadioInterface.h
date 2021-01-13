@@ -20,6 +20,15 @@ enum isr_states
     ISR_RCVD,
 };
 
+enum module_types
+{
+    MODULE_DEFAULT = 0,
+    MODULE_R9M_DAC,
+    MODULE_LORA1280F27,
+    MODULE_E28_2G4M12S,
+    MODULE_COUNT,
+};
+
 class RadioInterface : public RadioHalSpi
 {
 public:
@@ -27,6 +36,9 @@ public:
             RadioHalSpi(read, write), RX_buffer_size(payload_len) {
         RXdoneCallback1 = RadioInterface::rx_nullCallback;
         TXdoneCallback1 = RadioInterface::tx_nullCallback;
+    }
+    uint8_t GetModuleType(void) {
+        return module_type;
     }
 
     void SetPins(int rst, int dio1, int dio2, int dio3,
@@ -79,6 +91,8 @@ protected:
     ////////// Config Variables //////////
     volatile uint32_t current_freq;
     volatile int8_t current_power;
+
+    uint8_t module_type;
 
 private:
     volatile enum isr_states p_state_isr;

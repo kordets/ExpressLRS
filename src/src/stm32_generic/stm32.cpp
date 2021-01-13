@@ -61,7 +61,6 @@ void play_tone_loop(uint32_t ms)
 
 #if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
 #include "DAC.h"
-R9DAC r9dac;
 #endif /* TARGET_R9M_TX */
 #endif /* TX_MODULE */
 

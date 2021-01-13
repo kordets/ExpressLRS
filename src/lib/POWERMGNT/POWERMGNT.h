@@ -37,18 +37,21 @@ typedef enum
 #error "Default power is not valid!"
 #endif
 
+class R9DAC;
+
 class POWERMGNT
 {
 private:
     RadioInterface *p_radio;
     PowerLevels_e p_current_power = PWR_10mW;
     uint_fast8_t p_dyn_power = 0;
+    R9DAC * p_dac;
 
     void p_set_power(PowerLevels_e power);
 
 public:
     POWERMGNT();
-    void Begin(RadioInterface *radio);
+    void Begin(RadioInterface *radio, R9DAC *dac = NULL);
 
     // inc and decPower are used to control dynamic tx power
     PowerLevels_e incPower();

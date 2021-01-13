@@ -119,6 +119,12 @@ SX127xDriver::SX127xDriver(uint8_t payload_len):
     _syncWord = SX127X_SYNC_WORD;
     current_freq = 0;
     current_power = 0xF; // outside range to make sure the power is initialized
+
+#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
+    module_type = MODULE_R9M_DAC;
+#else
+    module_type = MODULE_DEFAULT;
+#endif
 }
 
 void SX127xDriver::Begin(int sck, int miso, int mosi, int ss)

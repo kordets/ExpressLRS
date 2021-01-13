@@ -1,22 +1,30 @@
 #include "POWERMGNT.h"
-
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
 #include "DAC.h"
-extern R9DAC r9dac;
-#endif
+
+/* Power arrays per module type */
+typedef struct {
+    int8_t power[PWR_UNKNOWN];
+} PowerArray_t;
+
+PowerArray_t power_array[MODULE_COUNT] = {
+    // D, 10mW, 25mW, 50mW, 100mW, 250mW, 500mW, 1000mW, 2000mW
+    {  0,    8,   12,   15,    15,    15,    15,     15,     15}, // MODULE_DEFAULT
+    {  0,    0,    0,    0,     0,     0,     0,      0,      0}, // MODULE_R9M_DAC
+    {  0,   -7,   -3,    0,     3,     8,    13,     13,     13}, // MODULE_LORA1280F27
+    {  0,  -17,  -13,  -10,    -7,    -3,     0,      0,      0}, // MODULE_E28_2G4M12S
+};
 
 POWERMGNT::POWERMGNT()
     : p_radio(NULL), p_current_power(PWR_UNKNOWN)
 {
 }
 
-void POWERMGNT::Begin(RadioInterface *radio)
+void POWERMGNT::Begin(RadioInterface *radio, R9DAC *dac)
 {
+    p_dac = dac;
     p_radio = radio;
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
-    if (radio)
+    if (radio && radio->GetModuleType() == MODULE_R9M_DAC && dac)
         radio->SetOutputPower(0b0000);
-#endif
 }
 
 PowerLevels_e POWERMGNT::incPower()
@@ -64,16 +72,14 @@ void POWERMGNT::setPower(PowerLevels_e power)
 
 void ICACHE_RAM_ATTR POWERMGNT::pa_off(void) const
 {
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
-    r9dac.standby();
-#endif
+    if (p_dac)
+        p_dac->standby();
 }
 
 void ICACHE_RAM_ATTR POWERMGNT::pa_on(void) const
 {
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
-    r9dac.resume();
-#endif
+    if (p_dac)
+        p_dac->resume();
 }
 
 /************************** PRIVATE ******************************/
@@ -84,75 +90,11 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
         power > MaxPower || !p_radio)
         return;
 
-#if defined(TARGET_MODULE_LORA1280F27)
-    switch (power)
-    {
-    case PWR_10mW:
-        p_radio->SetOutputPower(-7); // -4
-        break;
-    case PWR_25mW:
-        p_radio->SetOutputPower(-3); // 0
-        break;
-    case PWR_50mW:
-        p_radio->SetOutputPower(0); // 3
-        break;
-    case PWR_250mW:
-        p_radio->SetOutputPower(8); // 12??
-        break;
-    case PWR_500mW:
-        p_radio->SetOutputPower(13);
-        break;
-    case PWR_100mW:
-    default:
-        power = PWR_100mW;
-        p_radio->SetOutputPower(3); // 6
-        break;
+    if (p_dac) {
+        p_dac->setPower(power);
+    } else {
+        PowerArray_t * powers = &power_array[p_radio->GetModuleType()];
+        p_radio->SetOutputPower(powers->power[power]);
     }
-
-#elif defined(TARGET_MODULE_E28)
-    // TODO: Measure outputs!!
-    switch (power)
-    {
-    case PWR_10mW:
-        p_radio->SetOutputPower(-17);
-        break;
-    case PWR_25mW:
-        p_radio->SetOutputPower(-13);
-        break;
-    case PWR_50mW:
-        p_radio->SetOutputPower(-10);
-        break;
-    case PWR_250mW:
-        p_radio->SetOutputPower(-3);
-        break;
-    case PWR_500mW:
-        p_radio->SetOutputPower(0);
-        break;
-    case PWR_100mW:
-    default:
-        power = PWR_100mW;
-        p_radio->SetOutputPower(-7);
-        break;
-    }
-
-#elif defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
-    r9dac.setPower(power);
-
-#else
-    switch (power)
-    {
-        case PWR_10mW:
-            p_radio->SetOutputPower(0b1000);
-            break;
-        case PWR_25mW:
-            p_radio->SetOutputPower(0b1100);
-            break;
-        case PWR_50mW:
-        default:
-            p_radio->SetOutputPower(0b1111);
-            power = PWR_50mW;
-            break;
-    }
-#endif
     p_current_power = power;
 }
