@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Arduino.h"
+
 #define EMPTY()
 #define UNDEF_PIN (-1)
 
@@ -374,16 +376,16 @@ https://github.com/jaxxzer
 #define GPIO_PIN_SCK       PA5
 
 // Radio GPIOs (SX1280)
-#define GPIO_PIN_NSS       PB0
-#define GPIO_PIN_DIO0      PB10
+#define GPIO_PIN_NSS_128x  PB0
+#define GPIO_PIN_DIO0_128x PB10
 #define GPIO_PIN_DIO1      PB11
 #define GPIO_PIN_RST       PB1
 #define GPIO_PIN_BUSY      PB2
 #define GPIO_PIN_TX_ENABLE PB13
 #define GPIO_PIN_RX_ENABLE PB12
 // Radio GPIOs (SX1276)
-#define GPIO_PIN_NSS_2     PA4
-#define GPIO_PIN_DIO0_2    PB4 //PA3
+#define GPIO_PIN_NSS_127x  PA4
+#define GPIO_PIN_DIO0_127x PB4 //PA3
 
 #define GPIO_PIN_LED_RGB   PB15 // WS2812 RGB
 
@@ -396,12 +398,27 @@ https://github.com/jaxxzer
 // ESPbackpack logger (USART1)
 #define CTRL_SERIAL Serial1
 #define DEFINE_SERIAL1
+
+// Both radios are included
+#define RADIO_SX128x 1
+#define RADIO_SX127x 1
 #endif
 
 
 /**********************************
            DEFAULTS
  **********************************/
+#ifndef RADIO_SX128x
+#define RADIO_SX128x 0
+#endif
+#if !defined(RADIO_SX127x)
+#if !RADIO_SX128x
+#define RADIO_SX127x 1
+#else
+#define RADIO_SX127x 0
+#endif
+#endif
+
 #ifndef GPIO_PIN_RFswitch_CONTROL
 #define GPIO_PIN_RFswitch_CONTROL UNDEF_PIN
 #endif
@@ -466,7 +483,7 @@ https://github.com/jaxxzer
 #ifndef GPIO_PIN_RST
 #define GPIO_PIN_RST UNDEF_PIN
 #endif
-#ifndef GPIO_PIN_DIO0
+#if !defined(GPIO_PIN_DIO0) && !(defined(GPIO_PIN_DIO0_127x) || defined(GPIO_PIN_DIO0_128x))
 #error "DIO0 is mandatory!"
 #endif
 #ifndef GPIO_PIN_DIO1
@@ -513,4 +530,49 @@ https://github.com/jaxxzer
 #endif
 #ifndef SERVO_PIN_CH4
 #define SERVO_PIN_CH4 UNDEF_PIN
+#endif
+
+
+#ifndef GPIO_PIN_NSS_127x
+#define GPIO_PIN_NSS_127x GPIO_PIN_NSS
+#endif
+#ifndef GPIO_PIN_RST_127x
+#define GPIO_PIN_RST_127x GPIO_PIN_RST
+#endif
+#ifndef GPIO_PIN_DIO0_127x
+#define GPIO_PIN_DIO0_127x GPIO_PIN_DIO0
+#endif
+#ifndef GPIO_PIN_DIO1_127x
+#define GPIO_PIN_DIO1_127x GPIO_PIN_DIO1
+#endif
+#ifndef GPIO_PIN_DIO2_127x
+#define GPIO_PIN_DIO2_127x GPIO_PIN_DIO2
+#endif
+#ifndef GPIO_PIN_TXEN_127x
+#define GPIO_PIN_TXEN_127x GPIO_PIN_TX_ENABLE
+#endif
+#ifndef GPIO_PIN_RXEN_127x
+#define GPIO_PIN_RXEN_127x GPIO_PIN_RX_ENABLE
+#endif
+
+#ifndef GPIO_PIN_NSS_128x
+#define GPIO_PIN_NSS_128x GPIO_PIN_NSS
+#endif
+#ifndef GPIO_PIN_RST_128x
+#define GPIO_PIN_RST_128x GPIO_PIN_RST
+#endif
+#ifndef GPIO_PIN_DIO0_128x
+#define GPIO_PIN_DIO0_128x GPIO_PIN_DIO0
+#endif
+#ifndef GPIO_PIN_DIO1_128x
+#define GPIO_PIN_DIO1_128x GPIO_PIN_DIO1
+#endif
+#ifndef GPIO_PIN_DIO2_128x
+#define GPIO_PIN_DIO2_128x GPIO_PIN_DIO2
+#endif
+#ifndef GPIO_PIN_TXEN_128x
+#define GPIO_PIN_TXEN_128x GPIO_PIN_TX_ENABLE
+#endif
+#ifndef GPIO_PIN_RXEN_128x
+#define GPIO_PIN_RXEN_128x GPIO_PIN_RX_ENABLE
 #endif

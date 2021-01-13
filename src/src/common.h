@@ -1,19 +1,10 @@
 #pragma once
 
-#if !RADIO_SX128x
+#include "RadioInterface.h"
+#include <stdint.h>
+
 //#define RATE_ENABLED_25Hz 1
 //#define RATE_ENABLED_4Hz  1
-#endif
-
-#if RADIO_SX128x
-//#if !defined(Regulatory_Domain_ISM_2400) && !defined(Regulatory_Domain_ISM_2400_800kHz)
-//#error "Not suitable build target! Enable ISM 2400 regulatory domain or use other targets"
-//#endif
-#include "SX1280.h"
-#else
-#include "LoRa_SX127x.h"
-#endif
-#include <stdint.h>
 
 #define BUTTON_RESET_INTERVAL_RX  4000 // Hold button for 4 sec to reboot RX
 #define WEB_UPDATE_PRESS_INTERVAL 2000 // hold button for 2 sec to enable webupdate mode
@@ -29,8 +20,29 @@ typedef enum
 } connectionState_e;
 extern connectionState_e connectionState;
 
-uint8_t getSyncWord(void);
 
+// *******************************************************************'
+enum {
+    RADIO_RF_MODE_915_AU_FCC = 0,
+    RADIO_RF_MODE_868_EU,
+    RADIO_RF_MODE_433_AU_EU,
+    RADIO_RF_MODE_2400_ISM,
+    RADIO_RF_MODE_2400_ISM_500Hz,
+    RADIO_RF_MODE_INVALID = 0xFF
+};
+
+enum {
+    RADIO_TYPE_127x,
+    RADIO_TYPE_128x,
+    RADIO_TYPE_MAX
+};
+
+uint8_t common_config_get_radio_type(uint8_t mode);
+RadioInterface* common_config_radio(uint8_t type);
+
+extern RadioInterface DRAM_FORCE_ATTR *Radio;
+
+// *******************************************************************'
 enum
 {
     TLM_RATIO_NO_TLM = 0,
@@ -73,17 +85,12 @@ typedef enum
     RF_AIRMODE_PARAMETERS = 2
 } expresslrs_tlm_header_e;
 
-#if RADIO_SX128x /*&& !RADIO_SX128x_BW800*/
-#define RATE_DEFAULT         0 // 250Hz
-#else
-#define RATE_DEFAULT         0 // 200HZ
-#endif
+#define RATE_DEFAULT         0
+
 
 typedef struct expresslrs_mod_settings_s
 {
-    Bandwidth bw;
-    SpreadingFactor sf;
-    CodingRate cr;
+    uint32_t bw, sf, cr;
     uint32_t interval;       // interval in us seconds that corresponds to that frequnecy
     uint16_t rate;           // rate in hz
     uint8_t TLMinterval;     // every X packets is a response TLM packet, should be a power of 2

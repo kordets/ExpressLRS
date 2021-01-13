@@ -11,6 +11,8 @@
 void FHSSfreqCorrectionReset(void);
 void FHSSfreqCorrectionSet(int32_t error);
 
+void ICACHE_RAM_ATTR FHSS_init(uint8_t mode);
+
 void ICACHE_RAM_ATTR FHSSsetCurrIndex(uint32_t value);
 uint32_t ICACHE_RAM_ATTR FHSSgetCurrIndex();
 void ICACHE_RAM_ATTR FHSSincCurrIndex();
@@ -20,6 +22,6 @@ uint32_t ICACHE_RAM_ATTR GetInitialFreq();
 uint32_t ICACHE_RAM_ATTR FHSSgetCurrFreq();
 uint32_t ICACHE_RAM_ATTR FHSSgetNextFreq();
 
-void FHSSrandomiseFHSSsequence();
+void FHSSrandomiseFHSSsequence(uint8_t mode);
 
 #endif // __FHSS_H

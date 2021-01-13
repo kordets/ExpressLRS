@@ -611,21 +611,7 @@ void handleSettingDomain(const char * input, int num)
   settings_out = "[ERROR] Domain set is not supported!";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_region_domain=";
-#if 1
     settings_out += settings_region;
-#else
-#if defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915)
-        settings_out += 0;
-#elif defined(Regulatory_Domain_EU_868) || defined(Regulatory_Domain_EU_868_R9)
-        settings_out += 1;
-#elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
-        settings_out += 2;
-#elif defined(Regulatory_Domain_ISM_2400) || defined(Regulatory_Domain_ISM_2400_800kHz)
-        settings_out += 3;
-#else
-        settings_out += 0xff;
-#endif
-#endif
   }
   if (0 <= num)
     WEBSOCKET_SEND(num, settings_out);

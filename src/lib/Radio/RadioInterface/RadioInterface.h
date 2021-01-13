@@ -31,7 +31,19 @@ public:
 
     void SetPins(int rst, int dio1, int dio2, int dio3,
                  int busy, int txpin, int rxpin);
-    virtual void SetOutputPower(uint8_t Power, uint8_t init=0) {}
+    virtual void Begin(int sck, int miso, int mosi, int ss) = 0;
+    virtual void End(void) = 0;
+    virtual void Config(uint32_t bw, uint32_t sf, uint32_t cr,
+                        uint32_t freq, uint16_t PreambleLength,
+                        uint8_t crc = 0) = 0;
+    virtual void SetSyncWord(uint8_t syncWord) {};
+    virtual void SetOutputPower(int8_t power, uint8_t init=0) = 0;
+    virtual void setPPMoffsetReg(int32_t error_hz, uint32_t frf = 0) = 0;
+    virtual int32_t GetFrequencyError() = 0;
+    virtual int16_t MeasureNoiseFloor(uint32_t num_meas, uint32_t freq) = 0;
+    virtual void StopContRX(void) = 0;
+    virtual void RXnb(uint32_t freq = 0) = 0;
+    virtual void TXnb(const uint8_t *data, uint8_t length, uint32_t freq = 0) = 0;
 
     enum isr_states ICACHE_RAM_ATTR isr_state_get(void) const {
         return p_state_isr;

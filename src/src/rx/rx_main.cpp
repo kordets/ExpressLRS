@@ -3,11 +3,6 @@
 #include "utils.h"
 #include "common.h"
 #include "LowPassFilter.h"
-#if RADIO_SX128x
-#include "SX1280.h"
-#else
-#include "LoRa_SX127x.h"
-#endif
 #if RX_GHST_ENABLED
 #include "GHST.h"
 #define RX_CLASS GHST
@@ -45,11 +40,6 @@ static volatile uint32_t DRAM_ATTR print_rx_isr_end_time;
 
 ///////////////////
 
-#if RADIO_SX128x
-SX1280Driver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
-#else
-SX127xDriver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
-#endif
 RX_CLASS DRAM_FORCE_ATTR crsf(CrsfSerial); //pass a serial port object to the class for it to use
 
 connectionState_e DRAM_ATTR connectionState;
@@ -141,7 +131,7 @@ static void ICACHE_RAM_ATTR handle_tlm_ratio(uint8_t interval)
 
 void ICACHE_RAM_ATTR FillLinkStats()
 {
-    int32_t rssiDBM = Radio.LastPacketRSSI;
+    int32_t rssiDBM = Radio->LastPacketRSSI;
     rssiDBM = LPF_UplinkRSSI.update(rssiDBM);
     // our rssiDBM is currently in the range -128 to 98, but BF wants a value in the range
     // 0 to 255 that maps to -1 * the negative part of the rssiDBM, so cap at 0.
@@ -150,7 +140,7 @@ void ICACHE_RAM_ATTR FillLinkStats()
     //CrsfChannels.ch15 = UINT10_to_CRSF(MAP(rssiDBM, -100, -50, 0, 1023));
     //CrsfChannels.ch14 = UINT10_to_CRSF(MAP_U16(crsf.LinkStatistics.uplink_Link_quality, 0, 100, 0, 1023));
     crsf.LinkStatistics.uplink_RSSI_1 = -1 * rssiDBM; // to match BF
-    crsf.LinkStatistics.uplink_SNR = LPF_UplinkSNR.update(Radio.LastPacketSNR * 10);
+    crsf.LinkStatistics.uplink_SNR = LPF_UplinkSNR.update(Radio->LastPacketSNR * 10);
 }
 
 uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
@@ -183,7 +173,7 @@ uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
     if (abs(freqerror) > 100) // 120
     {
         FHSSfreqCorrectionSet(freqerror);
-        Radio.setPPMoffsetReg(freqerror, 0);
+        Radio->setPPMoffsetReg(freqerror, 0);
         retval = 1;
     }
 #if PRINT_FREQ_ERROR
@@ -237,7 +227,7 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
     uint16_t crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
     tx_buffer[index++] = (crc >> 8);
     tx_buffer[index++] = (crc & 0xFF);
-    Radio.TXnb(tx_buffer, index, FHSSgetCurrFreq());
+    Radio->TXnb(tx_buffer, index, FHSSgetCurrFreq());
 
     // Adds packet to LQ otherwise an artificial drop in LQ is seen due to sending TLM.
     LQ_packetAck();
@@ -247,7 +237,7 @@ void tx_done_cb(void)
 {
     // Configure RX only next is not hopping time
     //if (((NonceRXlocal + 1) % ExpressLRS_currAirRate->FHSShopInterval) != 0)
-    //    Radio.RXnb(FHSSgetCurrFreq());
+    //    Radio->RXnb(FHSSgetCurrFreq());
 }
 
 void ICACHE_RAM_ATTR HWtimerCallback(uint32_t const us)
@@ -338,7 +328,7 @@ void ICACHE_RAM_ATTR HWtimerCallback(uint32_t const us)
 
     /* Configure next reception if needed */
     if (fhss_config_rx) {
-        Radio.RXnb(FHSSgetCurrFreq());
+        Radio->RXnb(FHSSgetCurrFreq());
     }
 
 hw_tmr_isr_exit:
@@ -382,7 +372,7 @@ void ICACHE_RAM_ATTR LostConnection()
     connectionState = STATE_lost; //set lost connection
 
     led_set_state(0);             // turn off led
-    Radio.RXnb(GetInitialFreq()); // in conn lost state we always want to listen on freq index 0
+    Radio->RXnb(GetInitialFreq()); // in conn lost state we always want to listen on freq index 0
     DEBUG_PRINTF("lost conn\n");
 
     platform_connection_state(connectionState);
@@ -392,7 +382,7 @@ void ICACHE_RAM_ATTR TentativeConnection(int32_t freqerror)
 {
     /* Do initial freq correction */
     FHSSfreqCorrectionSet(freqerror);
-    Radio.setPPMoffsetReg(freqerror, 0);
+    Radio->setPPMoffsetReg(freqerror, 0);
     LPF_FreqError.init(freqerror);
     rx_last_valid_us = 0;
 
@@ -456,7 +446,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
         return;
     }
 
-    freq_err = Radio.GetFrequencyError();
+    freq_err = Radio->GetFrequencyError();
 
     rx_last_valid_us = current_us;
     LastValidPacket = millis();
@@ -577,7 +567,7 @@ void forced_stop(void)
 {
     uint32_t irq = _SAVE_IRQ();
     TxTimer.stop();
-    Radio.StopContRX();
+    Radio->StopContRX();
     _RESTORE_IRQ(irq);
 }
 
@@ -603,12 +593,12 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
 
     handle_tlm_ratio(TLM_RATIO_NO_TLM);
 
-    Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(),
-                 config->PreambleLen, (OTA_PACKET_CRC == 0));
+    Radio->Config(config->bw, config->sf, config->cr, GetInitialFreq(),
+                  config->PreambleLen, (OTA_PACKET_CRC == 0));
 
     // Measure RF noise
 #ifdef DEBUG_SERIAL // TODO: Enable this when noize floor is used!
-    int RFnoiseFloor = Radio.MeasureNoiseFloor(10, GetInitialFreq());
+    int RFnoiseFloor = Radio->MeasureNoiseFloor(10, GetInitialFreq());
     DEBUG_PRINTF("RF noise floor: %d dBm\n", RFnoiseFloor);
     (void)RFnoiseFloor;
 #endif
@@ -622,7 +612,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     crsf.LinkStatistics.rf_Mode = config->rate_osd_num;
 #endif
     //TxTimer.setTime();
-    Radio.RXnb();
+    Radio->RXnb();
 }
 
 /* FC sends v1 MSPs */
@@ -664,6 +654,12 @@ void msp_data_cb(uint8_t const *const input)
 void setup()
 {
     uint8_t UID[6] = {MY_UID};
+    uint8_t radio_type;
+#if RADIO_SX127x
+    radio_type = RADIO_TYPE_127x;
+#elif RADIO_SX128x
+    radio_type = RADIO_TYPE_128x;
+#endif
 
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
     dbg_pin_tmr = gpio_out_setup(DBG_PIN_TMR_ISR, 0);
@@ -686,21 +682,11 @@ void setup()
     DEBUG_PRINTF("ExpressLRS RX Module...\n");
     platform_setup();
 
-    //FHSSrandomiseFHSSsequence();
-
     // Prepare radio
-#if defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
-    Radio.RFmodule = RFMOD_SX1278;
-#elif !RADIO_SX128x
-    Radio.RFmodule = RFMOD_SX1276;
-#endif
-    Radio.RXdoneCallback1 = ProcessRFPacketCallback;
-    Radio.TXdoneCallback1 = tx_done_cb;
-    Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1, GPIO_PIN_DIO2,
-                  GPIO_PIN_BUSY, GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
-    Radio.SetSyncWord(getSyncWord());
-    Radio.Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, GPIO_PIN_NSS);
-    Radio.SetOutputPower(0b1111); // default RX to max power for tlm
+    Radio = common_config_radio(radio_type);
+    Radio->RXdoneCallback1 = ProcessRFPacketCallback;
+    Radio->TXdoneCallback1 = tx_done_cb;
+    Radio->SetOutputPower(0b1111); // default RX to max power for tlm
 
 #if (GPIO_PIN_ANTENNA_SELECT != UNDEF_PIN)
     gpio_out_setup(GPIO_PIN_ANTENNA_SELECT, 0);

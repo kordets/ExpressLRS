@@ -5,15 +5,17 @@
 extern R9DAC r9dac;
 #endif
 
-POWERMGNT::POWERMGNT(RadioInterface &radio)
-    : p_radio(radio), p_current_power(PWR_UNKNOWN)
+POWERMGNT::POWERMGNT()
+    : p_radio(NULL), p_current_power(PWR_UNKNOWN)
 {
 }
 
-void POWERMGNT::Begin()
+void POWERMGNT::Begin(RadioInterface *radio)
 {
+    p_radio = radio;
 #if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
-    p_radio.SetOutputPower(0b0000);
+    if (radio)
+        radio->SetOutputPower(0b0000);
 #endif
 }
 
@@ -79,32 +81,31 @@ void ICACHE_RAM_ATTR POWERMGNT::pa_on(void) const
 void POWERMGNT::p_set_power(PowerLevels_e power)
 {
     if (power == p_current_power || power < PWR_10mW ||
-        power > MaxPower)
+        power > MaxPower || !p_radio)
         return;
 
-#if RADIO_SX128x
 #if defined(TARGET_MODULE_LORA1280F27)
     switch (power)
     {
     case PWR_10mW:
-        p_radio.SetOutputPower(-7); // -4
+        p_radio->SetOutputPower(-7); // -4
         break;
     case PWR_25mW:
-        p_radio.SetOutputPower(-3); // 0
+        p_radio->SetOutputPower(-3); // 0
         break;
     case PWR_50mW:
-        p_radio.SetOutputPower(0); // 3
+        p_radio->SetOutputPower(0); // 3
         break;
     case PWR_250mW:
-        p_radio.SetOutputPower(8); // 12??
+        p_radio->SetOutputPower(8); // 12??
         break;
     case PWR_500mW:
-        p_radio.SetOutputPower(13);
+        p_radio->SetOutputPower(13);
         break;
     case PWR_100mW:
     default:
         power = PWR_100mW;
-        p_radio.SetOutputPower(3); // 6
+        p_radio->SetOutputPower(3); // 6
         break;
     }
 
@@ -113,33 +114,26 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
     switch (power)
     {
     case PWR_10mW:
-        p_radio.SetOutputPower(-17);
+        p_radio->SetOutputPower(-17);
         break;
     case PWR_25mW:
-        p_radio.SetOutputPower(-13);
+        p_radio->SetOutputPower(-13);
         break;
     case PWR_50mW:
-        p_radio.SetOutputPower(-10);
+        p_radio->SetOutputPower(-10);
         break;
     case PWR_250mW:
-        p_radio.SetOutputPower(-3);
+        p_radio->SetOutputPower(-3);
         break;
     case PWR_500mW:
-        p_radio.SetOutputPower(0);
+        p_radio->SetOutputPower(0);
         break;
     case PWR_100mW:
     default:
         power = PWR_100mW;
-        p_radio.SetOutputPower(-7);
+        p_radio->SetOutputPower(-7);
         break;
     }
-
-#elif defined(TARGET_MODULE_LoRa1280)
-    p_radio.SetOutputPower(13); // 12.5dBm, ~18mW
-
-#else
-#error "!! Unknown module, cannot control power !!"
-#endif
 
 #elif defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
     r9dac.setPower(power);
@@ -148,14 +142,14 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
     switch (power)
     {
         case PWR_10mW:
-            p_radio.SetOutputPower(0b1000);
+            p_radio->SetOutputPower(0b1000);
             break;
         case PWR_25mW:
-            p_radio.SetOutputPower(0b1100);
+            p_radio->SetOutputPower(0b1100);
             break;
         case PWR_50mW:
         default:
-            p_radio.SetOutputPower(0b1111);
+            p_radio->SetOutputPower(0b1111);
             power = PWR_50mW;
             break;
     }

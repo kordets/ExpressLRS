@@ -115,8 +115,6 @@ SX127xDriver::SX127xDriver(uint8_t payload_len):
     RadioInterface(payload_len, SX127X_SPI_READ, SX127X_SPI_WRITE)
 {
     instance = this;
-
-    RFmodule = RFMOD_SX1276;
     p_bw_hz = 0;
     _syncWord = SX127X_SYNC_WORD;
     current_freq = 0;
@@ -405,7 +403,7 @@ void ICACHE_RAM_ATTR SX127xDriver::SetMode(uint8_t mode)
     }
 }
 
-void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
+void SX127xDriver::Config(uint32_t bw, uint32_t sf, uint32_t cr,
                           uint32_t freq, uint16_t PreambleLength,
                           uint8_t crc)
 {
@@ -414,16 +412,14 @@ void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
     if (freq == 0)
         freq = current_freq;
 
-    if ((freq < 137000000) ||
-        ((RFmodule == RFMOD_SX1276) && (freq > 1020000000)) ||
-        ((RFmodule == RFMOD_SX1278) && (freq > 525000000)))
+    if ((freq < 137000000) || (freq > 1020000000))
     {
         DEBUG_PRINTF("Invalid Frequnecy!: %u\n", freq);
         return;
     }
 
     // check the supplied BW, CR and SF values
-    switch (bw)
+    switch ((Bandwidth)bw)
     {
         case BW_7_80_KHZ:
             newBandwidth = SX127X_BW_7_80_KHZ;
@@ -459,7 +455,7 @@ void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
             return;
     }
 
-    switch (sf)
+    switch ((SpreadingFactor)sf)
     {
         case SF_6:
             newSpreadingFactor = SX127X_SF_6;
@@ -486,7 +482,7 @@ void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
             return;
     }
 
-    switch (cr)
+    switch ((CodingRate)cr)
     {
         case CR_4_5:
             newCodingRate = SX127X_CR_4_5;
@@ -511,7 +507,7 @@ void SX127xDriver::Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
     // save the new settings
     current_freq = freq;
 
-    switch (bw) {
+    switch ((Bandwidth)bw) {
         case BW_7_80_KHZ:
             p_bw_hz = 7800;
         case BW_10_40_KHZ:
@@ -551,11 +547,8 @@ void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t fre
 
     // output power configuration
     SetOutputPower(current_power, 1);
-    //if (RFmodule == RFMOD_SX1276)
-    //    // Increase max current limit
-    //    writeRegister(SX127X_REG_OCP, SX127X_OCP_ON | 18); // 15 (120mA) -> 18 (150mA)
-    //else
-        writeRegister(SX127X_REG_OCP, SX127X_OCP_ON | 23); //200ma
+    // // 15 = 120mA, 18 = 150mA, 23 = 200ma
+    writeRegister(SX127X_REG_OCP, SX127X_OCP_ON | 23);
     // output power configuration
     //writeRegister(SX127X_REG_PA_DAC, (0x80 | SX127X_PA_BOOST_OFF));
 

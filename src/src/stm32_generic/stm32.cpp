@@ -203,9 +203,6 @@ void platform_setup(void)
 #if defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
     (void)gpio_out_setup(GPIO_SELECT_RFIO_HIGH, 0);
     (void)gpio_out_setup(GPIO_SELECT_RFIO_LOW, 1);
-#elif defined(RADIO_SX128x)
-#error "Not implemented!"
-
 #else
     (void)gpio_out_setup(GPIO_SELECT_RFIO_LOW, 0);
     (void)gpio_out_setup(GPIO_SELECT_RFIO_HIGH, 1);

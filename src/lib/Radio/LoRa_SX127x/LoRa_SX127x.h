@@ -37,12 +37,6 @@ typedef enum
     CR_4_8
 } CodingRate;
 
-typedef enum
-{
-    RFMOD_SX1278,
-    RFMOD_SX1276
-} RFmodule_;
-
 #define SX127X_SYNC_WORD    201  //  201 - default ExpressLRS sync word
 #define SX127X_SPI_SPEED    10000000
 
@@ -52,13 +46,12 @@ public:
     SX127xDriver(uint8_t payload_len = RX_BUFFER_LEN);
 
     ///////////Radio Variables////////
-    RFmodule_ RFmodule;
     uint8_t _syncWord;
 
     ////////////////Configuration Functions/////////////
     void Begin(int sck, int miso, int mosi, int ss);
     void End(void);
-    void Config(Bandwidth bw, SpreadingFactor sf, CodingRate cr,
+    void Config(uint32_t bw, uint32_t sf, uint32_t cr,
                 uint32_t freq, uint16_t PreambleLength,
                 uint8_t crc = 0);
 

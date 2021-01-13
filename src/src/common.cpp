@@ -3,15 +3,28 @@
 #include "utils.h"
 #include "FHSS.h"
 #include "crc.h"
+#include "rc_channels.h"
+#include "targets.h"
+#include "helpers.h"
+#include "debug_elrs.h"
+
+#if RADIO_SX127x
+#include "LoRa_SX127x.h"
+#endif
+#if RADIO_SX128x
+#include "SX1280.h"
+#endif
 
 uint8_t current_rate_config;
 const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
 
+static uint8_t current_radio_index = 0;
+
 //
 // https://semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R000000HUhK/6T9Vdb3_ldnElA8drIbPYjs1wBbhlWUXej8ZMXtZXOM
 //
-static expresslrs_mod_settings_t DRAM_FORCE_ATTR ExpressLRS_AirRateConfig[] = {
 #if RADIO_SX128x
+static expresslrs_mod_settings_t DRAM_FORCE_ATTR ExpressLRS_AirRateConfig_128x[] = {
     // NOTE! Preamble len is calculate MANT*2^EXP when MANT is bits [3:0] and EXP is bits [7:4]
 #if RADIO_SX128x_BW800
     /* 500Hz */
@@ -36,7 +49,11 @@ static expresslrs_mod_settings_t DRAM_FORCE_ATTR ExpressLRS_AirRateConfig[] = {
     /* 50Hz */
     {SX1280_LORA_BW_1600, SX1280_LORA_SF9, SX1280_LORA_CR_LI_4_7, 20000, 50, TLM_RATIO_1_16,  FHSS_1, OSD_MODE_50Hz,  0b11010 /*20*/, 1000, 2500, 750000u},
 #endif // RADIO_SX128x_BW800
-#else // RADIO_SX127x
+};
+#endif /* RADIO_SX128x */
+
+#if RADIO_SX127x
+static expresslrs_mod_settings_t DRAM_FORCE_ATTR ExpressLRS_AirRateConfig_127x[] = {
     /* 200Hz */
     //{BW_500_00_KHZ, SF_6, CR_4_5, 5000, 200, TLM_RATIO_1_64, FHSS_1, OSD_MODE_200Hz, 8, 1000, 1000, 250000u}, // 3.87ms
     {BW_500_00_KHZ, SF_6, CR_4_7, 5000, 200, TLM_RATIO_1_64, FHSS_1, OSD_MODE_200Hz, 8, 1000, 1000, 250000u}, // 4.38ms
@@ -52,24 +69,43 @@ static expresslrs_mod_settings_t DRAM_FORCE_ATTR ExpressLRS_AirRateConfig[] = {
     {BW_500_00_KHZ, SF_12, CR_4_8, 250000, 4, TLM_RATIO_NO_TLM, FHSS_1, OSD_MODE_4Hz, 10, 6000, 2500, 0},
 #endif /* RATE_ENABLED_4Hz */
 #endif /* RATE_ENABLED_25Hz */
-#endif /* RADIO_SX128x */
+};
+#endif /* RADIO_SX127x */
+
+static expresslrs_mod_settings_t* DRAM_FORCE_ATTR ExpressLRS_AirRateConfig[] = {
+#if RADIO_SX127x
+    ExpressLRS_AirRateConfig_127x,
+#endif
+#if RADIO_SX128x
+    ExpressLRS_AirRateConfig_128x,
+#endif
 };
 
 const expresslrs_mod_settings_t *get_elrs_airRateConfig(uint8_t rate)
 {
     if (get_elrs_airRateMax() <= rate)
         return NULL;
-    return &ExpressLRS_AirRateConfig[rate];
+    return &ExpressLRS_AirRateConfig[current_radio_index][rate];
 }
 
 uint8_t get_elrs_airRateIndex(void * current)
 {
-    return ((uintptr_t)current - (uintptr_t)ExpressLRS_AirRateConfig) / sizeof(expresslrs_mod_settings_t);
+    return ((uintptr_t)current - (uintptr_t)(ExpressLRS_AirRateConfig[current_radio_index])) / sizeof(expresslrs_mod_settings_t);
 }
 
 uint8_t get_elrs_airRateMax(void)
 {
-    return sizeof(ExpressLRS_AirRateConfig) / sizeof(expresslrs_mod_settings_t);
+    switch (current_radio_index) {
+#if RADIO_SX127x
+        case RADIO_TYPE_127x:
+            return ARRAY_SIZE(ExpressLRS_AirRateConfig_127x);
+#endif
+#if RADIO_SX128x
+        case RADIO_TYPE_128x:
+            return ARRAY_SIZE(ExpressLRS_AirRateConfig_128x);
+#endif
+    }
+    return 0;
 }
 
 #ifndef MY_UID
@@ -80,4 +116,71 @@ uint8_t getSyncWord(void)
 {
     uint8_t UID[6] = {MY_UID};
     return CalcCRC(UID, sizeof(UID));
+}
+
+
+typedef struct {
+    int rst, dio0, dio1, dio2;
+    int busy, txen, rxen;
+    uint32_t nss;
+    RadioInterface* radio_if;
+} RadioParameters_t;
+
+#if RADIO_SX127x
+SX127xDriver DRAM_FORCE_ATTR Radio127x(OTA_PACKET_SIZE);
+#endif
+#if RADIO_SX128x
+SX1280Driver DRAM_FORCE_ATTR Radio128x(OTA_PACKET_SIZE);
+#endif
+RadioInterface DRAM_FORCE_ATTR *Radio;
+
+static RadioParameters_t DRAM_FORCE_ATTR RadioType[] = {
+#if RADIO_SX127x
+    {GPIO_PIN_RST_127x, GPIO_PIN_DIO0_127x, GPIO_PIN_DIO1_127x, GPIO_PIN_DIO2_127x,
+     UNDEF_PIN, GPIO_PIN_TXEN_127x, GPIO_PIN_RXEN_127x, GPIO_PIN_NSS_127x,
+     &Radio127x},
+#endif
+#if RADIO_SX128x
+    {GPIO_PIN_RST_128x, GPIO_PIN_DIO0_128x, GPIO_PIN_DIO1_128x, GPIO_PIN_DIO2_128x,
+     GPIO_PIN_BUSY, GPIO_PIN_TXEN_128x, GPIO_PIN_RXEN_128x, GPIO_PIN_NSS_128x,
+     &Radio128x},
+#endif
+};
+
+static_assert(0 < ARRAY_SIZE(RadioType), "INVALID CONFIG");
+
+uint8_t common_config_get_radio_type(uint8_t mode)
+{
+    switch (mode) {
+        case RADIO_RF_MODE_915_AU_FCC:
+        case RADIO_RF_MODE_868_EU:
+        case RADIO_RF_MODE_433_AU_EU:
+            return RADIO_TYPE_127x;
+        case RADIO_RF_MODE_2400_ISM:
+        case RADIO_RF_MODE_2400_ISM_500Hz:
+            return RADIO_TYPE_128x;
+    };
+    return RADIO_TYPE_MAX;
+}
+
+RadioInterface* common_config_radio(uint8_t type)
+{
+    type %= ARRAY_SIZE(RadioType);
+
+    RadioParameters_t * config = &RadioType[type];
+    RadioInterface* radio = config->radio_if;
+
+    DEBUG_PRINTF("Using radio type: %u\n", type);
+
+    FHSS_init(type);
+    //FHSSrandomiseFHSSsequence();
+
+    radio->SetPins(config->rst, config->dio0, config->dio1, config->dio2,
+                   config->busy, config->txen, config->rxen);
+    radio->SetSyncWord(getSyncWord());
+    radio->Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, config->nss);
+
+    current_radio_index = type;
+
+    return radio;
 }

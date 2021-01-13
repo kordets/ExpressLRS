@@ -82,9 +82,7 @@ int16_t SX1280Driver::MeasureNoiseFloor(uint32_t num_meas, uint32_t freq)
     return -999;
 }
 
-void SX1280Driver::Config(SX1280_RadioLoRaBandwidths_t bw,
-                          SX1280_RadioLoRaSpreadingFactors_t sf,
-                          SX1280_RadioLoRaCodingRates_t cr,
+void SX1280Driver::Config(uint32_t bw, uint32_t sf, uint32_t cr,
                           uint32_t freq, uint16_t PreambleLength,
                           uint8_t crc)
 {
@@ -112,9 +110,9 @@ void SX1280Driver::Config(SX1280_RadioLoRaBandwidths_t bw,
     ClearIrqStatus(SX1280_IRQ_RADIO_ALL);
 }
 
-void SX1280Driver::SetPacketParams(SX1280_RadioLoRaPacketLengthsModes_t HeaderType,
-                                   SX1280_RadioLoRaCrcModes_t crc,
-                                   SX1280_RadioLoRaIQModes_t InvertIQ,
+void SX1280Driver::SetPacketParams(uint8_t HeaderType,
+                                   uint8_t crc,
+                                   uint8_t InvertIQ,
                                    uint8_t PreambleLength,
                                    uint8_t PayloadLength)
 {
@@ -175,7 +173,7 @@ void SX1280Driver::SetRegulatorMode(uint8_t mode)
     TransferBuffer(cmd, sizeof(cmd), 0);
 }
 
-void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
+void ICACHE_RAM_ATTR SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
 {
     WORD_ALIGNED_ATTR uint8_t buffer[4];
     uint8_t len = 2;
@@ -233,14 +231,12 @@ void SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
     currOpmode = OPmode;
 }
 
-void SX1280Driver::ConfigModParams(SX1280_RadioLoRaBandwidths_t bw,
-                                   SX1280_RadioLoRaSpreadingFactors_t sf,
-                                   SX1280_RadioLoRaCodingRates_t cr)
+void SX1280Driver::ConfigModParams(uint8_t bw, uint8_t sf, uint8_t cr)
 {
     // Care must therefore be taken to ensure that modulation parameters are set using the command
     // SetModulationParam() only after defining the packet type SetPacketType() to be used
 
-    uint8_t rfparams[4] = {SX1280_RADIO_SET_MODULATIONPARAMS, (uint8_t)sf, (uint8_t)bw, (uint8_t)cr};
+    uint8_t rfparams[4] = {SX1280_RADIO_SET_MODULATIONPARAMS, sf, bw, cr};
     TransferBuffer(rfparams, sizeof(rfparams), 0);
 
     rfparams[0] = SX1280_RADIO_WRITE_REGISTER;

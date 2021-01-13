@@ -1,27 +1,13 @@
 #pragma once
 
-#if RADIO_SX128x
-#include "SX1280.h"
-#else
-#include "LoRa_SX127x.h"
-#endif
+#include "RadioInterface.h"
 
-#if RADIO_SX128x
+
 #if defined(TARGET_MODULE_LORA1280F27)
 #define MaxPower PWR_500mW
 #elif defined(TARGET_MODULE_E28)
 #define MaxPower PWR_500mW
-#else
-#define MaxPower PWR_100mW
-#endif
-
-#ifndef TX_POWER_DEFAULT
-/* Just in case, this should be defined in user_defines.txt file */
-#define TX_POWER_DEFAULT PWR_100mW
-#endif
-
-#else // SX127x
-#if defined(TARGET_R9M_TX)
+#elif defined(TARGET_R9M_TX)
 #define MaxPower PWR_1000mW // was PWR_2000mW
 #else
 #define MaxPower PWR_50mW
@@ -32,7 +18,6 @@
 #define TX_POWER_DEFAULT PWR_50mW
 #endif
 
-#endif // SX127x
 
 typedef enum
 {
@@ -55,15 +40,15 @@ typedef enum
 class POWERMGNT
 {
 private:
-    RadioInterface &p_radio;
+    RadioInterface *p_radio;
     PowerLevels_e p_current_power = PWR_10mW;
     uint_fast8_t p_dyn_power = 0;
 
     void p_set_power(PowerLevels_e power);
 
 public:
-    POWERMGNT(RadioInterface &radio);
-    void Begin();
+    POWERMGNT();
+    void Begin(RadioInterface *radio);
 
     // inc and decPower are used to control dynamic tx power
     PowerLevels_e incPower();

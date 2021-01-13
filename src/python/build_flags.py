@@ -9,14 +9,15 @@ except ImportError:
     from git import Repo
 
 def parse_flags(path):
-    domains_found = 0
-    domains_found_ism = 0
+    domains_found = []
+    domains_found_ism = []
     build_flags = env['BUILD_FLAGS']
-    ISM2400 = False
+    ISM2400 = DUAL_MODE = False
     for flag in build_flags:
         if "DOMAIN_24GHZ" in flag:
             ISM2400 = True
-            break
+        elif "DOMAIN_BOTH" in flag:
+            DUAL_MODE = True
     try:
         with open(path, "r") as _f:
             for line in _f:
@@ -49,19 +50,23 @@ def parse_flags(path):
                         raise Exception("UID must be 6 bytes long")
                     elif "Regulatory_Domain" in define:
                         if "_ISM_2400" in define:
-                            domains_found_ism += 1
-                            if not ISM2400:
+                            if not DUAL_MODE and not ISM2400:
                                 continue
-                            #print("\n\033[93m[NOTE] ISM 2400 band selected, Using SX128x radio!\n")
-                            build_flags.append("-DRADIO_SX128x=1")
-                            if "_800kHz" in define:
-                                build_flags.append("-DRADIO_SX128x_BW800=1")
-                        elif ISM2400:
-                            domains_found += 1
-                            continue
-                        if domains_found > 1 or domains_found_ism > 1:
-                            raise Exception("[ERROR] Only one 'Regulatory_Domain' is allowed")
+                            domains_found_ism.append(define)
+                        else:
+                            if not DUAL_MODE and ISM2400:
+                                continue
+                            domains_found.append(define)
                     build_flags.append(define)
+
+        if len(domains_found) > 1 or len(domains_found_ism) > 1:
+            raise Exception("[ERROR] Only one 'Regulatory_Domain' is allowed")
+        if domains_found:
+            build_flags.append("-DRADIO_SX127x=1")
+        if domains_found_ism:
+            build_flags.append("-DRADIO_SX128x=1")
+            if "_800kHz" in domains_found_ism[0]:
+                build_flags.append("-DRADIO_SX128x_BW800=1")
     except IOError:
         return False
     return True

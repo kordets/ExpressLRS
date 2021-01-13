@@ -3,15 +3,43 @@
 #include "common.h"
 #include "utils.h"
 #include "crc.h"
+#include "targets.h"
 
-#include "fhss_freqs.h"
+#if RADIO_SX127x
+#include "fhss_freqs_127x.h"
+#endif
+#if RADIO_SX128x
+#include "fhss_freqs_128x.h"
+#endif
 
 #ifndef FHSS_MY_STEP
 #define FHSS_MY_STEP 1
 #endif
 
+static uint32_t DRAM_FORCE_ATTR FHSSsequenceLen;
+static uint8_t * DRAM_FORCE_ATTR FHSSsequence;
+static uint32_t * DRAM_FORCE_ATTR FHSSfreqs;
+
 volatile uint32_t DRAM_ATTR FHSSptr;
 volatile int_fast32_t DRAM_ATTR FreqCorrection;
+
+void ICACHE_RAM_ATTR FHSS_init(uint8_t mode)
+{
+#if RADIO_SX127x
+    if (mode == RADIO_TYPE_127x) {
+        FHSSsequence = SX127x::FHSSsequence;
+        FHSSsequenceLen = sizeof(SX127x::FHSSsequence);
+        FHSSfreqs = SX127x::FHSSfreqs;
+    }
+#endif
+#if RADIO_SX128x
+    if (mode == RADIO_TYPE_128x) {
+        FHSSsequence = SX128x::FHSSsequence;
+        FHSSsequenceLen = sizeof(SX128x::FHSSsequence);
+        FHSSfreqs = SX128x::FHSSfreqs;
+    }
+#endif
+}
 
 void ICACHE_RAM_ATTR FHSSfreqCorrectionReset(void)
 {
@@ -61,12 +89,12 @@ uint32_t ICACHE_RAM_ATTR FHSSgetNextFreq()
 
 
 
-
+#if 0
 
 // Set all of the flags in the array to true, except for the first one
 // which corresponds to the sync channel and is never available for normal
 // allocation.
-static void resetIsAvailable(uint8_t *const array, uint32_t size)
+void resetIsAvailable(uint8_t *const array, uint32_t size)
 {
     // channel 0 is the sync channel and is never considered available
     array[0] = 0;
@@ -93,29 +121,29 @@ Approach:
     if the index is not a repeat, assing it to the FHSSsequence array, clear the availability flag and decrement the available count
     if there are no available channels left, reset the flags array and the count
 */
-void FHSSrandomiseFHSSsequence()
+void FHSSrandomiseFHSSsequence(uint8_t mode)
 {
-    const uint32_t NR_FHSS_ENTRIES = (sizeof(FHSSfreqs) / sizeof(FHSSfreqs[0]));
+    const uint32_t nbr_fhss_seq = (sizeof(FHSSfreqs) / sizeof(FHSSfreqs[0]));
 
+    if (RADIO_SX127x && mode == RADIO_TYPE_127x) {
 #if defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915)
-    DEBUG_PRINTF("Setting 915MHz Mode\n");
+        DEBUG_PRINTF("Setting 915MHz Mode\n");
 #elif defined Regulatory_Domain_EU_868 || defined Regulatory_Domain_EU_868_R9
-    DEBUG_PRINTF("Setting 868MHz Mode\n");
+        DEBUG_PRINTF("Setting 868MHz Mode\n");
 #elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
-    DEBUG_PRINTF("Setting 433MHz Mode\n");
-#elif defined(Regulatory_Domain_ISM_2400) || defined(Regulatory_Domain_ISM_2400_800kHz)
-    DEBUG_PRINTF("Setting ISM 2400 Mode\n");
-#else
-#error No regulatory domain defined, please define one in common.h
+        DEBUG_PRINTF("Setting 433MHz Mode\n");
 #endif
+    } else if (RADIO_SX128x && mode == RADIO_TYPE_128x) {
+        DEBUG_PRINTF("Setting ISM 2400 Mode\n");
+    }
 
-    DEBUG_PRINTF("Number of FHSS frequencies = %u\n", NR_FHSS_ENTRIES);
+    DEBUG_PRINTF("Number of FHSS frequencies = %u\n", nbr_fhss_seq);
 
     uint8_t UID[6] = {MY_UID};
     uint32_t macSeed = CalcCRC32(UID, sizeof(UID));
     rngSeed(macSeed);
 
-    uint8_t isAvailable[NR_FHSS_ENTRIES];
+    uint8_t isAvailable[nbr_fhss_seq];
 
     resetIsAvailable(isAvailable, sizeof(isAvailable));
 
@@ -125,7 +153,7 @@ void FHSSrandomiseFHSSsequence()
     // sync channels
     const int SYNC_INTERVAL = 20;
 
-    int nLeft = NR_FHSS_ENTRIES - 1; // how many channels are left to be allocated. Does not include the sync channel
+    int nLeft = nbr_fhss_seq - 1; // how many channels are left to be allocated. Does not include the sync channel
     unsigned int prev = 0;           // needed to prevent repeats of the same index
 
     // for each slot in the sequence table
@@ -148,7 +176,7 @@ void FHSSrandomiseFHSSsequence()
                 // can skip 0 as that's the sync channel and is never available for normal allocation
                 index = 1;
                 int found = 0;
-                while (index < NR_FHSS_ENTRIES)
+                while (index < nbr_fhss_seq)
                 {
                     if (isAvailable[index])
                     {
@@ -158,7 +186,7 @@ void FHSSrandomiseFHSSsequence()
                     }
                     index++;
                 }
-                if (index == NR_FHSS_ENTRIES)
+                if (index == nbr_fhss_seq)
                 {
                     // This should never happen
                     DEBUG_PRINTF("FAILED to find the available entry!\n");
@@ -177,7 +205,7 @@ void FHSSrandomiseFHSSsequence()
             {
                 // we've assigned all of the channels, so reset for next cycle
                 resetIsAvailable(isAvailable, sizeof(isAvailable));
-                nLeft = NR_FHSS_ENTRIES - 1;
+                nLeft = nbr_fhss_seq - 1;
             }
         }
 
@@ -190,78 +218,4 @@ void FHSSrandomiseFHSSsequence()
 
     DEBUG_PRINTF("\n");
 }
-
-/** Previous version of FHSSrandomiseFHSSsequence
-
-void FHSSrandomiseFHSSsequence()
-{
-    DEBUG_PRINT("Number of FHSS frequencies =");
-    DEBUG_PRINT(NR_FHSS_ENTRIES);
-
-    long macSeed = ((long)UID[2] << 24) + ((long)UID[3] << 16) + ((long)UID[4] << 8) + UID[5];
-    rngSeed(macSeed);
-
-    const int hopSeqLength = 256;
-    const int numOfFreqs = NR_FHSS_ENTRIES-1;
-    const int limit = floor(hopSeqLength / numOfFreqs);
-
-    DEBUG_PRINT("limit =");
-    DEBUG_PRINT(limit);
-
-    DEBUG_PRINT("FHSSsequence[] = ");
-
-    int prev_val = 0;
-    int rand = 0;
-
-    int last_InitialFreq = 0;
-    const int last_InitialFreq_interval = numOfFreqs;
-
-    int tracker[NR_FHSS_ENTRIES] = {0};
-
-    for (int i = 0; i < hopSeqLength; i++)
-    {
-
-        if (i >= (last_InitialFreq + last_InitialFreq_interval))
-        {
-            rand = 0;
-            last_InitialFreq = i;
-        }
-        else
-        {
-            while (prev_val == rand || rand > numOfFreqs || tracker[rand] >= limit || rand == 0)
-            {
-                rand = rng5Bit();
-            }
-        }
-
-        FHSSsequence[i] = rand;
-        tracker[rand]++;
-        prev_val = rand;
-
-        DEBUG_PRINT(FHSSsequence[i]);
-        DEBUG_PRINT(", ");
-    }
-
-// Note DaBit: is it really necessary that this is different logic? FHSSsequence[0] is never 0, and it is just a starting frequency anyway?
-
-    // int prev_val = rng0to2(); // Randomised so that FHSSsequence[0] can also be 0.
-    // int rand = 0;
-
-    // for (int i = 0; i < 256; i++)
-    // {
-    //     while (prev_val == rand)
-    //     {
-    //         rand = rng0to2();
-    //     }
-
-    //     prev_val = rand;
-    //     FHSSsequence[i] = rand;
-
-    //     DEBUG_PRINT(FHSSsequence[i]);
-    //     DEBUG_PRINT(", ");
-    // }
-
-
-    DEBUG_PRINTLN("");
-}
-*/
+#endif

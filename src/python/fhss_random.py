@@ -6,8 +6,7 @@ DEBUG = 0
 CALC_MY_STEP = 1
 
 FHSS_FREQS_HEAD = '''
-#ifndef FHSS_FREQS_H_
-#define FHSS_FREQS_H_
+#pragma once
 
 #include "platform.h"
 #include <stdint.h>
@@ -15,7 +14,6 @@ FHSS_FREQS_HEAD = '''
 '''
 
 FHSS_FREQS_TAIL = '''
-#endif /* FHSS_FREQS_H_ */
 '''
 
 RNG_MAX = 0x7FFF
@@ -165,6 +163,9 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
     _uid_crc = CalcCRC32(bytearray(_uid))
 
     DOMAIN = DOMAIN.replace("-D", "")
+    ISM_band = "_ISM_2400" in DOMAIN
+
+    outfile_name = ['fhss_freqs_127x.h', 'fhss_freqs_128x.h'][ISM_band]
 
     FREQ_OFFSET_UID = sum(_uid[3:])
 
@@ -241,7 +242,7 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
         MY_UID, DOMAIN, rand_version, use_local_rand, SYNC_INTERVAL, CALC_MY_STEP)
     write_out = False
     try:
-        with open(os.path.join('src', 'fhss_freqs.h'), "r") as _f:
+        with open(os.path.join('src', outfile_name), "r") as _f:
             first = _f.readline()
             write_out = first != header
             _f.close()
@@ -250,19 +251,22 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
 
     if write_out or DEBUG:
         print("write...")
-        with open(os.path.join('src', 'fhss_freqs.h'), "w+") as _f:
+        with open(os.path.join('src', outfile_name), "w+") as _f:
             _f.write(header)
             _f.write(FHSS_FREQS_HEAD)
 
-            _f.write("#define FREQ_OFFSET_UID (%u)\n" % FREQ_OFFSET_UID)
-            _f.write("#define NR_SEQUENCE_ENTRIES (%u)\n" % NR_SEQUENCE_ENTRIES)
-            _f.write("#define UID_CRC32 (0x%08X)\n" % _uid_crc)
+            namespace = ["SX127x", "SX128x"][ISM_band]
+            _f.write("namespace %s {\n\n" % namespace)
+
+            _f.write("constexpr uint32_t FREQ_OFFSET_UID = %u;\n" % FREQ_OFFSET_UID)
+            _f.write("constexpr uint32_t NR_SEQUENCE_ENTRIES = %u;\n" % NR_SEQUENCE_ENTRIES)
+            _f.write("constexpr uint32_t UID_CRC32 = 0x%08X;\n" % _uid_crc)
 
             my_step = 0
             if CALC_MY_STEP:
                 my_step = _uid_crc % 8
             my_step |= 1
-            _f.write("#define FHSS_MY_STEP (%u)\n\n" % (my_step))
+            _f.write("constexpr uint32_t FHSS_MY_STEP = %u;\n\n" % (my_step))
 
             _f.write("/* Note: UID offset included */\n")
             _f.write('static uint32_t DRAM_FORCE_ATTR FHSSfreqs[%u] = {\n' % num_of_fhss)
@@ -285,21 +289,23 @@ def check_fhss_freqs_h(DOMAIN, MY_UID):
             for iter in range(num_of_fhss):
                 _f.write("    index %2d: %3u\n" % (iter, FHSSsequence.count(iter)))
             _f.write('*/\n')
+            _f.write("\n} /* namespace */\n")
             _f.write(FHSS_FREQS_TAIL)
             _f.close()
 
 
 def check_env_and_parse(build_flags):
-    my_domain = ""
+    my_domains = []
     my_uid = ""
     for flag in build_flags:
         if "Regulatory_Domain" in flag:
-            my_domain = flag
+            my_domains.append(flag)
         elif "MY_UID" in flag:
             my_uid = flag
 
-    if my_domain and my_uid:
-        check_fhss_freqs_h(my_domain, my_uid)
+    if my_domains and my_uid:
+        for domain in my_domains:
+            check_fhss_freqs_h(domain, my_uid)
     else:
         raise Exception("Domain or UID is missing!")
 

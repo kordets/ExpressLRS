@@ -1,11 +1,6 @@
 #include <Arduino.h>
 #include "utils.h"
 #include "common.h"
-#if RADIO_SX128x
-#include "SX1280.h"
-#else
-#include "LoRa_SX127x.h"
-#endif
 #include "CRSF_TX.h"
 #include "FHSS.h"
 #include "targets.h"
@@ -17,6 +12,7 @@
 #include "msp.h"
 #include <stdlib.h>
 
+
 static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 
 //// CONSTANTS ////
@@ -27,15 +23,10 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 #define TX_POWER_UPDATE_PERIOD            1500
 
 ///////////////////
-
 /// define some libs to use ///
-#if RADIO_SX128x
-SX1280Driver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
-#else
-SX127xDriver DRAM_FORCE_ATTR Radio(OTA_PACKET_SIZE);
-#endif
+
 CRSF_TX DRAM_FORCE_ATTR crsf(CrsfSerial);
-POWERMGNT DRAM_FORCE_ATTR PowerMgmt(Radio);
+POWERMGNT DRAM_FORCE_ATTR PowerMgmt;
 
 static uint32_t DRAM_ATTR _rf_rxtx_counter;
 static uint8_t DMA_ATTR rx_buffer[OTA_PACKET_SIZE];
@@ -79,6 +70,13 @@ void init_globals(void) {
     pl_config.power = TX_POWER_DEFAULT;
     pl_config.tlm = TLM_RATIO_DEFAULT;
 
+    // Default to 127x if both defined
+#if RADIO_SX127x
+    pl_config.rf_mode = RADIO_TYPE_127x;
+#elif RADIO_SX128x
+    pl_config.rf_mode = RADIO_TYPE_128x;
+#endif
+
     connectionState = STATE_disconnected;
 }
 
@@ -104,15 +102,15 @@ uint8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
     if (value != TLMinterval || init)
     {
         if (TLM_RATIO_NO_TLM < value) {
-            Radio.RXdoneCallback1 = ProcessTLMpacket;
-            Radio.TXdoneCallback1 = HandleTLM;
+            Radio->RXdoneCallback1 = ProcessTLMpacket;
+            Radio->TXdoneCallback1 = HandleTLM;
             connectionState = STATE_disconnected;
             ratio = TLMratioEnumToValue(value);
             DEBUG_PRINTF("TLM ratio %u\n", ratio);
             ratio -= 1;
         } else {
-            Radio.RXdoneCallback1 = Radio.rx_nullCallback;
-            Radio.TXdoneCallback1 = Radio.tx_nullCallback;
+            Radio->RXdoneCallback1 = Radio->rx_nullCallback;
+            Radio->TXdoneCallback1 = Radio->tx_nullCallback;
             // Set connected if telemetry is not used
             connectionState = STATE_connected;
             DEBUG_PRINTF("TLM disabled\n");
@@ -146,7 +144,7 @@ static void stop_processing(void)
 {
     uint32_t irq = _SAVE_IRQ();
     TxTimer.stop();
-    Radio.StopContRX();
+    Radio->StopContRX();
     _RESTORE_IRQ(irq);
 }
 
@@ -154,8 +152,28 @@ void platform_radio_force_stop(void)
 {
     uint32_t irq = _SAVE_IRQ();
     TxTimer.stop();
-    Radio.End();
+    Radio->End();
     _RESTORE_IRQ(irq);
+}
+
+static uint8_t SetRadioType(uint8_t type)
+{
+    /* Configure if ratio not set or its type will be changed */
+    if (type != pl_config.rf_mode || !Radio) {
+        PowerLevels_e power =
+            (PowerLevels_e)(pl_config.power % PWR_UNKNOWN);
+
+        /* Stop radio processing if chaning RF type */
+        if (Radio)
+            stop_processing();
+
+        Radio = common_config_radio(type);
+        PowerMgmt.Begin(Radio);
+        PowerMgmt.setPower(power);
+        pl_config.rf_mode = type;
+        return 1;
+    }
+    return 0;
 }
 
 ///////////////////////////////////////
@@ -193,8 +211,8 @@ static void process_rx_buffer()
         case DL_PACKET_TLM_LINK:
         {
             crsf.LinkStatisticsExtract((uint8_t*)rx_buffer,
-                                       Radio.LastPacketSNR,
-                                       Radio.LastPacketRSSI);
+                                       Radio->LastPacketSNR,
+                                       Radio->LastPacketRSSI);
 
             // Check RSSI and update TX power if needed
             int8_t rssi = LPF_dyn_tx_power.update((int8_t)crsf.LinkStatistics.uplink_RSSI_1);
@@ -238,7 +256,7 @@ static void ICACHE_RAM_ATTR HandleTLM()
     {
         // receive tlm package
         PowerMgmt.pa_off();
-        Radio.RXnb(FHSSgetCurrFreq());
+        Radio->RXnb(FHSSgetCurrFreq());
         expected_tlm_counter++;
         //DEBUG_PRINTF(" RX ");
     }
@@ -317,7 +335,7 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     //delayMicroseconds(random(0, 400)); // 300 ok
     //if (random(0, 99) < 55) tx_buffer[1] = 0;
     // Send data to rf
-    Radio.TXnb(tx_buffer, index, freq);
+    Radio->TXnb(tx_buffer, index, freq);
 
 send_to_rf_exit:
     // Check if hopping is needed
@@ -372,6 +390,8 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
 
         case 4:
             // RFFreq
+            value = common_config_get_radio_type(value);
+            modified |= (SetRadioType(value) << 1);
             break;
 
         case 5:
@@ -391,22 +411,18 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
         out[1] = (uint8_t)TLMinterval;
         out[2] = (uint8_t)PowerMgmt.currPower();
         out[3] = (uint8_t)PowerMgmt.maxPowerGet();
+        out[4] = RADIO_RF_MODE_INVALID;
+        if (RADIO_SX127x && pl_config.rf_mode == RADIO_TYPE_127x) {
 #if defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915)
-        out[4] = 0;
+            out[4] = RADIO_RF_MODE_915_AU_FCC;
 #elif defined(Regulatory_Domain_EU_868) || defined(Regulatory_Domain_EU_868_R9)
-        out[4] = 1;
+            out[4] = RADIO_RF_MODE_868_EU;
 #elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
-        out[4] = 2;
-//#elif defined(Regulatory_Domain_ISM_2400_800kHz)
-//        out[4] = 3;
-//#elif defined(Regulatory_Domain_ISM_2400)
-//        out[4] = 4;
-#elif defined(Regulatory_Domain_ISM_2400_800kHz) || defined(Regulatory_Domain_ISM_2400)
-        // 500Hz supported
-        out[4] = 4;
-#else
-        out[4] = 0xff;
+            out[4] = RADIO_RF_MODE_433_AU_EU;
 #endif
+        } else if (RADIO_SX128x && pl_config.rf_mode == RADIO_TYPE_128x) {
+            out[4] = RADIO_RF_MODE_2400_ISM_500Hz;
+        }
     }
 
     if (modified)
@@ -445,7 +461,6 @@ static void ParamWriteHandler(uint8_t const *msg, uint16_t len)
 }
 
 ///////////////////////////////////////
-
 static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link (hz)
 {
     const expresslrs_mod_settings_t *const config = get_elrs_airRateConfig(rate);
@@ -464,8 +479,8 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
     TxTimer.updateInterval(config->interval);
 
     FHSSsetCurrIndex(0);
-    Radio.Config(config->bw, config->sf, config->cr, GetInitialFreq(),
-                 config->PreambleLen, (OTA_PACKET_CRC == 0));
+    Radio->Config(config->bw, config->sf, config->cr, GetInitialFreq(),
+                  config->PreambleLen, (OTA_PACKET_CRC == 0));
     crsf.setRcPacketRate(config->interval);
     crsf.LinkStatistics.rf_Mode = config->rate_osd_num;
 
@@ -569,7 +584,6 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
 
 void setup()
 {
-    PowerLevels_e power;
     uint8_t UID[6] = {MY_UID};
 
     init_globals();
@@ -585,7 +599,6 @@ void setup()
     DEBUG_PRINTF("ExpressLRS TX Module...\n");
     platform_config_load(pl_config);
     current_rate_config = pl_config.mode % get_elrs_airRateMax();
-    power = (PowerLevels_e)(pl_config.power % PWR_UNKNOWN);
     TLMinterval = pl_config.tlm;
     platform_mode_notify(get_elrs_airRateMax() - current_rate_config);
 
@@ -597,21 +610,7 @@ void setup()
 
     TxTimer.callbackTock = &SendRCdataToRF;
 
-    //FHSSrandomiseFHSSsequence();
-
-#if defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
-    Radio.RFmodule = RFMOD_SX1278;
-#elif !RADIO_SX128x
-    Radio.RFmodule = RFMOD_SX1276;
-#endif
-    Radio.SetPins(GPIO_PIN_RST, GPIO_PIN_DIO0, GPIO_PIN_DIO1, GPIO_PIN_DIO2,
-                  GPIO_PIN_BUSY, GPIO_PIN_TX_ENABLE, GPIO_PIN_RX_ENABLE);
-    Radio.SetSyncWord(getSyncWord());
-    Radio.Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, GPIO_PIN_NSS);
-
-    PowerMgmt.Begin();
-    PowerMgmt.setPower(power);
-
+    SetRadioType(pl_config.rf_mode);
     SetRFLinkRate(current_rate_config, 1);
 
 #ifdef CTRL_SERIAL
