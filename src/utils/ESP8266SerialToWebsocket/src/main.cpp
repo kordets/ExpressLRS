@@ -189,6 +189,7 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
                 domain_info = "Regulatory domain ISM 2400 (BW 1.6MHz)";
               elem.innerHTML = domain_info;
 
+              var rf_module = document.getElementById("rf_module");
               // update rate options
               var rates = document.getElementById("rates_input");
               while (rates.length > 0) {
@@ -197,10 +198,13 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
               var options = [];
               if (value == "4") {
                 options = ['500Hz', '250Hz', '125Hz', '50Hz'];
+                rf_module.selectedIndex = 1;
               } else if (value == "3") {
                 options = ['250Hz', '125Hz', '50Hz'];
+                rf_module.selectedIndex = 1;
               } else {
                 options = ['200Hz', '100Hz', '50Hz'];
+                rf_module.selectedIndex = 0;
               }
               for (i = 0; i < options.length; i++) {
                 var option = document.createElement("option");
@@ -256,6 +260,13 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
     <h2>Settings</h2>
     <table>
       <tr>
+        <td style="padding: 1px 1px 1px 20px;">
+          RF mode:
+          <select name="rf_module" onchange="setting_send('S_rf_module', this)" id="rf_module">
+            <option value="0"> 900 (SX127x)</option>
+            <option value="3">2400 (SX128x)</option>
+          </select>
+        </td>
         <td style="padding: 1px 20px 1px 1px;" colspan="3" id="region_domain">
           Regulatory domain UNKNOWN
         </td>
@@ -330,6 +341,31 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
         </td>
         -->
       </tr>
+      <tr>
+        <!--
+        <td style="padding: 1px 1px 1px 20px;">
+          RF PWR:
+          <select name="rf_pwr" onchange="setting_send('S_rf_pwr', this)" id="rf_pwr">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="A">10</option>
+            <option value="B">11</option>
+            <option value="C">12</option>
+            <option value="D">13</option>
+            <option value="E">14</option>
+            <option value="F">15</option>
+          </select>
+        </td>
+        -->
+      </tr>
     </table>
 
     <hr/>
@@ -347,7 +383,7 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
       <form method='POST' action='/upload' enctype='multipart/form-data'>
           STM32 Firmware:
           <input type='file' accept='.bin,.elrs' name='firmware' id='stm_fw'>
-          <input type='text' value='0x2000' name='flash_address' size='6' id='stm_addr' class="hide">
+          <input type='text' value='0x0' name='flash_address' size='6' id='stm_addr' class="hide">
           <input type='submit' value='Flash STM32' id='stm_submit' disabled='disabled'>
       </form>
     </div>
@@ -527,6 +563,54 @@ void handleSettingTlm(const char * input, int num = -1)
     webSocket.broadcastTXT(settings_out);
 }
 
+void handleSettingRfPwr(const char * input, int num = -1)
+{
+  settings_out = "[INTERNAL ERROR] something went wrong";
+  if (input == NULL || *input == '?') {
+    return;
+  } else if (*input == '=') {
+    input++;
+    settings_out = "Setting RF PWR: ";
+    settings_out += input;
+    // Write to ELRS
+    char val = *input;
+    if ('A' <= val)
+      val = 10 + (val - 'A');
+    else
+      val = (val - '0');
+    uint8_t buff[] = {6, (uint8_t)val};
+    SettingsWrite(buff, sizeof(buff));
+  }
+  if (0 <= num)
+    webSocket.sendTXT(num, settings_out);
+  else
+    webSocket.broadcastTXT(settings_out);
+}
+
+void handleSettingRfModule(const char * input, int num = -1)
+{
+  settings_out = "[INTERNAL ERROR] something went wrong";
+  if (input == NULL || *input == '?') {
+    return;
+  } else if (*input == '=') {
+    input++;
+    settings_out = "Setting RF module: ";
+    settings_out += input;
+    // Write to ELRS
+    char val = *input;
+    if ('A' <= val)
+      val = 10 + (val - 'A');
+    else
+      val = (val - '0');
+    uint8_t buff[] = {4, (uint8_t)val};
+    SettingsWrite(buff, sizeof(buff));
+  }
+  if (0 <= num)
+    webSocket.sendTXT(num, settings_out);
+  else
+    webSocket.broadcastTXT(settings_out);
+}
+
 void handleSettingDomain(const char * input, int num = -1)
 {
   settings_out = "[ERROR] Domain set is not supported!";
@@ -627,6 +711,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
       temp = strstr((char*)payload, "S_vtx_freq");
       if (temp) {
         MspVtxWrite(&temp[10], num);
+      }
+      temp = strstr((char*)payload, "S_rf_pwr");
+      if (temp) {
+        handleSettingRfPwr(&temp[8], num);
+      }
+      temp = strstr((char*)payload, "S_rf_module");
+      if (temp) {
+        handleSettingRfModule(&temp[11], num);
       }
     }
     break;
@@ -965,7 +1057,9 @@ void setup()
   Serial.begin(460800); // non-inverted serial
 #endif
 
+#if (BOOT0_PIN == 0)
   reset_stm32_to_app_mode();
+#endif
 
   FILESYSTEM.begin();
 

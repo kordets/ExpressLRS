@@ -35,8 +35,7 @@ void reset_stm32_to_isp_mode()
 	delay(50);
 	isp_serial_flush();
 	digitalWrite(RESET_PIN, HIGH);
-	delay(250);
-	digitalWrite(BOOT0_PIN, LOW);
+	delay(50);
 }
 
 void reset_stm32_to_app_mode()
@@ -47,7 +46,7 @@ void reset_stm32_to_app_mode()
 	digitalWrite(BOOT0_PIN, LOW);
 	delay(10);
 	digitalWrite(RESET_PIN, LOW);
-	delay(150);
+	delay(50);
 	digitalWrite(RESET_PIN, HIGH);
 }
 
@@ -135,15 +134,18 @@ uint8_t init_chip()
 {
 	uint8_t cmd = 0x7F;
 
-	for (int i = 0; i < 10; i++)
-	{
-		DEBUG_PRINT("Trying to init chip... %u / %u", i+1, 10);
+#define STM_MODE_LOOPS 3
+#define STM_INIT_LOOPS 5
+
+	for (int j = 0; j < STM_MODE_LOOPS; j++) {
+		DEBUG_PRINT("Trying to init chip... %u / %u", j+1, STM_MODE_LOOPS);
 		reset_stm32_to_isp_mode();
-		isp_serial_write(&cmd, 1);
-		if (wait_for_ack("init_chip_write_cmd", 20) > 0)
-		{ // ack or nack
-			DEBUG_PRINT("init chip succeeded.");
-			return 1;
+		for (int i = 0; i < STM_INIT_LOOPS; i++) {
+			isp_serial_write(&cmd, 1);
+			if (wait_for_ack("init_chip_write_cmd", 10) > 0) {
+				DEBUG_PRINT("init chip succeeded.");
+				return 1;
+			}
 		}
 	}
 	DEBUG_PRINT("[ERROR] init chip failed.");

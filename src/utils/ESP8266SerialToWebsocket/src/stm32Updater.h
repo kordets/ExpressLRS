@@ -14,7 +14,9 @@
 #define FLASH_START 0x08000000
 #define FLASH_SIZE 0x10000
 #define FLASH_PAGE_SIZE 0x400
+#ifndef FLASH_OFFSET
 #define FLASH_OFFSET 0x2000 // skip bootloader
+#endif
 #define BEGIN_ADDRESS (FLASH_START + FLASH_OFFSET)
 
 
