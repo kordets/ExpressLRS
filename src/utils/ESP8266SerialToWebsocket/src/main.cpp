@@ -1057,7 +1057,7 @@ void setup()
   Serial.begin(460800); // non-inverted serial
 #endif
 
-#if (BOOT0_PIN == 0)
+#if (BOOT0_PIN == 2 || BOOT0_PIN == 0)
   reset_stm32_to_app_mode();
 #endif
 
