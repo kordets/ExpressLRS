@@ -1,6 +1,5 @@
 #pragma once
 
-#include "POWERMGNT.h"
 #include "gpio.h"
 #include <stdint.h>
 
@@ -62,7 +61,7 @@ private:
 
     void setVoltageMV(uint32_t voltsMV);
     void setVoltageRegDirect(uint8_t voltReg);
-    uint8_t get_lut_index(PowerLevels_e &power);
+    uint8_t get_lut_index(uint8_t power);
 #endif
 public:
     R9DAC();
@@ -70,7 +69,7 @@ public:
               int8_t pin_switch = -1, int8_t pin_amp = -1, int8_t pin_amp2 = -1);
     void standby();
     void resume();
-    void setPower(PowerLevels_e &power);
+    void setPower(uint8_t power);
 };
 
 extern R9DAC r9dac;

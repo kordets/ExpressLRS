@@ -169,7 +169,7 @@ static uint8_t SetRadioType(uint8_t type)
 
         Radio = common_config_radio(type);
 #if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
-        PowerMgmt.Begin(Radio, r9dac);
+        PowerMgmt.Begin(Radio, &r9dac);
 #else
         PowerMgmt.Begin(Radio);
 #endif

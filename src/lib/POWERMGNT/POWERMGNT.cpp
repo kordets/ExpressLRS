@@ -1,5 +1,4 @@
 #include "POWERMGNT.h"
-#include "DAC.h"
 #include "debug_elrs.h"
 
 /* Power arrays per module type */

@@ -3,6 +3,7 @@
 #include "helpers.h"
 
 #if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
+#include "POWERMGNT.h"
 #include <Wire.h>
 
 #define VCC 3300
@@ -75,17 +76,20 @@ void R9DAC::setVoltageRegDirect(uint8_t const voltReg)
     Wire.endTransmission();
 }
 
-void R9DAC::setPower(PowerLevels_e &power)
+void R9DAC::setPower(uint8_t power)
 {
     uint32_t const reqVolt = LUT[get_lut_index(power)].volts;
     setVoltageMV(reqVolt);
 }
 
-uint8_t R9DAC::get_lut_index(PowerLevels_e &power)
+uint8_t R9DAC::get_lut_index(uint8_t power)
 {
-    uint8_t index;
+    uint8_t index = R9_PWR_10mW;
     switch (power)
     {
+        case PWR_10mW:
+            index = R9_PWR_10mW;
+            break;
         case PWR_25mW:
             index = R9_PWR_25mW;
             break;
@@ -107,11 +111,6 @@ uint8_t R9DAC::get_lut_index(PowerLevels_e &power)
         case PWR_2000mW:
             index = R9_PWR_2000mW;
             break;
-        case PWR_10mW:
-        default:
-            index = R9_PWR_10mW;
-            power = PWR_10mW;
-            break;
     };
 
     return index;
@@ -123,7 +122,7 @@ void R9DAC::init(uint8_t sda, uint8_t scl, uint8_t addr,
                  int8_t pin_switch, int8_t pin_amp, int8_t pin_amp2) {}
 void R9DAC::standby() {}
 void R9DAC::resume() {}
-void R9DAC::setPower(PowerLevels_e &power) {}
+void R9DAC::setPower(uint8_t power) {}
+#endif
 
 R9DAC r9dac;
-#endif

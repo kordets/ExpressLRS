@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RadioInterface.h"
+#include "DAC.h"
 
 #ifndef TX_POWER_DEFAULT
 /* Just in case, this should be defined in user_defines.txt file */
@@ -25,8 +26,6 @@ typedef enum
 #if TX_POWER_DEFAULT > PWR_2000mW || TX_POWER_DEFAULT < PWR_10mW
 #error "Default power is not valid!"
 #endif
-
-class R9DAC;
 
 class POWERMGNT
 {
