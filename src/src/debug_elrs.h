@@ -5,6 +5,7 @@
 #include <HardwareSerial.h>
 #include "HwSerial.h"
 #include "printf.h"
+#include "targets.h"
 
 #ifndef DEBUG_SERIAL
 
@@ -14,14 +15,14 @@
 #else
 #define DEBUG_SERIAL Serial
 #endif
+#elif defined(R9M_LITE_TX) || defined(R9M_lITE_PRO_TX)
+#ifdef DEFINE_SERIAL1
+//#define DEBUG_SERIAL Serial1
+#endif
 #elif defined(TARGET_R9M_TX) || defined(TARGET_TX_DUAL_STM32F1)
+#ifdef DEFINE_SERIAL1
 #define DEBUG_SERIAL Serial1
-#elif defined(TARGET_R9M_RX)
-//#define DEBUG_SERIAL CrsfSerial
-//#define DEBUG_SERIAL Serial
-#elif defined(PLATFORM_ESP8266)
-//#define DEBUG_SERIAL CrsfSerial
-//#define DEBUG_SERIAL Serial1 // TX1 as output
+#endif
 #else
 //#define DEBUG_SERIAL CrsfSerial
 #endif

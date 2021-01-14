@@ -161,7 +161,7 @@ void platform_radio_force_stop(void)
 static uint8_t SetRadioType(uint8_t type)
 {
     /* Configure if ratio not set or its type will be changed */
-    if (type != pl_config.rf_mode || !Radio) {
+    if ((type < RADIO_TYPE_MAX) && (type != pl_config.rf_mode || !Radio)) {
         /* Stop radio processing if chaning RF type */
         if (Radio)
             stop_processing();
@@ -362,10 +362,11 @@ send_to_rf_exit:
 
 ///////////////////////////////////////
 
-static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_t const *msg, uint8_t *out)
+static int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out, uint8_t const inlen, uint8_t & outlen)
 {
+    uint8_t const cmd = in[0];
+    uint8_t value = in[1];
     uint8_t modified = 0;
-    uint8_t value = msg[0];
 
     switch (cmd)
     {
@@ -373,7 +374,7 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
             break;
 
         case 1:
-            if (len != 1)
+            if (inlen != 2)
                 return -1;
 
             // set air rate
@@ -384,14 +385,14 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
 
         case 2:
             // set TLM interval
-            if (len != 1)
+            if (inlen != 2)
                 return -1;
             modified = (tx_tlm_change_interval(value) << 2);
             break;
 
         case 3:
             // set TX power
-            if (len != 1)
+            if (inlen != 2)
                 return -1;
             modified = PowerMgmt.currPower();
             PowerMgmt.setPower((PowerLevels_e)value);
@@ -401,6 +402,8 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
 
         case 4:
             // RFFreq
+            if (inlen != 2)
+                return -1;
             value = common_config_get_radio_type(value);
             modified |= (SetRadioType(value) << 1);
             break;
@@ -413,6 +416,8 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
 
         case 6:
             // RF power (TEST feature!)
+            if (inlen != 2)
+                return -1;
             DEBUG_PRINTF("RF Power: %u\n", value);
             Radio->SetOutputPower(value);
             break;
@@ -422,7 +427,7 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
     }
 
     // Fill response
-    if (out) {
+    if (out && 5 <= outlen) {
         //out[0] = get_elrs_airRateIndex((void*)ExpressLRS_currAirRate);
         out[0] = (uint8_t)current_rate_config;
         out[1] = (uint8_t)TLMinterval;
@@ -467,14 +472,14 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
 static void ParamWriteHandler(uint8_t const *msg, uint16_t len)
 {
     // Called from UART handling loop (main loop)
-    uint8_t resp[5];
-    if (0 > SettingsCommandHandle(msg[0], (len - 1), &msg[1], resp))
+    uint8_t resp[5], outlen = sizeof(resp);
+    if (0 > SettingsCommandHandle(msg, resp, len, outlen))
         return;
-    crsf.sendLUAresponseToRadio(resp, sizeof(resp));
+    crsf.sendLUAresponseToRadio(resp, outlen);
 
 #ifdef CTRL_SERIAL
     msp_packet_parser.sendPacket(
-        &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, sizeof(resp), resp);
+        &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, outlen, resp);
 #endif /* CTRL_SERIAL */
 }
 
@@ -629,11 +634,11 @@ void setup()
     SetRFLinkRate(current_rate_config, 1);
 
 #ifdef CTRL_SERIAL
-    uint8_t resp[5];
-    if (0 == SettingsCommandHandle(0, 0, resp, resp))
+    uint8_t resp[5], outlen = sizeof(resp);
+    if (0 == SettingsCommandHandle(0, resp, 0, outlen))
         msp_packet_parser.sendPacket(
             &ctrl_serial, MSP_PACKET_V1_ELRS,
-            ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, sizeof(resp), resp);
+            ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, outlen, resp);
 #endif /* CTRL_SERIAL */
 
     crsf.Begin();
@@ -713,9 +718,10 @@ void loop()
                     switch (packet.function) {
                         case ELRS_INT_MSP_PARAMS: {
                             uint8_t * msg = (uint8_t*)packet.payload;
-                            if (0 == SettingsCommandHandle(msg[0], (packet.payloadSize - 1), &msg[1], msg)) {
+                            uint8_t outlen = packet.payloadSize;
+                            if (0 == SettingsCommandHandle(msg, msg, packet.payloadSize, outlen)) {
                                 //packet.type = MSP_PACKET_V1_ELRS;
-                                packet.payloadSize = 5;
+                                packet.payloadSize = outlen;
                                 msp_packet_parser.sendPacket(&packet, &ctrl_serial);
                             }
                             break;

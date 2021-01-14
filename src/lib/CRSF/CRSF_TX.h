@@ -13,10 +13,11 @@ typedef struct OpenTxSyncPacket_s {
 } PACKED OpenTxSyncPacket_t;
 
 /* LUA packet is used only on TX */
+#define ELRS_LUA_BUFF_SIZE 20U
 typedef struct elrs_lua_packet_s
 {
     crsf_ext_header_t header;
-    uint8_t buffer[5];
+    uint8_t buffer[ELRS_LUA_BUFF_SIZE];
     uint8_t crc;
 } PACKED elrs_lua_packet_t;
 

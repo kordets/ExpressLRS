@@ -46,7 +46,7 @@ void CRSF_TX::Begin(void)
     TLMGPSsensor.header.type = CRSF_FRAMETYPE_GPS;
 
     p_lua_packet.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    p_lua_packet.header.frame_size = sizeof(p_lua_packet) - CRSF_FRAME_START_BYTES;
+    p_lua_packet.header.frame_size = 0; //sizeof(p_lua_packet) - CRSF_FRAME_START_BYTES;
     p_lua_packet.header.type = CRSF_FRAMETYPE_PARAMETER_WRITE;
     p_lua_packet.header.dest_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
     p_lua_packet.header.orig_addr = CRSF_ADDRESS_CRSF_TRANSMITTER;
@@ -114,13 +114,19 @@ void CRSF_TX::GpsSensorProcess(void)
 
 void CRSF_TX::sendLUAresponseToRadio(uint8_t * const data, uint8_t const size) const
 {
+    if (sizeof(p_lua_packet.buffer) < size)
+        return;
     memcpy(p_lua_packet.buffer, data, size);
+    p_lua_packet.header.frame_size = size;
     send_buffers |= SEND_LUA;
 }
 void CRSF_TX::LuaResponseProcess(void) const
 {
     send_buffers &= ~SEND_LUA;
-    CrsfFramePushToFifo((uint8_t*)&p_lua_packet, sizeof(p_lua_packet));
+    // size = hdr + crc + payload - start_bytes
+    uint8_t size = sizeof(crsf_ext_header_t) + 1 + p_lua_packet.header.frame_size;
+    p_lua_packet.header.frame_size = size - CRSF_FRAME_START_BYTES;
+    CrsfFramePushToFifo((uint8_t*)&p_lua_packet, size);
 }
 
 void CRSF_TX::sendMspPacketToRadio(mspPacket_t &msp) const
