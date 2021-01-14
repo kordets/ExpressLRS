@@ -122,6 +122,8 @@ SX127xDriver::SX127xDriver(uint8_t payload_len):
 
 #if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
     module_type = MODULE_R9M_DAC;
+#elif defined(TARGET_MODULE_LORA1276F30)
+    module_type = MODULE_LORA1276F30;
 #else
     module_type = MODULE_DEFAULT;
 #endif
@@ -172,10 +174,16 @@ void ICACHE_RAM_ATTR SX127xDriver::SetOutputPower(int8_t Power, uint8_t init)
     Power &= 0xF; // 4bits
     if (current_power == Power && !init)
         return;
-
-    writeRegister(SX127X_REG_PA_CONFIG, SX127X_PA_SELECT_BOOST | SX127X_MAX_OUTPUT_POWER | Power);
-    writeRegister(SX127X_REG_PA_DAC, (0x80 | ((Power == 0xf) ? SX127X_PA_BOOST_ON : SX127X_PA_BOOST_OFF)));
-
+    uint8_t reg = Power;
+    reg |= SX127X_PA_SELECT_BOOST;
+    if (module_type == MODULE_LORA1276F30)
+        reg |= (0x1 << 4);
+    else
+        reg |= SX127X_MAX_OUTPUT_POWER;
+    writeRegister(SX127X_REG_PA_CONFIG, reg);
+    writeRegister(SX127X_REG_PA_DAC,
+        (0x80 | ((Power == 0xf) ? SX127X_PA_BOOST_ON : SX127X_PA_BOOST_OFF)));
+    DEBUG_PRINTF("SetOutputPower: %d\n", Power);
     current_power = Power;
 }
 

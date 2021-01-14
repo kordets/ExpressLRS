@@ -315,7 +315,7 @@ void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power, uint8_t init)
 
     uint8_t buf[] = {SX1280_RADIO_SET_TXPARAMS, (uint8_t)power, SX1280_RADIO_RAMP_04_US};
     TransferBuffer(buf, sizeof(buf), 0);
-    //DEBUG_PRINTF("SetOutputPower: %d", (power - 18));
+    DEBUG_PRINTF("SetOutputPower: %d\n", (power - 18));
     current_power = power;
 }
 

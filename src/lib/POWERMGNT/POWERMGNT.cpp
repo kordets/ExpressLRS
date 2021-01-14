@@ -1,5 +1,6 @@
 #include "POWERMGNT.h"
 #include "DAC.h"
+#include "debug_elrs.h"
 
 /* Power arrays per module type */
 typedef struct {
@@ -7,29 +8,46 @@ typedef struct {
 } PowerArray_t;
 
 PowerArray_t power_array[MODULE_COUNT] = {
-    // D, 10mW, 25mW, 50mW, 100mW, 250mW, 500mW, 1000mW, 2000mW
-    {  0,    8,   12,   15,    15,    15,    15,     15,     15}, // MODULE_DEFAULT
-    {  0,    0,    0,    0,     0,     0,     0,      0,      0}, // MODULE_R9M_DAC
-    {  0,   -7,   -3,    0,     3,     8,    13,     13,     13}, // MODULE_LORA1280F27
-    {  0,  -17,  -13,  -10,    -7,    -3,     0,      0,      0}, // MODULE_E28_2G4M12S
+    // max pwr,  10mW, 25mW, 50mW, 100mW, 250mW, 500mW, 1000mW, 2000mW
+    // MODULE_DEFAULT
+    {  PWR_50mW,    8,   12,   15,    15,    15,    15,     15,     15},
+    // MODULE_R9M_DAC
+    {  PWR_1000mW,  0,    0,    0,     0,     0,     0,      0,      0},
+    // MODULE_LORA1280F27 ( these are not reliable! don't use this module )
+    {  PWR_500mW,  -7,   -3,    0,     3,     8,    13,     13,     13},
+    // MODULE_E28_2G4M12S
+    {  PWR_500mW, -17,  -13,  -10,    -7,    -3,     0,      0,      0},
+    // MODULE_LORA1276F30. 0 = 40mW, 15 = 300mW
+    {  PWR_250mW,   0,    0,    1,     4,    11,    15,     15,     15},
 };
 
 POWERMGNT::POWERMGNT()
-    : p_radio(NULL), p_current_power(PWR_UNKNOWN)
 {
+    p_radio = NULL;
+    p_dac = NULL;
+    p_current_power = (PWR_UNKNOWN);
+    p_max_power = PWR_10mW;
+    p_dyn_power = 0;
 }
 
 void POWERMGNT::Begin(RadioInterface *radio, R9DAC *dac)
 {
     p_dac = dac;
     p_radio = radio;
-    if (radio && radio->GetModuleType() == MODULE_R9M_DAC && dac)
-        radio->SetOutputPower(0b0000);
+    p_max_power = PWR_10mW;
+    if (radio) {
+        uint8_t type = radio->GetModuleType();
+        if (type < MODULE_COUNT) {
+            p_max_power = (PowerLevels_e)power_array[type].power[0];
+            if (type == MODULE_R9M_DAC && dac)
+                radio->SetOutputPower(0b0000);
+        }
+    }
 }
 
 PowerLevels_e POWERMGNT::incPower()
 {
-    if (p_dyn_power && p_current_power < MaxPower) {
+    if (p_dyn_power && p_current_power < p_max_power) {
         p_set_power((PowerLevels_e)((uint8_t)p_current_power + 1));
     }
     return p_current_power;
@@ -49,7 +67,7 @@ PowerLevels_e POWERMGNT::loopPower()
     if (p_dyn_power) {
         next = PWR_10mW;
     } else {
-        next = (PowerLevels_e)((p_current_power + 1) % (MaxPower+1));
+        next = (PowerLevels_e)((p_current_power + 1) % (p_max_power+1));
     }
     setPower(next);
     return next;
@@ -72,13 +90,13 @@ void POWERMGNT::setPower(PowerLevels_e power)
 
 void ICACHE_RAM_ATTR POWERMGNT::pa_off(void) const
 {
-    if (p_dac)
+    if (p_dac && p_radio->GetModuleType() == MODULE_R9M_DAC)
         p_dac->standby();
 }
 
 void ICACHE_RAM_ATTR POWERMGNT::pa_on(void) const
 {
-    if (p_dac)
+    if (p_dac && p_radio->GetModuleType() == MODULE_R9M_DAC)
         p_dac->resume();
 }
 
@@ -87,13 +105,17 @@ void ICACHE_RAM_ATTR POWERMGNT::pa_on(void) const
 void POWERMGNT::p_set_power(PowerLevels_e power)
 {
     if (power == p_current_power || power < PWR_10mW ||
-        power > MaxPower || !p_radio)
+        power > p_max_power || !p_radio)
         return;
 
-    if (p_dac) {
+    uint8_t type = p_radio->GetModuleType();
+
+    DEBUG_PRINTF("MGMT set pwr:%u, type:%u\n", power, type);
+
+    if (p_dac && type == MODULE_R9M_DAC) {
         p_dac->setPower(power);
     } else {
-        PowerArray_t * powers = &power_array[p_radio->GetModuleType()];
+        PowerArray_t * powers = &power_array[type];
         p_radio->SetOutputPower(powers->power[power]);
     }
     p_current_power = power;

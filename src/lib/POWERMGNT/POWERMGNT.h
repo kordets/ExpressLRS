@@ -2,17 +2,6 @@
 
 #include "RadioInterface.h"
 
-
-#if defined(TARGET_MODULE_LORA1280F27)
-#define MaxPower PWR_500mW
-#elif defined(TARGET_MODULE_E28)
-#define MaxPower PWR_500mW
-#elif defined(TARGET_R9M_TX)
-#define MaxPower PWR_1000mW // was PWR_2000mW
-#else
-#define MaxPower PWR_50mW
-#endif
-
 #ifndef TX_POWER_DEFAULT
 /* Just in case, this should be defined in user_defines.txt file */
 #define TX_POWER_DEFAULT PWR_50mW
@@ -43,8 +32,9 @@ class POWERMGNT
 {
 private:
     RadioInterface *p_radio;
-    PowerLevels_e p_current_power = PWR_10mW;
-    uint_fast8_t p_dyn_power = 0;
+    PowerLevels_e p_current_power;
+    PowerLevels_e p_max_power;
+    uint_fast8_t p_dyn_power;
     R9DAC * p_dac;
 
     void p_set_power(PowerLevels_e power);
@@ -65,7 +55,7 @@ public:
     }
     PowerLevels_e maxPowerGet() const
     {
-        return MaxPower;
+        return p_max_power;
     }
     void setPower(PowerLevels_e power);
 

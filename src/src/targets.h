@@ -393,7 +393,7 @@ https://github.com/jaxxzer
 #define GPIO_PIN_RCSIGNAL_RX PA3 //PB4
 #define GPIO_PIN_RCSIGNAL_TX PA2 //PB3
 #define BUFFER_OE            PB9 // Just dummy pin
-#define RCSIGNAL_USE_DMA     0
+#define RCSIGNAL_USE_DMA     1
 
 // ESPbackpack logger (USART1)
 #define CTRL_SERIAL Serial1

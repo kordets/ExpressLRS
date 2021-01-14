@@ -168,7 +168,11 @@ static uint8_t SetRadioType(uint8_t type)
             stop_processing();
 
         Radio = common_config_radio(type);
+#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
+        PowerMgmt.Begin(Radio, r9dac);
+#else
         PowerMgmt.Begin(Radio);
+#endif
         PowerMgmt.setPower(power);
         pl_config.rf_mode = type;
         return 1;
@@ -398,6 +402,12 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
             // Start WiFi
             platform_radio_force_stop();
             platform_wifi_start();
+            break;
+
+        case 6:
+            // RF power (TEST feature!)
+            DEBUG_PRINTF("RF Power: %u\n", value);
+            Radio->SetOutputPower(value);
             break;
 
         default:
