@@ -66,9 +66,11 @@ void init_globals(void) {
     current_rate_config = RATE_DEFAULT;
 
     pl_config.key = 0;
-    pl_config.mode = RATE_DEFAULT;
-    pl_config.power = TX_POWER_DEFAULT;
-    pl_config.tlm = TLM_RATIO_DEFAULT;
+    for (uint8_t iter = 0; iter < ARRAY_SIZE(pl_config.rf); iter++) {
+        pl_config.rf[iter].mode = RATE_DEFAULT;
+        pl_config.rf[iter].power = TX_POWER_DEFAULT;
+        pl_config.rf[iter].tlm = TLM_RATIO_DEFAULT;
+    }
 
     // Default to 127x if both defined
 #if RADIO_SX127x
@@ -160,21 +162,26 @@ static uint8_t SetRadioType(uint8_t type)
 {
     /* Configure if ratio not set or its type will be changed */
     if (type != pl_config.rf_mode || !Radio) {
-        PowerLevels_e power =
-            (PowerLevels_e)(pl_config.power % PWR_UNKNOWN);
-
         /* Stop radio processing if chaning RF type */
         if (Radio)
             stop_processing();
-
         Radio = common_config_radio(type);
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
+
+        current_rate_config =
+            pl_config.rf[type].mode % get_elrs_airRateMax();
+        TLMinterval = pl_config.rf[type].tlm;
+        PowerLevels_e power =
+            (PowerLevels_e)(pl_config.rf[type].power % PWR_UNKNOWN);
+        platform_mode_notify(get_elrs_airRateMax() - current_rate_config);
+
+#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
         PowerMgmt.Begin(Radio, &r9dac);
 #else
         PowerMgmt.Begin(Radio);
 #endif
         PowerMgmt.setPower(power);
         pl_config.rf_mode = type;
+
         return 1;
     }
     return 0;
@@ -443,10 +450,11 @@ static int8_t SettingsCommandHandle(uint8_t const cmd, uint8_t const len, uint8_
         }
 
         // Save modified values
+        uint8_t type = pl_config.rf_mode;
         pl_config.key = ELRS_EEPROM_KEY;
-        pl_config.mode = current_rate_config;
-        pl_config.power = PowerMgmt.currPower();
-        pl_config.tlm = TLMinterval;
+        pl_config.rf[type].mode = current_rate_config;
+        pl_config.rf[type].power = PowerMgmt.currPower();
+        pl_config.rf[type].tlm = TLMinterval;
         platform_config_save(pl_config);
 
         // and restart timer
@@ -608,9 +616,6 @@ void setup()
     platform_setup();
     DEBUG_PRINTF("ExpressLRS TX Module...\n");
     platform_config_load(pl_config);
-    current_rate_config = pl_config.mode % get_elrs_airRateMax();
-    TLMinterval = pl_config.tlm;
-    platform_mode_notify(get_elrs_airRateMax() - current_rate_config);
 
     crsf.connected = hw_timer_init; // it will auto init when it detects UART connection
     crsf.disconnected = hw_timer_stop;

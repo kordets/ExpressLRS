@@ -5,7 +5,7 @@
 
 class R9DAC
 {
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
+#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
 private:
     enum
     {

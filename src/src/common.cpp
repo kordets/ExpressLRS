@@ -173,7 +173,6 @@ RadioInterface* common_config_radio(uint8_t type)
     DEBUG_PRINTF("Using radio type: %u\n", type);
 
     FHSS_init(type);
-    //FHSSrandomiseFHSSsequence();
 
     radio->SetPins(config->rst, config->dio0, config->dio1, config->dio2,
                    config->busy, config->txen, config->rxen);

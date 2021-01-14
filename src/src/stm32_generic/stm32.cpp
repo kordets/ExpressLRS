@@ -59,7 +59,7 @@ void play_tone_loop(uint32_t ms)
     }
 }
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
+#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
 #include "DAC.h"
 #endif /* TARGET_R9M_TX */
 #endif /* TX_MODULE */
@@ -100,13 +100,9 @@ int8_t platform_config_load(struct platform_config &config)
     int8_t res = -1;
     struct platform_config temp;
     EEPROM.get(0, temp);
-    if (temp.key == ELRS_EEPROM_KEY)
-    {
+    if (temp.key == ELRS_EEPROM_KEY) {
         /* load ok, copy values */
-        config.key = temp.key;
-        config.mode = temp.mode;
-        config.power = temp.power;
-        config.tlm = temp.tlm;
+        memcpy(&config, &temp, sizeof(temp));
         res = 0;
     }
 #else
@@ -114,7 +110,7 @@ int8_t platform_config_load(struct platform_config &config)
     config.key = ELRS_EEPROM_KEY;
 #endif
     if (rate_config_dips < get_elrs_airRateMax())
-        config.mode = rate_config_dips;
+        config.rf[config.rf_mode].mode = rate_config_dips;
     return res;
 }
 
@@ -184,7 +180,7 @@ void platform_setup(void)
 #if defined(TX_MODULE)
     /*************** CONFIGURE TX *******************/
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
+#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
     // DAC is used to control ADC which sets PA output
     r9dac.init(GPIO_PIN_SDA, GPIO_PIN_SCL, 0b0001100,
                GPIO_PIN_RFswitch_CONTROL, GPIO_PIN_RFamp_APC1, GPIO_PIN_RFamp_APC2);

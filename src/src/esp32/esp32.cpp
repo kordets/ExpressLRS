@@ -59,19 +59,12 @@ int8_t platform_config_load(struct platform_config &config)
     struct platform_config temp;
 
     //taskDISABLE_INTERRUPTS();
-    temp.key = EEPROM.readUInt(offsetof(struct platform_config, key));
-    temp.mode = EEPROM.readUInt(offsetof(struct platform_config, mode));
-    temp.power = EEPROM.readUInt(offsetof(struct platform_config, power));
-    temp.tlm = EEPROM.readUInt(offsetof(struct platform_config, tlm));
+    EEPROM.get(0, temp);
     //taskENABLE_INTERRUPTS();
 
-    if (temp.key == ELRS_EEPROM_KEY)
-    {
+    if (temp.key == ELRS_EEPROM_KEY) {
         /* load ok, copy values */
-        config.key = temp.key;
-        config.mode = temp.mode;
-        config.power = temp.power;
-        config.tlm = temp.tlm;
+        memcpy(&config, &temp, sizeof(temp));
         return 0;
     }
     return -1;
@@ -87,10 +80,7 @@ int8_t platform_config_save(struct platform_config &config)
     if (config.key != ELRS_EEPROM_KEY)
         return -1;
 #if STORE_TO_FLASH
-    EEPROM.writeUInt(offsetof(struct platform_config, key), config.key);
-    EEPROM.writeUInt(offsetof(struct platform_config, mode), config.mode);
-    EEPROM.writeUInt(offsetof(struct platform_config, power), config.power);
-    EEPROM.writeUInt(offsetof(struct platform_config, tlm), config.tlm);
+    EEPROM.put(0, config);
     //taskDISABLE_INTERRUPTS();
     retval = EEPROM.commit() ? 0 : -1;
     //taskENABLE_INTERRUPTS();

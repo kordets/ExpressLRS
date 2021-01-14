@@ -299,7 +299,7 @@ https://github.com/jaxxzer
 #define GPIO_PIN_RCSIGNAL_RX PB11 // USART3 RX for S.Port
 #define GPIO_PIN_RCSIGNAL_TX PB10 // USART3 TX for S.Port, needs BUFFER_OE
 
-#if defined(R9M_lITE_TX)
+#if defined(R9M_LITE_TX)
 #define GPIO_PIN_DIO0        PC15
 #define GPIO_PIN_LED_RED     PA1 // Red LED // not yet confirmed
 #define GPIO_PIN_LED_GREEN   PA4 // Green LED // not yet confirmed

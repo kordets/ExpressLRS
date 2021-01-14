@@ -2,7 +2,7 @@
 #include "DAC.h"
 #include "helpers.h"
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
+#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
 #include "POWERMGNT.h"
 #include <Wire.h>
 

@@ -120,7 +120,7 @@ SX127xDriver::SX127xDriver(uint8_t payload_len):
     current_freq = 0;
     current_power = 0xF; // outside range to make sure the power is initialized
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_lITE_TX)
+#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
     module_type = MODULE_R9M_DAC;
 #elif defined(TARGET_MODULE_LORA1276F30)
     module_type = MODULE_LORA1276F30;

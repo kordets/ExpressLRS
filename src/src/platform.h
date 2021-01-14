@@ -47,15 +47,17 @@ static inline uint8_t read_u8(const void *addr) {
 * v1 - tlm added
 * v2 - power range changed (dynamic added)
 */
-#define ELRS_EEPROM_KEY 0x454c5204 // ELR + version nbr
+#define ELRS_EEPROM_KEY 0x454c5205 // ELR + version nbr
 
 struct platform_config
 {
     uint32_t key;
-    uint32_t mode;
-    uint32_t power;
-    uint32_t tlm;
     uint32_t rf_mode;
+    struct rf_s {
+        uint32_t mode;
+        uint32_t power;
+        uint32_t tlm;
+    } rf[2]; // rf_mode: 0 = SX127x, 1 = SX128x
 };
 
 int8_t platform_config_load(struct platform_config &config);

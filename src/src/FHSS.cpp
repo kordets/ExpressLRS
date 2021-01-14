@@ -12,13 +12,11 @@
 #include "fhss_freqs_128x.h"
 #endif
 
-#ifndef FHSS_MY_STEP
-#define FHSS_MY_STEP 1
-#endif
-
+static uint32_t DRAM_FORCE_ATTR FHSSstep;
 static uint32_t DRAM_FORCE_ATTR FHSSsequenceLen;
 static uint8_t * DRAM_FORCE_ATTR FHSSsequence;
 static uint32_t * DRAM_FORCE_ATTR FHSSfreqs;
+
 
 volatile uint32_t DRAM_ATTR FHSSptr;
 volatile int_fast32_t DRAM_ATTR FreqCorrection;
@@ -30,6 +28,7 @@ void ICACHE_RAM_ATTR FHSS_init(uint8_t mode)
         FHSSsequence = SX127x::FHSSsequence;
         FHSSsequenceLen = sizeof(SX127x::FHSSsequence);
         FHSSfreqs = SX127x::FHSSfreqs;
+        FHSSstep = SX127x::FHSS_MY_STEP;
     }
 #endif
 #if RADIO_SX128x
@@ -37,8 +36,10 @@ void ICACHE_RAM_ATTR FHSS_init(uint8_t mode)
         FHSSsequence = SX128x::FHSSsequence;
         FHSSsequenceLen = sizeof(SX128x::FHSSsequence);
         FHSSfreqs = SX128x::FHSSfreqs;
+        FHSSstep = SX128x::FHSS_MY_STEP;
     }
 #endif
+    //FHSSrandomiseFHSSsequence();
 }
 
 void ICACHE_RAM_ATTR FHSSfreqCorrectionReset(void)
@@ -53,7 +54,7 @@ void ICACHE_RAM_ATTR FHSSfreqCorrectionSet(int32_t error)
 
 void ICACHE_RAM_ATTR FHSSsetCurrIndex(uint32_t value)
 { // set the current index of the FHSS pointer
-    FHSSptr = value % sizeof(FHSSsequence);
+    FHSSptr = value % FHSSsequenceLen;
 }
 
 uint32_t ICACHE_RAM_ATTR FHSSgetCurrIndex()
@@ -63,7 +64,7 @@ uint32_t ICACHE_RAM_ATTR FHSSgetCurrIndex()
 
 void ICACHE_RAM_ATTR FHSSincCurrIndex()
 {
-    FHSSptr = (FHSSptr + FHSS_MY_STEP) % sizeof(FHSSsequence);
+    FHSSptr = (FHSSptr + FHSSstep) % FHSSsequenceLen;
 }
 
 uint8_t ICACHE_RAM_ATTR FHSSgetCurrSequenceIndex()
@@ -157,7 +158,7 @@ void FHSSrandomiseFHSSsequence(uint8_t mode)
     unsigned int prev = 0;           // needed to prevent repeats of the same index
 
     // for each slot in the sequence table
-    for (uint32_t i = 0; i < sizeof(FHSSsequence); i++)
+    for (uint32_t i = 0; i < FHSSsequenceLen; i++)
     {
         if (i % SYNC_INTERVAL == 0)
         {
