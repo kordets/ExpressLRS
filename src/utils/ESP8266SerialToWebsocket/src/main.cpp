@@ -856,6 +856,15 @@ void handleFileUpload()
 /*************                    ESP OTA UPGRADE                      *************/
 #define LOCAL_OTA 0
 #if LOCAL_OTA
+void handle_upgrade_error(void)
+{
+  server.sendHeader("Location", "/return");          // Redirect the client to the success page
+  server.send(303);
+  webSocket.broadcastTXT(
+    (Update.hasError()) ? "Update Failure!" : "Update Successful!");
+  server.send(Update.hasError() ? 200 : 400);
+}
+
 void handleEspUpgrade(void)
 {
   HTTPUpload& upload = server.upload();
@@ -868,8 +877,9 @@ void handleEspUpgrade(void)
     /*if (upload.name != "backpack_fw") {
       webSocket.broadcastTXT("Invalid upload type!");
       return;
-    } else*/ if (upload.filename.startsWith("backpack.bin")) {
+    } else*/ if (!upload.filename.startsWith("backpack.bin")) {
       webSocket.broadcastTXT("Invalid file! Update aborted...");
+      handle_upgrade_error();
       return;
     }
 
@@ -877,11 +887,13 @@ void handleEspUpgrade(void)
     if (!Update.begin(maxSketchSpace, U_FLASH)) { //start with max available size
       //Update.printError(Serial);
       webSocket.broadcastTXT("File is too big!");
+      handle_upgrade_error();
     }
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
       //Update.printError(Serial);
       webSocket.broadcastTXT("Junk write failed!");
+      handle_upgrade_error();
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (Update.end(true)) { //true to set the size to the current progress
@@ -900,8 +912,13 @@ void handleEspUpgrade(void)
 
 void handleEspUpgradeFinalize(void)
 {
-  server.sendHeader("Connection", "close");
-  server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+  server.sendHeader("Location", "/return");          // Redirect the client to the success page
+  server.send(303);
+  webSocket.broadcastTXT(
+    (Update.hasError()) ? "Update Failure!" : "Update Successful!");
+  server.send(Update.hasError() ? 200 : 400);
+  //server.sendHeader("Connection", "close");
+  //server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
   ESP.restart();
 }
 #endif // LOCAL_OTA
@@ -1125,7 +1142,7 @@ void setup()
   server.on("/return", sendReturn);
   server.on("/mac", handleMacAddress);
 #if LOCAL_OTA
-  server.on("/update", HTTP_POST, // ESP OTA upgrade
+  server.on("/update_tst", HTTP_POST, // ESP OTA upgrade
     handleEspUpgradeFinalize, handleEspUpgrade);
 #endif // LOCAL_OTA
   server.on("/upload", HTTP_POST, // STM32 OTA upgrade
