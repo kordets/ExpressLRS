@@ -310,9 +310,9 @@ void SystemClock_Config(void)
     RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
                                     | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4; // must be <= 54MHz
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1; // HCLK
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;  // PCLK1, must be <= 54MHz
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;  // PCLK2
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7) != HAL_OK) {
         Error_Handler();
     }
@@ -320,7 +320,9 @@ void SystemClock_Config(void)
     PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART2
                                          |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_USART6
                                          |RCC_PERIPHCLK_UART4|RCC_PERIPHCLK_UART5
-                                         |RCC_PERIPHCLK_UART7|RCC_PERIPHCLK_UART8;
+                                         |RCC_PERIPHCLK_UART7|RCC_PERIPHCLK_UART8
+                                         |RCC_PERIPHCLK_I2C1|RCC_PERIPHCLK_I2C3
+                                         |RCC_PERIPHCLK_I2C2|RCC_PERIPHCLK_I2C4;
     PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
     PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
     PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
@@ -329,6 +331,10 @@ void SystemClock_Config(void)
     PeriphClkInit.Usart6ClockSelection = RCC_USART6CLKSOURCE_PCLK2;
     PeriphClkInit.Uart7ClockSelection = RCC_UART7CLKSOURCE_PCLK1;
     PeriphClkInit.Uart8ClockSelection = RCC_UART8CLKSOURCE_PCLK1;
+    PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
+    PeriphClkInit.I2c2ClockSelection = RCC_I2C2CLKSOURCE_PCLK1;
+    PeriphClkInit.I2c3ClockSelection = RCC_I2C3CLKSOURCE_PCLK1;
+    PeriphClkInit.I2c4ClockSelection = RCC_I2C4CLKSOURCE_PCLK1;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
         Error_Handler();
     }

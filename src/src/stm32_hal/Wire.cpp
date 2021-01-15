@@ -43,9 +43,8 @@ void* i2c_setup(I2C_HandleTypeDef * handle, uint32_t rate, uint8_t own_addr)
     // FIXME: this is not correct!
     handle->Init.Timing = (rate == 100000) ? 0x30f05052 : 0x10c11a2b;
 #elif defined(STM32F7xx)
-    /* STM32F7xx runs with 216MHz clock! */
-    // FIXME: this is not correct!
-    //handle->Init.Timing = (rate == 100000) ? 0x30f05052 : 0x10c11a2b;
+    /* STM32F7xx: I2C runs at 54MHz*/
+    handle->Init.Timing = (rate == 100000) ? 0x20f04f50 : 0x1090131f;
 #else
 #error "No valid I2C config!"
 #endif

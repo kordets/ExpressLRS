@@ -1,9 +1,9 @@
-#if defined(TARGET_HANDSET_STM32F722)
-
+#include "gimbals.h"
 #include "gpio.h"
 #include "internal.h"
 #include "stm32_def.h"
 #include "helpers.h"
+#include "targets.h"
 
 #if defined(STM32F7xx)
 #include "stm32f7xx_hal_adc.h"
@@ -36,6 +36,7 @@ union adc_raw RawVals;
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
+TIM_HandleTypeDef htim;
 
 struct adc_pins {
     uint32_t pin;
@@ -85,11 +86,36 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 
 }
 
+static void ADC1_ConfigChannel(uint32_t channel, uint8_t rank)
+{
+    /** Configure for the selected ADC regular channel its corresponding
+     * rank in the sequencer and its sample time.
+     */
+    ADC_ChannelConfTypeDef sConfig;
+    sConfig.Channel = channel;
+    sConfig.Rank = rank;
+    //  84 =  6.2us
+    // 112 =  8.3us
+    // 144 = 10.7us
+    // 480 = 35.6us
+    // one shot: 8*4*10.7us = 342.4us;
+    sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+    sConfig.Offset = 0;
+    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
+        Error_Handler();
+    }
+}
 
 static void ADC1_Init(void)
 {
     if (hadc1.Instance)
         return;
+    uint32_t channels[4] = {
+        GIMBAL_L1, GIMBAL_L2,
+        GIMBAL_R1, GIMBAL_R2,
+    };
+    uint32_t pin;
+    uint8_t iter, chan;
 
     /* Peripheral clock enable */
     __HAL_RCC_ADC1_CLK_ENABLE();
@@ -106,6 +132,8 @@ static void ADC1_Init(void)
     hdma_adc1.Init.Mode = DMA_CIRCULAR;
     hdma_adc1.Init.Priority = DMA_PRIORITY_MEDIUM;
     hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    hdma_adc1.Init.MemBurst = DMA_MBURST_SINGLE;
+    hdma_adc1.Init.PeriphBurst = DMA_PBURST_SINGLE;
     if (HAL_DMA_Init(&hdma_adc1) != HAL_OK) {
         Error_Handler();
     }
@@ -115,20 +143,48 @@ static void ADC1_Init(void)
      *  (Clock, Resolution, Data Alignment and number of conversion)
      */
     hadc1.Instance = ADC1;
-    hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV8;
+    // Clock = 54MHz / 4 = 13.5MHz
+    hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
     hadc1.Init.Resolution = ADC_RESOLUTION_12B;
     hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
-    hadc1.Init.ContinuousConvMode = ENABLE;
+    hadc1.Init.ContinuousConvMode = ARRAY_SIZE(channels) > 1 ? ENABLE : DISABLE;
     hadc1.Init.DiscontinuousConvMode = DISABLE;
     hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+    //hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T1_CC1;
     hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
     hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-    hadc1.Init.NbrOfConversion = 1;
-    hadc1.Init.DMAContinuousRequests = DISABLE;
-    hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV; //ADC_EOC_SINGLE_CONV;
+    hadc1.Init.NbrOfConversion = ARRAY_SIZE(channels);
+    // Trigger DMA in circular mode
+    hadc1.Init.DMAContinuousRequests = ENABLE;
+    hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
     if (HAL_ADC_Init(&hadc1) != HAL_OK) {
         Error_Handler();
     }
+
+    for (iter = 0; iter < ARRAY_SIZE(channels); iter++) {
+        for (chan = 0; chan < ARRAY_SIZE(adc_pins); chan++) {
+            pin = channels[iter];
+            if (adc_pins[chan].pin == pin) {
+                gpio_peripheral(pin, GPIO_ANALOG, 0);
+                ADC1_ConfigChannel(adc_pins[chan].adc_ch, (iter + 1));
+            }
+        }
+    }
+
+#if 0
+    /* Config 1kHz timer to trigger conversions */
+    enable_pclock((uint32_t)TIM1);
+
+    htim.Instance = TIM1;
+    htim.Init.Prescaler = 108 - 1;
+    htim.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim.Init.Period = 1000 - 1;
+    htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim.Init.RepetitionCounter = 0;
+    htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    HAL_TIM_Base_Init(&htim);
+    HAL_TIM_Base_Start(&htim);
+#endif
 
     /* ADC1 interrupt Init */
     //HAL_NVIC_SetPriority(ADC_IRQn, 0, 0);
@@ -138,54 +194,23 @@ static void ADC1_Init(void)
 
     HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+
+    HAL_ADC_Start_DMA(
+        &hadc1, (uint32_t*)&RawVals, (sizeof(RawVals) / sizeof(uint16_t)));
 }
 
-static void ADC1_ConfigChannel(uint32_t channel)
-{
-    uint32_t num = hadc1.Init.NbrOfConversion;
 
-    /** Configure for the selected ADC regular channel its corresponding
-     * rank in the sequencer and its sample time.
-     */
-    ADC_ChannelConfTypeDef sConfig;
-    sConfig.Channel = channel;
-    sConfig.Rank = num;
-    sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
-    sConfig.Offset = 0;
-    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
-        Error_Handler();
-    }
 
-    /* Set ADC number of conversion */
-    hadc1.Instance->SQR1 &= ~(ADC_SQR1_L);
-    hadc1.Instance->SQR1 |=  ADC_SQR1(num);
-    hadc1.Init.NbrOfConversion = num + 1;
-}
+
+
+
+
+
 
 struct gpio_adc gpio_adc_setup(uint32_t pin)
 {
-    uint8_t chan;
-    if (GPIO('J', 0) <= pin)
-        return {.adc = NULL, .chan = 0};
-
-    for (chan = 0; chan < ARRAY_SIZE(adc_pins); chan++) {
-        if (adc_pins[chan].pin == pin)
-            break;
-    }
-    if (chan < ARRAY_SIZE(adc_pins)) {
-        ADC1_Init();
-        gpio_peripheral(pin, GPIO_ANALOG, 0);
-        ADC1_ConfigChannel(adc_pins[chan].adc_ch);
-        return {.adc = hadc1.Instance, .chan = 0};
-    }
     return {.adc = NULL, .chan = 0};
 }
-
-void gpio_adc_start(void)
-{
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&RawVals, sizeof(RawVals)/sizeof(uint32_t));
-}
-
 
 uint32_t gpio_adc_sample(struct gpio_adc g)
 {
@@ -201,5 +226,3 @@ void gpio_adc_cancel_sample(struct gpio_adc g)
 {
 
 }
-
-#endif /* ELRS_HANDSET */
