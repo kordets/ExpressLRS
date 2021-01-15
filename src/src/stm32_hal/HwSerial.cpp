@@ -3,8 +3,9 @@
 #include "Arduino.h"
 #include "gpio.h"
 
-
+#if (GPIO_PIN_RCSIGNAL_RX != UNDEF_PIN) || (GPIO_PIN_RCSIGNAL_TX != UNDEF_PIN)
 HwSerial CrsfSerial(GPIO_PIN_RCSIGNAL_RX, GPIO_PIN_RCSIGNAL_TX, BUFFER_OE);
+#endif
 
 HwSerial::HwSerial(uint32_t _rx, uint32_t _tx, int32_t pin)
     : HardwareSerial(_rx, _tx, RCSIGNAL_USE_DMA)

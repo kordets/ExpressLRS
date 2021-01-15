@@ -28,6 +28,14 @@
 #include <stm32f3xx_ll_usart.h>
 #include <stm32f3xx_ll_bus.h>
 #include <stm32f3xx_ll_dma.h>
+#elif defined(STM32F7xx)
+#include <stm32f7xx_ll_usart.h>
+#include <stm32f7xx_ll_bus.h>
+#include <stm32f7xx_ll_dma.h>
+#define LL_DMA_EnableChannel LL_DMA_EnableStream
+#define LL_DMA_DisableChannel LL_DMA_DisableStream
+#define LL_DMA_IsEnabledChannel LL_DMA_IsEnabledStream
+#define LL_DMA_SetChannelPriorityLevel LL_DMA_ConfigTransfer
 #endif
 #include <string.h>
 
@@ -97,6 +105,15 @@ constexpr uint8_t serial_cnt = 0
 #ifdef UART5
     + 1
 #endif
+#ifdef USART6
+    + 1
+#endif
+#ifdef UART7
+//    + 1
+#endif
+#ifdef UART8
+//    + 1
+#endif
     ;
 HardwareSerial * _started_serials[serial_cnt];
 
@@ -118,7 +135,14 @@ int8_t DMA_transmit(HardwareSerial * serial, uint8_t dma_ch)
         if (data && len) {
             //LL_DMA_DisableChannel(dma, dma_ch);
             /* Clear all irq flags */
+#ifdef STM32F7xx
+            if (dma_ch <= 3)
+                WRITE_REG(dma->LIFCR, ((1 << DMA_LIFCR_CFEIF1_Pos) - 1) << dma_ch);
+            else
+                WRITE_REG(dma->HIFCR, ((1 << DMA_LIFCR_CFEIF1_Pos) - 1) << dma_ch);
+#else
             WRITE_REG(dma->IFCR, 0xF << (dma_ch - 1));
+#endif
             /* Set source address */
             LL_DMA_SetMemoryAddress(dma, dma_ch, data);
             LL_DMA_SetDataLength(dma, dma_ch, len);
@@ -216,12 +240,24 @@ void USARTx_DMA_handler(uint32_t index)
         return;
     uint32_t channel = serial->dma_ch_tx;
     DMA_TypeDef * dma = (DMA_TypeDef *)serial->dma_unit_tx;
+#ifdef STM32F7xx
+    uint32_t sr = (channel <= 3) ? dma->LISR : dma->HISR;
+    uint32_t mask = (DMA_LISR_TCIF0_Msk << ((DMA_LISR_TCIF0_Pos + 1) * channel));
+#else
     uint32_t sr = dma->ISR, mask = (DMA_ISR_TCIF1_Msk << (4 * (channel-1)));
+#endif
     if (sr & mask) {
         LL_DMA_DisableChannel(dma, channel);
         if (DMA_transmit(serial, channel) < 0)
             serial->hw_enable_receiver();
+#ifdef STM32F7xx
+        if (channel <= 3)
+            dma->LIFCR = mask;
+        else
+            dma->HIFCR = mask;
+#else
         dma->IFCR = mask;
+#endif
     }
 }
 

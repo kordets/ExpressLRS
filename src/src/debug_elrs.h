@@ -23,6 +23,8 @@
 #ifdef DEFINE_SERIAL1
 #define DEBUG_SERIAL Serial1
 #endif
+#elif defined(TARGET_HANDSET_STM32F722)
+#define DEBUG_SERIAL CTRL_SERIAL
 #else
 //#define DEBUG_SERIAL CrsfSerial
 #endif

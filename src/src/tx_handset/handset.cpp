@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "utils.h"
 #include "common.h"
-#include "CRSF_TX.h"
 #include "FHSS.h"
 #include "targets.h"
 #include "POWERMGNT.h"
@@ -24,7 +23,6 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 
 ///////////////////
 /// define some libs to use ///
-CRSF_TX DRAM_FORCE_ATTR crsf(CrsfSerial);
 POWERMGNT DRAM_FORCE_ATTR PowerMgmt;
 
 static uint32_t DRAM_ATTR _rf_rxtx_counter;
@@ -240,7 +238,7 @@ static void process_rx_buffer()
         }
         case DL_PACKET_GPS:
         {
-            crsf.GpsStatsExtract((uint8_t*)rx_buffer);
+            // TODO: handle GPS stuff
             break;
         }
         case DL_PACKET_FREE1:
@@ -301,8 +299,6 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     uint8_t * const tx_buffer = (uint8_t *)__tx_buffer;
     uint16_t crc;
     uint8_t index = OTA_PACKET_DATA, arm_state = RcChannels_get_arm_channel_state();
-
-    crsf.UpdateOpenTxSyncOffset(current_us); // tells the crsf that we want to send data now - this allows opentx packet syncing
 
     // Check if telemetry RX ongoing
     if (tlm_ratio && (rxtx_counter & tlm_ratio) == 0) {
@@ -470,20 +466,6 @@ static int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out, uint8_t con
     return 0;
 }
 
-static void ParamWriteHandler(uint8_t const *msg, uint16_t len)
-{
-    // Called from UART handling loop (main loop)
-    uint8_t resp[5], outlen = sizeof(resp);
-    if (0 > SettingsCommandHandle(msg, resp, len, outlen))
-        return;
-    crsf.sendLUAresponseToRadio(resp, outlen);
-
-#ifdef CTRL_SERIAL
-    msp_packet_parser.sendPacket(
-        &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, outlen, resp);
-#endif /* CTRL_SERIAL */
-}
-
 ///////////////////////////////////////
 static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link (hz)
 {
@@ -505,7 +487,9 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
     FHSSsetCurrIndex(0);
     Radio->Config(config->bw, config->sf, config->cr, GetInitialFreq(),
                   config->PreambleLen, (OTA_PACKET_CRC == 0));
-    crsf.setRcPacketRate(config->interval);
+
+    // TODO: adjust ADC refresh rate!
+
     LinkStatistics.link.rf_Mode = config->rate_osd_num;
 
     tx_tlm_change_interval(TLMinterval, init);
@@ -534,48 +518,6 @@ static void hw_timer_stop(void)
 static void rc_data_cb(uint8_t const *const channels)
 {
     RcChannels_processChannels((rc_channels_t*)channels);
-}
-
-/* Parse CRSF encapsulated MSP packet */
-static void msp_data_cb(uint8_t const *const input)
-{
-     /* process MSP packet from radio
-     *    Start:
-     *      [0] header: seq&0xF,
-     *      [1] payload size
-     *      [2] function
-     *      [3...7] payload / crc
-     *    Next:
-     *      [0] header
-     *      [1...7] payload / crc
-     */
-    mspHeaderV1_RX_t *hdr = (mspHeaderV1_RX_t *)input;
-    uint16_t iter;
-
-    if (read_u8(&tlm_msp_send) || (TLM_RATIO_NO_TLM == TLMinterval)) {
-        DEBUG_PRINTF("MSP TX packet ignored\n");
-        return;
-    }
-
-    if (hdr->flags & MSP_STARTFLAG) {
-        msp_packet_tx.reset();
-        msp_packet_tx.type = MSP_PACKET_TLM_OTA;
-        msp_packet_tx.payloadSize = hdr->hdr.payloadSize + 2; // incl size+func
-        msp_packet_tx.function = hdr->hdr.function;
-    }
-    for (iter = 0; (iter < sizeof(hdr->payload)) && !msp_packet_tx.iterated(); iter++) {
-        msp_packet_tx.addByte(hdr->payload[iter]);
-    }
-    if (iter < sizeof(hdr->payload)) {
-        // check CRC
-        if ((hdr->payload[iter] == msp_packet_tx.crc) && !msp_packet_tx.error) {
-            msp_packet_tx.addByte(msp_packet_tx.crc);
-            msp_packet_tx.setIteratorToSize();
-            write_u8(&tlm_msp_send, 1); // rdy for sending
-        } else {
-            msp_packet_tx.reset();
-        }
-    }
 }
 
 #ifdef CTRL_SERIAL
@@ -617,17 +559,9 @@ void setup()
 
     CRCCaesarCipher = CalcCRC16(UID, sizeof(UID), 0);
 
-    CrsfSerial.Begin(CRSF_TX_BAUDRATE_FAST);
-
     platform_setup();
     DEBUG_PRINTF("ExpressLRS TX Module...\n");
     platform_config_load(pl_config);
-
-    crsf.connected = hw_timer_init; // it will auto init when it detects UART connection
-    crsf.disconnected = hw_timer_stop;
-    crsf.ParamWriteCallback = ParamWriteHandler;
-    crsf.RCdataCallback1 = rc_data_cb;
-    crsf.MspCallback = msp_data_cb;
 
     TxTimer.callbackTock = &SendRCdataToRF;
 
@@ -642,13 +576,11 @@ void setup()
             ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, outlen, resp);
 #endif /* CTRL_SERIAL */
 
-    crsf.Begin();
+    // Start ADC reading
 }
 
 void loop()
 {
-    uint8_t can_send;
-
     if (rx_buffer_handle)
     {
         process_rx_buffer();
@@ -685,22 +617,21 @@ void loop()
                 LinkStatistics.link.downlink_Link_quality = 0;
 
             LinkStatistics.link.uplink_TX_Power = PowerMgmt.power_to_radio_enum();
-            crsf.LinkStatisticsSend(LinkStatistics);
-            crsf.BatterySensorSend();
-            crsf.GpsSensorSend();
+
+            //  TODO: send stats to ESP over MSP packets!
+            // Link stats, GPS, battery info
         }
     }
 
-    // Process CRSF packets from TX
-    can_send = crsf.handleUartIn();
-
     if (!rx_buffer_handle) {
         // Send MSP resp if allowed and packet ready
-        if (can_send && tlm_msp_rcvd)
+        if (tlm_msp_rcvd)
         {
             DEBUG_PRINTF("DL MSP rcvd. func: %x, size: %u\n",
                 msp_packet_rx.function, msp_packet_rx.payloadSize);
-            crsf.sendMspPacketToRadio(msp_packet_rx);
+
+            // TODO: Send received MSP packet to ESP!
+
             msp_packet_rx.reset();
             tlm_msp_rcvd = 0;
         }

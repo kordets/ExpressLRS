@@ -129,7 +129,7 @@ void platform_setup(void)
 {
     EEPROM.begin();
 
-#if defined(DEBUG_SERIAL) && defined(TX_MODULE)
+#if defined(DEBUG_SERIAL) && defined(TX_MODULE) && !defined(TARGET_HANDSET_STM32F722)
     // Init debug serial if not done already
     if (((void *)&DEBUG_SERIAL != (void *)&CrsfSerial) &&
         ((void *)&DEBUG_SERIAL != (void *)&Serial1))

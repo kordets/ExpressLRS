@@ -402,6 +402,36 @@ https://github.com/jaxxzer
 // Both radios are included
 #define RADIO_SX128x 1
 #define RADIO_SX127x 1
+
+
+#elif defined(TARGET_HANDSET_STM32F722)
+// SPI pins
+#define GPIO_PIN_MOSI      PA7
+#define GPIO_PIN_MISO      PA6
+#define GPIO_PIN_SCK       PA5
+
+// Radio GPIOs (SX1280)
+#define GPIO_PIN_NSS_128x  PA12
+#define GPIO_PIN_DIO0_128x PD2
+#define GPIO_PIN_DIO1_128x UNDEF_PIN
+#define GPIO_PIN_RST_128x  PA15
+#define GPIO_PIN_BUSY      PA14
+#define GPIO_PIN_TXEN_128x PC10
+#define GPIO_PIN_RXEN_128x PA13
+// Radio GPIOs (SX1276)
+#define GPIO_PIN_NSS_127x  PB1
+#define GPIO_PIN_DIO0_127x PB0
+#define GPIO_PIN_RST_127x  PB2
+
+//#define GPIO_PIN_LED_RGB   PB15 // WS2812 RGB
+
+// ESPbackpack logger (USART1)
+#define CTRL_SERIAL Serial1
+#define DEFINE_SERIAL1
+
+// Both radios are included
+#define RADIO_SX128x 1
+#define RADIO_SX127x 1
 #endif
 
 
