@@ -362,10 +362,6 @@ void RTC_IRQHandler(void) {Error_Handler();}
 void FLASH_IRQHandler(void) {Error_Handler();}
 void RCC_IRQHandler(void) {Error_Handler();}
 
-void ADC_IRQHandler(void) {
-    ;
-}
-
 void EXTI0_IRQHandler(void) {GPIO_EXTI_IRQHandler(0);}
 void EXTI1_IRQHandler(void) {GPIO_EXTI_IRQHandler(1);}
 void EXTI2_IRQHandler(void) {GPIO_EXTI_IRQHandler(2);}

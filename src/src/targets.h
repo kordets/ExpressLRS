@@ -432,6 +432,13 @@ https://github.com/jaxxzer
 // Both radios are included
 #define RADIO_SX128x 1
 #define RADIO_SX127x 1
+
+// Left gimbal
+#define GIMBAL_L1   PC3
+#define GIMBAL_L2   PC2
+// Right gimbal
+#define GIMBAL_R1   PC1
+#define GIMBAL_R2   PC0
 #endif
 
 
