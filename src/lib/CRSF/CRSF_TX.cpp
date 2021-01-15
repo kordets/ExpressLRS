@@ -24,6 +24,7 @@ volatile uint_fast8_t DMA_ATTR send_buffers;
 elrs_lua_packet_t DMA_ATTR p_lua_packet;
 OpenTxSyncPacket_s DMA_ATTR p_otx_sync_packet;
 crsf_msp_packet_radio_s DMA_ATTR p_msp_packet;
+crsfLinkStatisticsMsg_t DMA_ATTR link_stat_packet;
 
 void CRSF_TX::Begin(void)
 {
@@ -33,9 +34,9 @@ void CRSF_TX::Begin(void)
 
     /* Initialize used messages */
 
-    LinkStatistics.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
-    LinkStatistics.header.frame_size = sizeof(LinkStatistics) - CRSF_FRAME_START_BYTES;
-    LinkStatistics.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
+    link_stat_packet.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
+    link_stat_packet.header.frame_size = sizeof(link_stat_packet) - CRSF_FRAME_START_BYTES;
+    link_stat_packet.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
 
     TLMbattSensor.header.device_addr = CRSF_ADDRESS_RADIO_TRANSMITTER;
     TLMbattSensor.header.frame_size = sizeof(TLMbattSensor) - CRSF_FRAME_START_BYTES;
@@ -80,14 +81,15 @@ void ICACHE_RAM_ATTR CRSF_TX::CrsfFramePushToFifo(uint8_t *buff, uint8_t size) c
 #endif // BT_SERIAL
 }
 
-void CRSF_TX::LinkStatisticsSend(void) const
+void CRSF_TX::LinkStatisticsSend(LinkStats_t & stats) const
 {
+    memcpy(&link_stat_packet.stats, &stats.link, sizeof(link_stat_packet.stats));
     send_buffers |= SEND_LNK_STAT;
 }
 void CRSF_TX::LinkStatisticsProcess(void) const
 {
     send_buffers &= ~SEND_LNK_STAT;
-    CrsfFramePushToFifo((uint8_t*)&LinkStatistics, sizeof(LinkStatistics));
+    CrsfFramePushToFifo((uint8_t*)&link_stat_packet, sizeof(link_stat_packet));
 }
 
 void CRSF_TX::BatterySensorSend(void) const
@@ -187,7 +189,7 @@ void CRSF_TX::processPacket(uint8_t const *input)
 #if (FEATURE_OPENTX_SYNC)
             write_u32(&RCdataLastRecv, micros());
 #endif
-            (RCdataCallback1)((crsf_channels_t *)&input[1]); // run new RC data callback
+            (RCdataCallback1)(&input[1]); // run new RC data callback
             break;
         }
         case CRSF_FRAMETYPE_PARAMETER_WRITE:

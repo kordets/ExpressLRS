@@ -128,7 +128,7 @@ channels_pack(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4)
  * Convert received OTA packet data to CRSF packet for FC
  */
 void ICACHE_RAM_ATTR RcChannels_channels_extract(uint8_t const *const input,
-                                                 crsf_channels_t &PackedRCdataOut)
+                                                 rc_channels_t &PackedRCdataOut)
 {
     uint16_t switchValue;
     uint8_t switchIndex;
@@ -209,7 +209,7 @@ void ICACHE_RAM_ATTR RcChannels_channels_extract(uint8_t const *const input,
  * Convert received CRSF serial packet from handset and
  * store it to local buffers for OTA packet
  */
-void RcChannels_processChannels(crsf_channels_t const *const rcChannels)
+void RcChannels_processChannels(rc_channels_t const *const rcChannels)
 {
     // channels input range: 0...2048
     uint16_t ChannelDataIn[N_SWITCHES] = {
@@ -384,3 +384,56 @@ RcChannels_tlm_ota_receive(uint8_t const *const input,
     }
     return 0;
 }
+
+
+/*************************************************************************************
+ * LINK STATISTICS OTA PACKET
+ *************************************************************************************/
+#define FRAMETYPE_LINK_STATISTICS 0x14
+void ICACHE_RAM_ATTR
+RcChannels_link_stas_pack(uint8_t *const output,
+                          LinkStats_t &input, uint_fast8_t ul_lq)
+{
+    // NOTE: output is only 5 bytes + 6bits (MSB)!!
+
+    // OpenTX hard codes "rssi" warnings to the LQ sensor for crossfire, so the
+    // rssi we send is for display only.
+    // OpenTX treats the rssi values as signed.
+    uint8_t openTxRSSI = input.link.uplink_RSSI_1;
+    // truncate the range to fit into OpenTX's 8 bit signed value
+    if (openTxRSSI > 127)
+        openTxRSSI = 127;
+    // convert to 8 bit signed value in the negative range (-128 to 0)
+    openTxRSSI = 255 - openTxRSSI;
+    output[0] = openTxRSSI;
+    output[1] = (input.batt.voltage & 0xFF00) >> 8;
+    output[2] = input.link.uplink_SNR;
+    output[3] = ul_lq;
+    output[4] = (input.batt.voltage & 0x00FF);
+    output[5] = FRAMETYPE_LINK_STATISTICS << 2;
+}
+
+void ICACHE_RAM_ATTR
+RcChannels_link_stas_extract(uint8_t const *const input,
+                             LinkStats_t &output,
+                             int8_t snr, uint8_t rssi)
+{
+    // NOTE: input is only 5 bytes + 6bits (MSB)!!
+
+    output.link.downlink_SNR = snr * 10;
+    output.link.downlink_RSSI = 120 + rssi;
+
+    if ((input[5] >> 2) == FRAMETYPE_LINK_STATISTICS) {
+        output.link.uplink_RSSI_1 = input[0];
+        output.link.uplink_RSSI_2 = 0;
+        output.link.uplink_SNR = input[2];
+        output.link.uplink_Link_quality = input[3];
+
+        output.batt.voltage = ((uint16_t)input[1] << 8) + input[4];
+    }
+}
+
+/*************************************************************************************
+ * GPS OTA PACKET
+ *************************************************************************************/
+// TODO: move GPS packet handling here!

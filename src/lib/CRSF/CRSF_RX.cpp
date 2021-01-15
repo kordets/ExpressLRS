@@ -5,12 +5,13 @@
 
 crsf_channels_msg_s DMA_ATTR p_crsf_channels;
 crsf_msp_packet_fc_t DMA_ATTR msp_packet;
+crsfLinkStatisticsMsg_t DMA_ATTR link_stat_packet;
 
 void CRSF_RX::Begin(void)
 {
-    LinkStatistics.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
-    LinkStatistics.header.frame_size = sizeof(LinkStatistics) - CRSF_FRAME_START_BYTES;
-    LinkStatistics.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
+    link_stat_packet.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
+    link_stat_packet.header.frame_size = sizeof(link_stat_packet) - CRSF_FRAME_START_BYTES;
+    link_stat_packet.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
 
 #if 0
     TLMbattSensor.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
@@ -45,12 +46,13 @@ void ICACHE_RAM_ATTR CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size) const
 #endif
 }
 
-void CRSF_RX::LinkStatisticsSend(void) const
+void CRSF_RX::LinkStatisticsSend(LinkStats_t & stats) const
 {
-    sendFrameToFC((uint8_t*)&LinkStatistics, sizeof(LinkStatistics));
+    memcpy(&link_stat_packet.stats, &stats.link, sizeof(link_stat_packet.stats));
+    sendFrameToFC((uint8_t*)&link_stat_packet, sizeof(link_stat_packet));
 }
 
-void ICACHE_RAM_ATTR CRSF_RX::sendRCFrameToFC(crsf_channels_t * channels) const
+void ICACHE_RAM_ATTR CRSF_RX::sendRCFrameToFC(rc_channels_t * channels) const
 {
     memcpy(&p_crsf_channels.data, (void*)channels, sizeof(crsf_channels_t));
     sendFrameToFC((uint8_t*)&p_crsf_channels, sizeof(p_crsf_channels));

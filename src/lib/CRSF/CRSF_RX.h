@@ -12,8 +12,8 @@ public:
 
     void handleUartIn(void);
 
-    void sendRCFrameToFC(crsf_channels_t * channels) const;
-    void LinkStatisticsSend(void) const;
+    void sendRCFrameToFC(rc_channels_t * channels) const;
+    void LinkStatisticsSend(LinkStats_t & stats) const;
     void sendMSPFrameToFC(mspPacket_t & msp) const;
 
 private:

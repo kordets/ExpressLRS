@@ -1,8 +1,8 @@
 #include "CRSF.h"
 #include "debug_elrs.h"
 
-void rcNullCb(crsf_channels_t const *const) {}
-void (*CRSF::RCdataCallback1)(crsf_channels_t const *const) = &rcNullCb; // function is called whenever there is new RC data.
+void rcNullCb(uint8_t const *const) {}
+void (*CRSF::RCdataCallback1)(uint8_t const *const) = &rcNullCb; // function is called whenever there is new RC data.
 
 void MspNullCallback(uint8_t const *const){};
 void (*CRSF::MspCallback)(uint8_t const *const input) = MspNullCallback;
@@ -41,47 +41,6 @@ void CRSF::Begin()
     _dev->flush_read();
 }
 
-void CRSF::LinkStatisticsExtract(uint8_t const *const input,
-                                 int8_t snr,
-                                 uint8_t rssi)
-{
-    // NOTE: input is only 5 bytes + 6bits (MSB)!!
-
-    LinkStatistics.downlink_SNR = snr * 10;
-    LinkStatistics.downlink_RSSI = 120 + rssi;
-
-    if ((input[5] >> 2) == CRSF_FRAMETYPE_LINK_STATISTICS)
-    {
-        LinkStatistics.uplink_RSSI_1 = input[0];
-        LinkStatistics.uplink_RSSI_2 = 0;
-        LinkStatistics.uplink_SNR = input[2];
-        LinkStatistics.uplink_Link_quality = input[3];
-
-        TLMbattSensor.voltage = ((uint16_t)input[1] << 8) + input[4];
-    }
-}
-
-void ICACHE_RAM_ATTR CRSF::LinkStatisticsPack(uint8_t *const output,
-                                              uint_fast8_t ul_lq) const
-{
-    // NOTE: output is only 5 bytes + 6bits (MSB)!!
-
-    // OpenTX hard codes "rssi" warnings to the LQ sensor for crossfire, so the
-    // rssi we send is for display only.
-    // OpenTX treats the rssi values as signed.
-    uint8_t openTxRSSI = LinkStatistics.uplink_RSSI_1;
-    // truncate the range to fit into OpenTX's 8 bit signed value
-    if (openTxRSSI > 127)
-        openTxRSSI = 127;
-    // convert to 8 bit signed value in the negative range (-128 to 0)
-    openTxRSSI = 255 - openTxRSSI;
-    output[0] = openTxRSSI;
-    output[1] = (TLMbattSensor.voltage & 0xFF00) >> 8;
-    output[2] = LinkStatistics.uplink_SNR;
-    output[3] = ul_lq;
-    output[4] = (TLMbattSensor.voltage & 0x00FF);
-    output[5] = CRSF_FRAMETYPE_LINK_STATISTICS << 2;
-}
 
 void ICACHE_RAM_ATTR CRSF::GpsStatsExtract(uint8_t const *const input)
 {

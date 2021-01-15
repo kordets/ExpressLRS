@@ -7,21 +7,12 @@
 #include "platform.h"
 #include "utils.h"
 #include "msp.h"
+#include "rc_channels.h"
 
 #define CRSF_RX_BAUDRATE      420000
 #define CRSF_TX_BAUDRATE_FAST 400000
 #define CRSF_TX_BAUDRATE_SLOW 115200
 #define CRSF_NUM_CHANNELS     16         // Number of input channels
-
-// OUT to flight controller
-#define CRSF_CHANNEL_OUT_VALUE_MIN 172
-#define CRSF_CHANNEL_OUT_VALUE_MID 992
-#define CRSF_CHANNEL_OUT_VALUE_MAX 1811
-
-// IN comming from handset
-#define CRSF_CHANNEL_IN_VALUE_MIN 0
-#define CRSF_CHANNEL_IN_VALUE_MID 992
-#define CRSF_CHANNEL_IN_VALUE_MAX 1984
 
 #define CRSF_SYNC_BYTE 0xC8
 
@@ -174,9 +165,8 @@ typedef struct crsf_sensor_battery_s
  * Uplink:   PILOT => UAV
  * Downlink: UAV   => PILOT
  */
-typedef struct crsfPayloadLinkstatistics_s
+typedef struct crsfLinkStatistics_s
 {
-    crsf_header_t header;
     uint8_t uplink_RSSI_1;
     uint8_t uplink_RSSI_2;
     uint8_t uplink_Link_quality; // this goes to opentx rssi
@@ -187,8 +177,14 @@ typedef struct crsfPayloadLinkstatistics_s
     uint8_t downlink_RSSI;
     uint8_t downlink_Link_quality;
     int8_t downlink_SNR;
+} PACKED crsfLinkStatistics_t;
+
+typedef struct crsfLinkStatisticsMsg_s
+{
+    crsf_header_t header;
+    crsfLinkStatistics_t stats;
     uint8_t crc;
-} crsfLinkStatistics_t;
+} PACKED crsfLinkStatisticsMsg_t;
 
 typedef struct crsf_sensor_gps_s
 {
@@ -249,34 +245,6 @@ typedef struct crsf_msp_packet_radio_s
 
 /////inline and utility functions//////
 
-/** NOTE
- * CRSF input range is [0...992...1984]
- * CRSF output range is [172...992...1811]
- **/
-
-#define CRSF_US_OUT_MIN 1000
-#define CRSF_US_OUT_MAX 2000
-
-#define CRSF_OUT_to_US(val) MAP_U16((val), CRSF_CHANNEL_OUT_VALUE_MIN, CRSF_CHANNEL_OUT_VALUE_MAX, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX)
-#define CRSF_IN_to_US(val) MAP_U16((val), CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX)
-#define CRSF_IN_to_DEG(val) MAP_U16((val), CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX, 0, 180)
-
-#define UINT10_to_CRSF(val) MAP_U16((val), 0, 1024, CRSF_CHANNEL_OUT_VALUE_MIN, CRSF_CHANNEL_OUT_VALUE_MAX)
-#define CRSF_to_UINT10(val) MAP_U16((val), CRSF_CHANNEL_OUT_VALUE_MIN, CRSF_CHANNEL_OUT_VALUE_MAX, 0, 1023)
-
-// 7 state aka 3b switches use 0...6 as values to represent 7 different values
-// 1984 / 6 = 330 => taken down a bit to align result more evenly
-// (1811-172) / 6 = 273
-#define CRSF_to_SWITCH3b(val) ((val) / 300)
-#define SWITCH3b_to_CRSF(val) ((val) * 273 + CRSF_CHANNEL_OUT_VALUE_MIN)
-
-// 3 state aka 2b switches use 0, 1 and 2 as values to represent low, middle and high
-// 819 = (1811-172) / 2
-#define CRSF_to_SWITCH2b(val) ((val) / 819)
-#define SWITCH2b_to_CRSF(val) ((val)*819 + CRSF_CHANNEL_OUT_VALUE_MIN)
-
-#define CRSF_to_BIT(val) (((val) > 1000) ? 1 : 0)
-#define BIT_to_CRSF(val) ((val) ? CRSF_CHANNEL_OUT_VALUE_MAX : CRSF_CHANNEL_OUT_VALUE_MIN)
 
 class CRSF
 {
@@ -286,30 +254,23 @@ public:
     void Begin();
 
     ///// Callbacks /////
-    static void (*RCdataCallback1)(crsf_channels_t const *const channels); //function pointer for new RC data callback
+    static void (*RCdataCallback1)(uint8_t const *const channels); //function pointer for new RC data callback
     static void (*MspCallback)(uint8_t const *const input);
 
     static void (*disconnected)();
     static void (*connected)();
 
     // Protocol funcs
-    void LinkStatisticsExtract(uint8_t const *const data,
-                               int8_t snr,
-                               uint8_t rssi);
-    void LinkStatisticsPack(uint8_t *const output,
-                            uint_fast8_t ul_lq) const;
-
     void GpsStatsExtract(uint8_t const *const data);
     uint8_t GpsStatsPack(uint8_t *const output);
 
-    crsfPayloadLinkstatistics_s LinkStatistics; // Link Statisitics Stored as Struct
     crsf_sensor_battery_s TLMbattSensor;
     crsf_sensor_gps_s TLMGPSsensor;
     uint8_t tlm_gps_valid;
 
 protected:
     uint8_t *ParseInByte(uint8_t inChar);
-    virtual void LinkStatisticsSend(void) const = 0;
+    virtual void LinkStatisticsSend(LinkStats_t & stats) const = 0;
 
     HwSerial * const _dev;
 

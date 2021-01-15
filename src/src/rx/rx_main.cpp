@@ -60,7 +60,8 @@ static uint16_t DRAM_ATTR CRCCaesarCipher;
 static uint8_t DRAM_ATTR update_servos;
 #endif
 #endif
-static crsf_channels_t DRAM_ATTR CrsfChannels;
+static rc_channels_t DRAM_ATTR CrsfChannels;
+static LinkStats_t DRAM_ATTR LinkStatistics;
 
 ///////////////////////////////////////////////
 ////////////////  Filters  ////////////////////
@@ -138,9 +139,9 @@ void ICACHE_RAM_ATTR FillLinkStats()
     if (0 < rssiDBM) rssiDBM = 0;
     else if (rssiDBM < INT8_MIN) rssiDBM = INT8_MIN;
     //CrsfChannels.ch15 = UINT10_to_CRSF(MAP(rssiDBM, -100, -50, 0, 1023));
-    //CrsfChannels.ch14 = UINT10_to_CRSF(MAP_U16(crsf.LinkStatistics.uplink_Link_quality, 0, 100, 0, 1023));
-    crsf.LinkStatistics.uplink_RSSI_1 = -1 * rssiDBM; // to match BF
-    crsf.LinkStatistics.uplink_SNR = LPF_UplinkSNR.update(Radio->LastPacketSNR * 10);
+    //CrsfChannels.ch14 = UINT10_to_CRSF(MAP_U16(LinkStatistics.link.uplink_Link_quality, 0, 100, 0, 1023));
+    LinkStatistics.link.uplink_RSSI_1 = -1 * rssiDBM; // to match BF
+    LinkStatistics.link.uplink_SNR = LPF_UplinkSNR.update(Radio->LastPacketSNR * 10);
 }
 
 uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
@@ -215,7 +216,7 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
     }
     else
     {
-        crsf.LinkStatisticsPack(tx_buffer, lq);
+        RcChannels_link_stas_pack(tx_buffer, LinkStatistics, lq);
         RcChannels_packetTypeSet(tx_buffer, DL_PACKET_TLM_LINK);
     }
 
@@ -518,8 +519,6 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
 #if !SERVO_OUTPUTS_ENABLED
             //DEBUG_PRINTF(" M");
             if (RcChannels_tlm_ota_receive(rx_buffer, msp_packet_rx)) {
-                //crsf.sendMSPFrameToFC(msp_packet_rx);
-                //msp_packet_rx.reset();
                 tlm_msp_rcvd = 1;
             }
 #endif
@@ -608,8 +607,8 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
     LPF_UplinkRSSI.init(0);
     LPF_UplinkSNR.init(0);
 #if !SERVO_OUTPUTS_ENABLED
-    crsf.LinkStatistics.uplink_RSSI_2 = 0;
-    crsf.LinkStatistics.rf_Mode = config->rate_osd_num;
+    LinkStatistics.link.uplink_RSSI_2 = 0;
+    LinkStatistics.link.rf_Mode = config->rate_osd_num;
 #endif
     //TxTimer.setTime();
     Radio->RXnb();
@@ -742,8 +741,8 @@ void loop()
 #else
             if (SEND_LINK_STATS_TO_FC_INTERVAL <= (uint32_t)(now - SendLinkStatstoFCintervalNextSend))
             {
-                crsf.LinkStatistics.uplink_Link_quality = read_u8(&uplink_Link_quality);
-                crsf.LinkStatisticsSend();
+                LinkStatistics.link.uplink_Link_quality = read_u8(&uplink_Link_quality);
+                crsf.LinkStatisticsSend(LinkStatistics);
                 SendLinkStatstoFCintervalNextSend = now;
             }
 #endif

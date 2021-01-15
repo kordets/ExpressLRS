@@ -24,8 +24,11 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
 
 ///////////////////
 /// define some libs to use ///
-
+#if CRSF_SERIAL_EXISTS
 CRSF_TX DRAM_FORCE_ATTR crsf(CrsfSerial);
+#else
+CRSF_TX DRAM_FORCE_ATTR crsf;
+#endif
 POWERMGNT DRAM_FORCE_ATTR PowerMgmt;
 
 static uint32_t DRAM_ATTR _rf_rxtx_counter;
@@ -57,6 +60,8 @@ static uint8_t DRAM_ATTR tlm_msp_send, tlm_msp_rcvd;
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static LPF DRAM_ATTR LPF_dyn_tx_power(3);
 static uint32_t DRAM_ATTR dyn_tx_updated;
+
+static LinkStats_t DRAM_ATTR LinkStatistics;
 
 //////////// LUA /////////
 
@@ -221,12 +226,12 @@ static void process_rx_buffer()
         }
         case DL_PACKET_TLM_LINK:
         {
-            crsf.LinkStatisticsExtract((uint8_t*)rx_buffer,
-                                       Radio->LastPacketSNR,
-                                       Radio->LastPacketRSSI);
+            RcChannels_link_stas_extract((uint8_t*)rx_buffer, LinkStatistics,
+                                         Radio->LastPacketSNR,
+                                         Radio->LastPacketRSSI);
 
             // Check RSSI and update TX power if needed
-            int8_t rssi = LPF_dyn_tx_power.update((int8_t)crsf.LinkStatistics.uplink_RSSI_1);
+            int8_t rssi = LPF_dyn_tx_power.update((int8_t)LinkStatistics.link.uplink_RSSI_1);
             if (TX_POWER_UPDATE_PERIOD <= (ms - dyn_tx_updated)) {
                 dyn_tx_updated = ms;
                 if (-75 < rssi) {
@@ -505,7 +510,7 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
     Radio->Config(config->bw, config->sf, config->cr, GetInitialFreq(),
                   config->PreambleLen, (OTA_PACKET_CRC == 0));
     crsf.setRcPacketRate(config->interval);
-    crsf.LinkStatistics.rf_Mode = config->rate_osd_num;
+    LinkStatistics.link.rf_Mode = config->rate_osd_num;
 
     tx_tlm_change_interval(TLMinterval, init);
 
@@ -530,9 +535,9 @@ static void hw_timer_stop(void)
     platform_radio_force_stop();
 }
 
-static void rc_data_cb(crsf_channels_t const *const channels)
+static void rc_data_cb(uint8_t const *const channels)
 {
-    RcChannels_processChannels(channels);
+    RcChannels_processChannels((rc_channels_t*)channels);
 }
 
 /* Parse CRSF encapsulated MSP packet */
@@ -678,13 +683,13 @@ void loop()
             recv_tlm_counter = 0; // Clear RX counter
 
             if (rx_cnt)
-                crsf.LinkStatistics.downlink_Link_quality = (tlm_cnt * 100u) / rx_cnt;
+                LinkStatistics.link.downlink_Link_quality = (tlm_cnt * 100u) / rx_cnt;
             else
                 // failure value??
-                crsf.LinkStatistics.downlink_Link_quality = 0;
+                LinkStatistics.link.downlink_Link_quality = 0;
 
-            crsf.LinkStatistics.uplink_TX_Power = PowerMgmt.power_to_radio_enum();
-            crsf.LinkStatisticsSend();
+            LinkStatistics.link.uplink_TX_Power = PowerMgmt.power_to_radio_enum();
+            crsf.LinkStatisticsSend(LinkStatistics);
             crsf.BatterySensorSend();
             crsf.GpsSensorSend();
         }

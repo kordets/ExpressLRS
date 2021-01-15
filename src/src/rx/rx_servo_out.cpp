@@ -3,6 +3,9 @@
 
 #if SERVO_OUTPUTS_ENABLED
 
+#define US_OUT_MIN 1000
+#define US_OUT_MAX 2000
+
 #define SERVO_USE_LPF 1
 #define SERVO_UPDATE_INTERVAL 100 //ms
 
@@ -10,8 +13,10 @@
 #define CRSF_CHANNEL_IN_VALUE_MIN 188
 #undef CRSF_CHANNEL_IN_VALUE_MAX
 #define CRSF_CHANNEL_IN_VALUE_MAX 1792
+#ifdef CRSF_IN_to_US
 #undef CRSF_IN_to_US
-#define CRSF_IN_to_US(val) MAP_U16((val), CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX)
+#endif
+#define CRSF_IN_to_US(val) MAP_U16((val), CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX, US_OUT_MIN, US_OUT_MAX)
 
 
 #ifndef SERVO_OUTPUTS_THROTTLE_CH
@@ -62,25 +67,25 @@ static uint32_t DRAM_ATTR last_update;
 
 void servo_out_init(void) {
 #if (SERVO_PIN_CH1 != UNDEF_PIN)
-    ch1.attach(SERVO_PIN_CH1, 0, CRSF_US_OUT_MAX);
+    ch1.attach(SERVO_PIN_CH1, 0, US_OUT_MAX);
 #if SERVO_USE_LPF
     lpf_ch1.init(0);
 #endif // SERVO_USE_LPF
 #endif
 #if (SERVO_PIN_CH2 != UNDEF_PIN)
-    ch2.attach(SERVO_PIN_CH2, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX);
+    ch2.attach(SERVO_PIN_CH2, US_OUT_MIN, US_OUT_MAX);
 #if SERVO_USE_LPF
     lpf_ch2.init(0);
 #endif // SERVO_USE_LPF
 #endif
 #if (SERVO_PIN_CH3 != UNDEF_PIN)
-    ch3.attach(SERVO_PIN_CH3, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX);
+    ch3.attach(SERVO_PIN_CH3, US_OUT_MIN, US_OUT_MAX);
 #if SERVO_USE_LPF
     lpf_ch3.init(0);
 #endif // SERVO_USE_LPF
 #endif
 #if (SERVO_PIN_CH4 != UNDEF_PIN)
-    ch4.attach(SERVO_PIN_CH4, CRSF_US_OUT_MIN, CRSF_US_OUT_MAX);
+    ch4.attach(SERVO_PIN_CH4, US_OUT_MIN, US_OUT_MAX);
 #if SERVO_USE_LPF
     lpf_ch4.init(0);
 #endif // SERVO_USE_LPF
@@ -106,33 +111,33 @@ void ICACHE_RAM_ATTR servo_out_fail_safe(void)
         &ch4,
 #endif
     };
-    uint16_t mid = (CRSF_US_OUT_MIN + CRSF_US_OUT_MAX) / 2;
+    uint16_t mid = (US_OUT_MIN + US_OUT_MAX) / 2;
     uint8_t iter;
     for (iter = 0; iter < ARRAY_SIZE(servos); iter++) {
         if (iter == (SERVO_OUTPUTS_THROTTLE_CH-1))
-            servos[iter]->writeMicroseconds(CRSF_US_OUT_MIN);
+            servos[iter]->writeMicroseconds(US_OUT_MIN);
         else
             servos[iter]->writeMicroseconds(mid);
     }
 
 #if 0
 #if (SERVO_PIN_CH1 != UNDEF_PIN)
-    ch1.writeMicroseconds(CRSF_US_OUT_MIN);
+    ch1.writeMicroseconds(US_OUT_MIN);
 #endif
 #if (SERVO_PIN_CH2 != UNDEF_PIN)
-    ch2.writeMicroseconds(CRSF_US_OUT_MIN);
+    ch2.writeMicroseconds(US_OUT_MIN);
 #endif
 #if (SERVO_PIN_CH3 != UNDEF_PIN)
-    ch3.writeMicroseconds(CRSF_US_OUT_MIN);
+    ch3.writeMicroseconds(US_OUT_MIN);
 #endif
 #if (SERVO_PIN_CH4 != UNDEF_PIN)
-    ch4.writeMicroseconds(CRSF_US_OUT_MIN);
+    ch4.writeMicroseconds(US_OUT_MIN);
 #endif
 #endif
 }
 
 
-void ICACHE_RAM_ATTR servo_out_write(crsf_channels_t const * const channels) {
+void ICACHE_RAM_ATTR servo_out_write(rc_channels_t const * const channels) {
     /* set pwm outputs for servos */
     uint32_t now = millis();
 
