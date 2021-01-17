@@ -436,4 +436,79 @@ RcChannels_link_stas_extract(uint8_t const *const input,
 /*************************************************************************************
  * GPS OTA PACKET
  *************************************************************************************/
-// TODO: move GPS packet handling here!
+#define FRAMETYPE_GPS 0x02
+
+void ICACHE_RAM_ATTR
+RcChannels_gps_extract(uint8_t const *const input, GpsOta_t & output)
+{
+    uint8_t type = input[5] >> 2;
+    if ((type & 0xf) != FRAMETYPE_GPS)
+        return;
+    switch (type >> 4) {
+        case 3:
+            output.latitude = input[0];
+            output.latitude <<= 8;
+            output.latitude += input[1];
+            output.latitude <<= 8;
+            output.latitude += input[2];
+            output.latitude <<= 8;
+            output.latitude += input[3];
+            output.speed = input[4];
+            output.speed <<= 8;
+            break;
+        case 2:
+            output.longitude = input[0];
+            output.longitude <<= 8;
+            output.longitude += input[1];
+            output.longitude <<= 8;
+            output.longitude += input[2];
+            output.longitude <<= 8;
+            output.longitude += input[3];
+            output.speed += input[4];
+            break;
+        case 1:
+            output.heading = input[0];
+            output.heading <<= 8;
+            output.heading += input[1];
+            output.altitude = input[2];
+            output.altitude <<= 8;
+            output.altitude += input[3];
+            output.satellites = input[4];
+            output.pkt_cnt = 1;
+            break;
+    }
+}
+
+uint8_t ICACHE_RAM_ATTR
+RcChannels_gps_pack(uint8_t *const output, GpsOta_t & input)
+{
+    uint8_t type = (input.pkt_cnt << 4) + FRAMETYPE_GPS;
+    if (!input.pkt_cnt)
+        return 0;
+    // GPS block is split into pieces
+    switch (input.pkt_cnt--) {
+        case 3:
+            output[0] = (uint8_t)(input.latitude >> 24);
+            output[1] = (uint8_t)(input.latitude >> 16);
+            output[2] = (uint8_t)(input.latitude >> 8);
+            output[3] = (uint8_t)input.latitude;
+            output[4] = (uint8_t)(input.speed >> 8);
+            break;
+        case 2:
+            output[0] = (uint8_t)(input.longitude >> 24);
+            output[1] = (uint8_t)(input.longitude >> 16);
+            output[2] = (uint8_t)(input.longitude >> 8);
+            output[3] = (uint8_t)input.longitude;
+            output[4] = (uint8_t)(input.speed);
+            break;
+        case 1:
+            output[0] = (uint8_t)(input.heading >> 8);
+            output[1] = (uint8_t)(input.heading);
+            output[2] = (uint8_t)(input.altitude >> 8);
+            output[3] = (uint8_t)(input.altitude);
+            output[4] = input.satellites;
+            break;
+    }
+    output[5] = type << 2;
+    return 1;
+}

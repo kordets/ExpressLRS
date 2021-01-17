@@ -35,9 +35,9 @@ public:
     uint8_t handleUartIn(void);
 
     // Send to RADIO
-    void LinkStatisticsSend(LinkStats_t & stats) const;
-    void BatterySensorSend(void) const;
-    void GpsSensorSend(void) const;
+    void LinkStatisticsSend(LinkStatsLink_t & stats) const;
+    void BatterySensorSend(LinkStatsBatt_t & stats) const;
+    void GpsSensorSend(GpsOta_t & gps) const;
     void sendLUAresponseToRadio(uint8_t * const data, uint8_t len) const;
     void sendMspPacketToRadio(mspPacket_t &msp) const;
 
@@ -58,7 +58,10 @@ public:
     }
 
     ///// Callbacks /////
-    static void (*ParamWriteCallback)(uint8_t const *msg, uint16_t len);
+    void (*connected)();
+    void (*disconnected)();
+    void (*RCdataCallback1)(uint8_t const *const channels);
+    void (*ParamWriteCallback)(uint8_t const *msg, uint16_t len);
 
     ///// Variables /////
 

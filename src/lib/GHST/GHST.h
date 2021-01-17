@@ -144,8 +144,7 @@ public:
     void handleUartIn(void);
 
     void sendRCFrameToFC(rc_channels_t * channels);
-    void LinkStatisticsSend(LinkStats_t & stats);
-    uint8_t GpsStatsPack(uint8_t *const output);
+    void LinkStatisticsSend(LinkStatsLink_t & stats);
     void sendMSPFrameToFC(mspPacket_t & msp) const;
 
     MspCallback_t MspCallback;

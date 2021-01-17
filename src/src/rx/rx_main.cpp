@@ -64,7 +64,7 @@ static uint8_t DRAM_ATTR update_servos;
 #endif
 static rc_channels_t DRAM_ATTR CrsfChannels;
 static LinkStats_t DRAM_ATTR LinkStatistics;
-//static GpsOta_t DRAM_ATTR GpsData;
+static GpsOta_t DRAM_ATTR GpsTlm;
 
 ///////////////////////////////////////////////
 ////////////////  Filters  ////////////////////
@@ -213,7 +213,7 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
             tlm_msp_send = 0;
         }
     }
-    else if (crsf.GpsStatsPack(tx_buffer))
+    else if (RcChannels_gps_pack(tx_buffer, GpsTlm))
     {
         RcChannels_packetTypeSet(tx_buffer, DL_PACKET_GPS);
     }
@@ -657,11 +657,23 @@ void msp_data_cb(uint8_t const *const input)
 #endif
 }
 
-void battery_info_cb(uint32_t voltage, uint32_t current, uint32_t capa)
+void battery_info_cb(LinkStatsBatt_t * batt)
 {
-    LinkStatistics.batt.voltage = voltage;
-    LinkStatistics.batt.current = current;
-    LinkStatistics.batt.capacity = capa;
+    LinkStatistics.batt.voltage = batt->voltage;
+    LinkStatistics.batt.current = batt->current;
+    LinkStatistics.batt.capacity = batt->capacity;
+    LinkStatistics.batt.remaining = batt->remaining;
+}
+
+void gps_info_cb(GpsOta_t * gps)
+{
+    GpsTlm.latitude = gps->latitude;
+    GpsTlm.longitude = gps->longitude;
+    GpsTlm.speed = gps->speed;
+    GpsTlm.heading = gps->heading;
+    GpsTlm.altitude = gps->altitude;
+    GpsTlm.satellites = gps->satellites;
+    GpsTlm.pkt_cnt = 3;
 }
 
 void setup()
@@ -716,6 +728,7 @@ void setup()
     // Initialize CRSF protocol handler
     crsf.MspCallback = msp_data_cb;
     crsf.BattInfoCallback = battery_info_cb;
+    crsf.GpsCallback = gps_info_cb;
     crsf.Begin();
 #endif
 }
@@ -757,7 +770,7 @@ void loop()
             if (SEND_LINK_STATS_TO_FC_INTERVAL <= (uint32_t)(now - SendLinkStatstoFCintervalNextSend))
             {
                 LinkStatistics.link.uplink_Link_quality = read_u8(&uplink_Link_quality);
-                crsf.LinkStatisticsSend(LinkStatistics);
+                crsf.LinkStatisticsSend(LinkStatistics.link);
                 SendLinkStatstoFCintervalNextSend = now;
             }
 #endif

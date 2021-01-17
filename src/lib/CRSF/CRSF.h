@@ -254,24 +254,13 @@ public:
     void Begin();
 
     ///// Callbacks /////
-    static void (*RCdataCallback1)(uint8_t const *const channels); //function pointer for new RC data callback
     MspCallback_t MspCallback;
     BattInfoCallback_t BattInfoCallback;
     GpsCallback_t GpsCallback;
 
-    static void (*disconnected)();
-    static void (*connected)();
-
-    // Protocol funcs
-    void GpsStatsExtract(uint8_t const *const data);
-    uint8_t GpsStatsPack(uint8_t *const output);
-
-    crsf_sensor_gps_s TLMGPSsensor;
-    uint8_t tlm_gps_valid;
-
 protected:
     uint8_t *ParseInByte(uint8_t inChar);
-    virtual void LinkStatisticsSend(LinkStats_t & stats) const = 0;
+    virtual void LinkStatisticsSend(LinkStatsLink_t & stats) const = 0;
 
     HwSerial * const _dev;
 

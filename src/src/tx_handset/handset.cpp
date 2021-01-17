@@ -56,6 +56,8 @@ static LPF DRAM_ATTR LPF_dyn_tx_power(3);
 static uint32_t DRAM_ATTR dyn_tx_updated;
 
 static LinkStats_t DRAM_ATTR LinkStatistics;
+static GpsOta_t DRAM_ATTR GpsTlm;
+
 
 //////////// LUA /////////
 
@@ -238,7 +240,7 @@ static void process_rx_buffer()
         }
         case DL_PACKET_GPS:
         {
-            // TODO: handle GPS stuff
+            RcChannels_gps_extract((uint8_t*)rx_buffer, GpsTlm);
             break;
         }
         case DL_PACKET_FREE1:

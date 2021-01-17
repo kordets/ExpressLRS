@@ -7,8 +7,9 @@
 struct gpio_out crsf_byte_in;
 #endif
 
+void rcNullCb(uint8_t const *const) {}
+void nullCallback(void){};
 void paramNullCallback(uint8_t const *, uint16_t){};
-void (*CRSF_TX::ParamWriteCallback)(uint8_t const *msg, uint16_t len) = &paramNullCallback;
 
 enum {
     SEND_NA = 0,
@@ -26,12 +27,19 @@ OpenTxSyncPacket_s DMA_ATTR p_otx_sync_packet;
 crsf_msp_packet_radio_s DMA_ATTR p_msp_packet;
 crsfLinkStatisticsMsg_t DMA_ATTR link_stat_packet;
 crsf_sensor_battery_s DMA_ATTR TLMbattSensor;
+crsf_sensor_gps_s DMA_ATTR TLMGPSsensor;
 
 void CRSF_TX::Begin(void)
 {
 #ifdef DBF_PIN_CRSF_BYTES_IN
     crsf_byte_in = gpio_out_setup(DBF_PIN_CRSF_BYTES_IN, 0);
 #endif
+
+    /* Init callback funcs */
+    connected = nullCallback;
+    disconnected = nullCallback;
+    RCdataCallback1 = rcNullCb;
+    ParamWriteCallback = paramNullCallback;
 
     /* Initialize used messages */
 
@@ -82,10 +90,19 @@ void ICACHE_RAM_ATTR CRSF_TX::CrsfFramePushToFifo(uint8_t *buff, uint8_t size) c
 #endif // BT_SERIAL
 }
 
-void CRSF_TX::LinkStatisticsSend(LinkStats_t & stats) const
+void CRSF_TX::LinkStatisticsSend(LinkStatsLink_t & stats) const
 {
-    memcpy(&link_stat_packet.stats, &stats.link, sizeof(link_stat_packet.stats));
     send_buffers |= SEND_LNK_STAT;
+    link_stat_packet.stats.uplink_RSSI_1 = stats.uplink_RSSI_1;
+    link_stat_packet.stats.uplink_RSSI_2 = stats.uplink_RSSI_2;
+    link_stat_packet.stats.uplink_Link_quality = stats.uplink_Link_quality;
+    link_stat_packet.stats.uplink_SNR = stats.uplink_SNR;
+    link_stat_packet.stats.active_antenna = stats.active_antenna;
+    link_stat_packet.stats.rf_Mode = stats.rf_Mode;
+    link_stat_packet.stats.uplink_TX_Power = stats.uplink_TX_Power;
+    link_stat_packet.stats.downlink_RSSI = stats.downlink_RSSI;
+    link_stat_packet.stats.downlink_Link_quality = stats.downlink_Link_quality;
+    link_stat_packet.stats.downlink_SNR = stats.downlink_SNR;
 }
 void CRSF_TX::LinkStatisticsProcess(void) const
 {
@@ -93,9 +110,13 @@ void CRSF_TX::LinkStatisticsProcess(void) const
     CrsfFramePushToFifo((uint8_t*)&link_stat_packet, sizeof(link_stat_packet));
 }
 
-void CRSF_TX::BatterySensorSend(void) const
+void CRSF_TX::BatterySensorSend(LinkStatsBatt_t & stats) const
 {
     send_buffers |= SEND_BATT;
+    TLMbattSensor.voltage = stats.voltage;
+    TLMbattSensor.current = stats.current;
+    TLMbattSensor.capacity = stats.capacity;
+    TLMbattSensor.remaining = stats.remaining;
 }
 void CRSF_TX::BatteryStatisticsProcess(void) const
 {
@@ -103,16 +124,23 @@ void CRSF_TX::BatteryStatisticsProcess(void) const
     CrsfFramePushToFifo((uint8_t*)&TLMbattSensor, sizeof(TLMbattSensor));
 }
 
-void CRSF_TX::GpsSensorSend(void) const
+void CRSF_TX::GpsSensorSend(GpsOta_t & gps) const
 {
-    if (tlm_gps_valid)
-        send_buffers |= SEND_GPS;
+    if (!gps.pkt_cnt)
+        return;
+    send_buffers |= SEND_GPS;
+    TLMGPSsensor.latitude = gps.latitude;
+    TLMGPSsensor.longitude = gps.longitude;
+    TLMGPSsensor.speed = gps.speed;
+    TLMGPSsensor.heading = gps.heading;
+    TLMGPSsensor.altitude = gps.altitude;
+    TLMGPSsensor.satellites = gps.satellites;
+    gps.pkt_cnt = 0;
 }
 void CRSF_TX::GpsSensorProcess(void)
 {
     send_buffers &= ~SEND_GPS;
     CrsfFramePushToFifo((uint8_t *)&TLMGPSsensor, sizeof(TLMGPSsensor));
-    tlm_gps_valid = 0;
 }
 
 void CRSF_TX::sendLUAresponseToRadio(uint8_t * const data, uint8_t const size) const

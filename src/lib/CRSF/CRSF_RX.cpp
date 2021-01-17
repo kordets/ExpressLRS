@@ -13,12 +13,6 @@ void CRSF_RX::Begin(void)
     link_stat_packet.header.frame_size = sizeof(link_stat_packet) - CRSF_FRAME_START_BYTES;
     link_stat_packet.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
 
-#if 0
-    TLMGPSsensor.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
-    TLMGPSsensor.header.frame_size = sizeof(TLMGPSsensor) - CRSF_FRAME_START_BYTES;
-    TLMGPSsensor.header.type;
-#endif
-
     msp_packet.header.device_addr = CRSF_ADDRESS_BROADCAST;
     msp_packet.header.frame_size = sizeof(msp_packet) - CRSF_FRAME_START_BYTES;
     msp_packet.header.type = CRSF_FRAMETYPE_MSP_WRITE;
@@ -42,9 +36,18 @@ void ICACHE_RAM_ATTR CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size) const
 #endif
 }
 
-void CRSF_RX::LinkStatisticsSend(LinkStats_t & stats) const
+void CRSF_RX::LinkStatisticsSend(LinkStatsLink_t & stats) const
 {
-    memcpy(&link_stat_packet.stats, &stats.link, sizeof(link_stat_packet.stats));
+    link_stat_packet.stats.uplink_RSSI_1 = stats.uplink_RSSI_1;
+    link_stat_packet.stats.uplink_RSSI_2 = stats.uplink_RSSI_2;
+    link_stat_packet.stats.uplink_Link_quality = stats.uplink_Link_quality;
+    link_stat_packet.stats.uplink_SNR = stats.uplink_SNR;
+    link_stat_packet.stats.active_antenna = stats.active_antenna;
+    link_stat_packet.stats.rf_Mode = stats.rf_Mode;
+    link_stat_packet.stats.uplink_TX_Power = stats.uplink_TX_Power;
+    link_stat_packet.stats.downlink_RSSI = stats.downlink_RSSI;
+    link_stat_packet.stats.downlink_Link_quality = stats.downlink_Link_quality;
+    link_stat_packet.stats.downlink_SNR = stats.downlink_SNR;
     sendFrameToFC((uint8_t*)&link_stat_packet, sizeof(link_stat_packet));
 }
 
@@ -85,70 +88,75 @@ void CRSF_RX::processPacket(uint8_t const *data)
 
         case CRSF_FRAMETYPE_BATTERY_SENSOR:
         {
-            uint32_t voltage, current, capacity;
-            voltage = data[1];
-            voltage <<= 8;
-            voltage += data[2];
+            if (BattInfoCallback) {
+                LinkStatsBatt_t batt;
+                batt.voltage = data[1];
+                batt.voltage <<= 8;
+                batt.voltage += data[2];
 
-            current = data[3];
-            current <<= 8;
-            current += data[4];
+                batt.current = data[3];
+                batt.current <<= 8;
+                batt.current += data[4];
 
-            capacity = data[5];
-            capacity <<= 8;
-            capacity += data[6];
-            capacity <<= 8;
-            capacity += data[7];
-            //remaining = data[8];
+                batt.capacity = data[5];
+                batt.capacity <<= 8;
+                batt.capacity += data[6];
+                batt.capacity <<= 8;
+                batt.capacity += data[7];
 
-            if (BattInfoCallback)
-                BattInfoCallback(voltage, current, capacity);
+                batt.remaining = data[8];
+
+                BattInfoCallback(&batt);
+            }
             break;
         }
 
         case CRSF_FRAMETYPE_GPS:
         {
-            TLMGPSsensor.latitude = data[1];
-            TLMGPSsensor.latitude <<= 8;
-            TLMGPSsensor.latitude += data[2];
-            TLMGPSsensor.latitude <<= 8;
-            TLMGPSsensor.latitude += data[3];
-            TLMGPSsensor.latitude <<= 8;
-            TLMGPSsensor.latitude += data[4];
+            if (GpsCallback) {
+                GpsOta_t gps;
+                gps.latitude = data[1];
+                gps.latitude <<= 8;
+                gps.latitude += data[2];
+                gps.latitude <<= 8;
+                gps.latitude += data[3];
+                gps.latitude <<= 8;
+                gps.latitude += data[4];
 
-            TLMGPSsensor.longitude = data[5];
-            TLMGPSsensor.longitude <<= 8;
-            TLMGPSsensor.longitude += data[6];
-            TLMGPSsensor.longitude <<= 8;
-            TLMGPSsensor.longitude += data[7];
-            TLMGPSsensor.longitude <<= 8;
-            TLMGPSsensor.longitude += data[8];
+                gps.longitude = data[5];
+                gps.longitude <<= 8;
+                gps.longitude += data[6];
+                gps.longitude <<= 8;
+                gps.longitude += data[7];
+                gps.longitude <<= 8;
+                gps.longitude += data[8];
 
-            TLMGPSsensor.speed = data[9];
-            TLMGPSsensor.speed <<= 8;
-            TLMGPSsensor.speed += data[10];
+                gps.speed = data[9];
+                gps.speed <<= 8;
+                gps.speed += data[10];
 
-            TLMGPSsensor.heading = data[11];
-            TLMGPSsensor.heading <<= 8;
-            TLMGPSsensor.heading += data[12];
+                gps.heading = data[11];
+                gps.heading <<= 8;
+                gps.heading += data[12];
 
-            TLMGPSsensor.altitude = data[13];
-            TLMGPSsensor.altitude <<= 8;
-            TLMGPSsensor.altitude += data[14];
+                gps.altitude = data[13];
+                gps.altitude <<= 8;
+                gps.altitude += data[14];
 
-            TLMGPSsensor.satellites = data[15];
+                gps.satellites = data[15];
 
-            tlm_gps_valid = 3; // Slipt into 3 tlm pkts
+                GpsCallback(&gps);
+            }
             break;
         }
 
         case CRSF_FRAMETYPE_MSP_RESP:
         {
-            if (data[1] == CRSF_ADDRESS_RADIO_TRANSMITTER &&
+            if (MspCallback &&
+                data[1] == CRSF_ADDRESS_RADIO_TRANSMITTER &&
                 data[2] == CRSF_ADDRESS_FLIGHT_CONTROLLER)
             {
-                if (MspCallback)
-                    MspCallback(&data[3]); // pointer to MSP packet
+                MspCallback(&data[3]); // pointer to MSP packet
             }
             break;
         }

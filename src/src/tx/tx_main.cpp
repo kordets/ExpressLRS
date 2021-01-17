@@ -58,6 +58,7 @@ static LPF DRAM_ATTR LPF_dyn_tx_power(3);
 static uint32_t DRAM_ATTR dyn_tx_updated;
 
 static LinkStats_t DRAM_ATTR LinkStatistics;
+static GpsOta_t DRAM_ATTR GpsTlm;
 
 //////////// LUA /////////
 
@@ -240,7 +241,7 @@ static void process_rx_buffer()
         }
         case DL_PACKET_GPS:
         {
-            crsf.GpsStatsExtract((uint8_t*)rx_buffer);
+            RcChannels_gps_extract((uint8_t*)rx_buffer, GpsTlm);
             break;
         }
         case DL_PACKET_FREE1:
@@ -685,9 +686,9 @@ void loop()
                 LinkStatistics.link.downlink_Link_quality = 0;
 
             LinkStatistics.link.uplink_TX_Power = PowerMgmt.power_to_radio_enum();
-            crsf.LinkStatisticsSend(LinkStatistics);
-            crsf.BatterySensorSend();
-            crsf.GpsSensorSend();
+            crsf.LinkStatisticsSend(LinkStatistics.link);
+            crsf.BatterySensorSend(LinkStatistics.batt);
+            crsf.GpsSensorSend(GpsTlm);
         }
     }
 

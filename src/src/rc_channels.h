@@ -61,12 +61,6 @@
 #define CRSF_to_BIT(val) (((val) > 1000) ? 1 : 0)
 #define BIT_to_CRSF(val) ((val) ? CRSF_CHANNEL_OUT_VALUE_MAX : CRSF_CHANNEL_OUT_VALUE_MIN)
 
-/**
- * Protocol callbacks
-*/
-typedef void (*MspCallback_t)(uint8_t const *const input);
-typedef void (*BattInfoCallback_t)(uint32_t voltage, uint32_t current, uint32_t capa);
-
 
 // expresslrs packet header types
 // 00 -> standard 4 channel data packet
@@ -156,6 +150,9 @@ RcChannels_channels_extract(uint8_t const *const input,
 /*************************************************************************************
  * TELEMETRY OTA PACKET
  *************************************************************************************/
+
+typedef void (*MspCallback_t)(uint8_t const *const input);
+
 uint8_t ICACHE_RAM_ATTR
 RcChannels_tlm_ota_send(uint8_t *const output,
                         mspPacket_t &packet,
@@ -167,28 +164,32 @@ RcChannels_tlm_ota_receive(uint8_t const *const input,
 /*************************************************************************************
  * LINK STATISTICS OTA PACKET
  *************************************************************************************/
+typedef struct LinkStatsLink_s {
+    uint8_t uplink_RSSI_1;
+    uint8_t uplink_RSSI_2;
+    uint8_t uplink_Link_quality;
+    int8_t uplink_SNR;
+    uint8_t active_antenna;
+    uint8_t rf_Mode;
+    uint8_t uplink_TX_Power;
+    uint8_t downlink_RSSI;
+    uint8_t downlink_Link_quality;
+    int8_t downlink_SNR;
+} PACKED LinkStatsLink_t;
+
+typedef struct LinkStatsBatt_s {
+    uint16_t voltage;  // mv * 100
+    uint16_t current;  // ma * 100
+    uint32_t capacity : 24; // mah
+    uint32_t remaining : 8; // %
+} PACKED LinkStatsBatt_t;
+
 typedef struct LinkStats_s {
-    struct {
-        /* NOTE: keep these aligned to crsfLinkStatistics_t */
-        uint8_t uplink_RSSI_1;
-        uint8_t uplink_RSSI_2;
-        uint8_t uplink_Link_quality;
-        int8_t uplink_SNR;
-        uint8_t active_antenna;
-        uint8_t rf_Mode;
-        uint8_t uplink_TX_Power;
-        uint8_t downlink_RSSI;
-        uint8_t downlink_Link_quality;
-        int8_t downlink_SNR;
-    } link;
-    struct {
-        /* NOTE: keep these aligned to crsf_sensor_battery_t */
-        uint16_t voltage;  // mv * 100
-        uint16_t current;  // ma * 100
-        uint32_t capacity : 24; // mah
-        uint32_t remaining : 8; // %
-    } batt;
+    LinkStatsLink_t link;
+    LinkStatsBatt_t batt;
 } PACKED LinkStats_t;
+
+typedef void (*BattInfoCallback_t)(LinkStatsBatt_t *);
 
 void ICACHE_RAM_ATTR
 RcChannels_link_stas_pack(uint8_t *const output,
@@ -209,10 +210,15 @@ typedef struct GpsOta_s {
     uint16_t heading;
     uint16_t altitude;
     uint8_t satellites;
+    uint8_t pkt_cnt;
 } PACKED GpsOta_t;
 
 /* Packet received callback */
 typedef void (*GpsCallback_t)(GpsOta_t * gps);
 
+void ICACHE_RAM_ATTR
+RcChannels_gps_extract(uint8_t const *const input, GpsOta_t & output);
+uint8_t ICACHE_RAM_ATTR
+RcChannels_gps_pack(uint8_t *const output, GpsOta_t & input);
 
 #endif /* __RC_CHANNELS_H */

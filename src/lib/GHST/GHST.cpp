@@ -66,18 +66,11 @@ void GHST::sendRCFrameToFC(rc_channels_t * channels)
     sendFrameToFC((uint8_t*)&rc_data, sizeof(rc_data));
 }
 
-void GHST::LinkStatisticsSend(LinkStats_t & stats)
+void GHST::LinkStatisticsSend(LinkStatsLink_t & stats)
 {
     stats_updated = 1;
-    uplink_Link_quality = stats.link.uplink_Link_quality;
-    uplink_RSSI = stats.link.uplink_RSSI_1;
-}
-
-uint8_t GHST::GpsStatsPack(uint8_t *const output)
-{
-    (void)output;
-    // TODO: implement GHST GPS pack
-    return 0;
+    uplink_Link_quality = stats.uplink_Link_quality;
+    uplink_RSSI = stats.uplink_RSSI_1;
 }
 
 void GHST::sendMSPFrameToFC(mspPacket_t & msp) const
@@ -180,8 +173,13 @@ void GHST::processPacket(uint8_t const *data)
         }
         case GHST_DL_PACK_STAT: {
             ghstTlmDl_t * tlm = (ghstTlmDl_t*)&data[1];
-            if (BattInfoCallback)
-                BattInfoCallback(tlm->voltage, tlm->current, tlm->capacity);
+            if (BattInfoCallback) {
+                LinkStatsBatt_t batt = {
+                    .voltage = tlm->voltage, .current = tlm->current,
+                    .capacity = tlm->capacity, .remaining = 0
+                };
+                BattInfoCallback(&batt);
+            }
             break;
         }
     }
