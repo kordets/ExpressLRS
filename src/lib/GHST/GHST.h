@@ -4,6 +4,7 @@
 #include "HwSerial.h"
 #include "helpers.h"
 #include "msp.h"
+#include "rc_channels.h"
 
 /* Definitions copied from Betaflight implementation! */
 
@@ -142,18 +143,14 @@ public:
     void Begin(void);
     void handleUartIn(void);
 
-    void sendRCFrameToFC(struct crsf_channels_s * channels) const;
-    void LinkStatisticsSend(void) const;
-    void LinkStatisticsPack(uint8_t *const output,
-                            uint_fast8_t ul_lq) const;
+    void sendRCFrameToFC(rc_channels_t * channels);
+    void LinkStatisticsSend(LinkStats_t & stats);
     uint8_t GpsStatsPack(uint8_t *const output);
     void sendMSPFrameToFC(mspPacket_t & msp) const;
 
-    static void (*MspCallback)(uint8_t const *const input);
-
-    /* Just to make compatible */
-    ghstLinkStatistics_t LinkStatistics;
-    ghstTlmDl_t TLMbattSensor;
+    MspCallback_t MspCallback;
+    BattInfoCallback_t BattInfoCallback;
+    GpsCallback_t GpsCallback;
 
 private:
     void sendFrameToFC(uint8_t *buff, uint8_t size) const;
@@ -167,6 +164,10 @@ private:
     uint8_t SerialInPacketStart;
     uint8_t SerialInPacketLen;
     uint8_t SerialInPacketPtr;
+
+    volatile uint8_t stats_updated;
+    uint8_t uplink_RSSI;
+    uint8_t uplink_Link_quality;
 };
 
 #endif /* __GHST_H */

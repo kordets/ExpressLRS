@@ -247,6 +247,9 @@ void timer_init(void)
 
 void SystemClock_Config(void)
 {
+    //SCB_EnableICache();
+    //SCB_EnableDCache();
+
     RCC_OscInitTypeDef RCC_OscInitStruct;
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
     RCC_PeriphCLKInitTypeDef PeriphClkInit;
@@ -397,7 +400,7 @@ void DMA1_Stream5_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 RX
 void DMA1_Stream6_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 TX
 void DMA1_Stream7_IRQHandler(void) {Error_Handler();}
 
-void DMA2_Stream0_IRQHandler(void) {Error_Handler();}
+//void DMA2_Stream0_IRQHandler(void) {Error_Handler();}
 void DMA2_Stream1_IRQHandler(void) {USARTx_DMA_handler(3);} // USART6 RX
 void DMA2_Stream2_IRQHandler(void) {USARTx_DMA_handler(3);} // USART1 RX
 void DMA2_Stream3_IRQHandler(void) {Error_Handler();}

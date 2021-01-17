@@ -5,11 +5,9 @@
 #include "utils.h"
 #include "debug_elrs.h"
 
-void MspNullCallback(uint8_t const *const) {}
-void (*GHST::MspCallback)(uint8_t const *const input) = MspNullCallback;
 
 static ghstRcFrame_t rc_data;
-static volatile uint8_t stats_updated;
+
 
 void GHST::Begin(void)
 {
@@ -17,16 +15,16 @@ void GHST::Begin(void)
     rc_data.hdr.len = sizeof(rc_data) - offsetof(ghstRcFrame_t, type);
     rc_data.type = GHST_UL_RC_CHANS_HS4_5TO8;
 
-    TLMbattSensor.capacity = 0;
-    TLMbattSensor.current = 0;
-    TLMbattSensor.voltage = 0;
-
     stats_updated = 0;
 
     SerialInPacketStart = 0;
     SerialInPacketLen = 0;
     SerialInPacketPtr = 0;
     frameActive = false;
+
+    MspCallback = NULL;
+    BattInfoCallback = NULL;
+    GpsCallback = NULL;
 
     _dev->flush_read();
 }
@@ -46,7 +44,7 @@ void GHST::handleUartIn(void)
     }
 }
 
-void GHST::sendRCFrameToFC(struct crsf_channels_s * channels) const
+void GHST::sendRCFrameToFC(rc_channels_t * channels)
 {
     rc_data.channels.ch1to4.ch1 = channels->ch0 << 1;
     rc_data.channels.ch1to4.ch2 = channels->ch1 << 1;
@@ -55,8 +53,8 @@ void GHST::sendRCFrameToFC(struct crsf_channels_s * channels) const
 
     if (stats_updated) {
         rc_data.type = GHST_UL_RC_CHANS_HS4_RSSI;
-        rc_data.channels.stat.lq = LinkStatistics.uplink_Link_quality;
-        rc_data.channels.stat.rssi = -1 * (int8_t)LinkStatistics.uplink_RSSI_1;
+        rc_data.channels.stat.lq = uplink_Link_quality;
+        rc_data.channels.stat.rssi = -1 * (int8_t)uplink_RSSI;
         stats_updated = 0;
     } else {
         rc_data.type = GHST_UL_RC_CHANS_HS4_5TO8;
@@ -68,32 +66,11 @@ void GHST::sendRCFrameToFC(struct crsf_channels_s * channels) const
     sendFrameToFC((uint8_t*)&rc_data, sizeof(rc_data));
 }
 
-void GHST::LinkStatisticsPack(uint8_t *const output,
-                              uint_fast8_t ul_lq) const
-{
-    // NOTE: output is only 5 bytes + 6bits (MSB)!!
-    /* THIS IS COPY FROM CRSF!!! KEEP ALIGNED FOR NOW */
-
-    // OpenTX hard codes "rssi" warnings to the LQ sensor for crossfire, so the
-    // rssi we send is for display only.
-    // OpenTX treats the rssi values as signed.
-    uint8_t openTxRSSI = LinkStatistics.uplink_RSSI_1;
-    // truncate the range to fit into OpenTX's 8 bit signed value
-    if (openTxRSSI > 127)
-        openTxRSSI = 127;
-    // convert to 8 bit signed value in the negative range (-128 to 0)
-    openTxRSSI = 255 - openTxRSSI;
-    output[0] = openTxRSSI;
-    output[1] = (TLMbattSensor.voltage & 0xFF00) >> 8;
-    output[2] = LinkStatistics.uplink_SNR;
-    output[3] = ul_lq;
-    output[4] = (TLMbattSensor.voltage & 0x00FF);
-    output[5] = CRSF_FRAMETYPE_LINK_STATISTICS << 2;
-}
-
-void GHST::LinkStatisticsSend(void) const
+void GHST::LinkStatisticsSend(LinkStats_t & stats)
 {
     stats_updated = 1;
+    uplink_Link_quality = stats.link.uplink_Link_quality;
+    uplink_RSSI = stats.link.uplink_RSSI_1;
 }
 
 uint8_t GHST::GpsStatsPack(uint8_t *const output)
@@ -202,7 +179,9 @@ void GHST::processPacket(uint8_t const *data)
             break;
         }
         case GHST_DL_PACK_STAT: {
-            memcpy(&TLMbattSensor, data, sizeof(TLMbattSensor));
+            ghstTlmDl_t * tlm = (ghstTlmDl_t*)&data[1];
+            if (BattInfoCallback)
+                BattInfoCallback(tlm->voltage, tlm->current, tlm->capacity);
             break;
         }
     }

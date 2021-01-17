@@ -14,10 +14,6 @@ void CRSF_RX::Begin(void)
     link_stat_packet.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
 
 #if 0
-    TLMbattSensor.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
-    TLMbattSensor.header.frame_size = sizeof(TLMbattSensor) - CRSF_FRAME_START_BYTES;
-    TLMbattSensor.header.type;
-
     TLMGPSsensor.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
     TLMGPSsensor.header.frame_size = sizeof(TLMGPSsensor) - CRSF_FRAME_START_BYTES;
     TLMGPSsensor.header.type;
@@ -89,21 +85,24 @@ void CRSF_RX::processPacket(uint8_t const *data)
 
         case CRSF_FRAMETYPE_BATTERY_SENSOR:
         {
-            TLMbattSensor.voltage = data[1];
-            TLMbattSensor.voltage <<= 8;
-            TLMbattSensor.voltage += data[2];
+            uint32_t voltage, current, capacity;
+            voltage = data[1];
+            voltage <<= 8;
+            voltage += data[2];
 
-            TLMbattSensor.current = data[3];
-            TLMbattSensor.current <<= 8;
-            TLMbattSensor.current += data[4];
+            current = data[3];
+            current <<= 8;
+            current += data[4];
 
-            TLMbattSensor.capacity = data[5];
-            TLMbattSensor.capacity <<= 8;
-            TLMbattSensor.capacity += data[6];
-            TLMbattSensor.capacity <<= 8;
-            TLMbattSensor.capacity += data[7];
+            capacity = data[5];
+            capacity <<= 8;
+            capacity += data[6];
+            capacity <<= 8;
+            capacity += data[7];
+            //remaining = data[8];
 
-            TLMbattSensor.remaining = data[8];
+            if (BattInfoCallback)
+                BattInfoCallback(voltage, current, capacity);
             break;
         }
 
@@ -148,7 +147,8 @@ void CRSF_RX::processPacket(uint8_t const *data)
             if (data[1] == CRSF_ADDRESS_RADIO_TRANSMITTER &&
                 data[2] == CRSF_ADDRESS_FLIGHT_CONTROLLER)
             {
-                MspCallback(&data[3]); // pointer to MSP packet
+                if (MspCallback)
+                    MspCallback(&data[3]); // pointer to MSP packet
             }
             break;
         }

@@ -255,7 +255,9 @@ public:
 
     ///// Callbacks /////
     static void (*RCdataCallback1)(uint8_t const *const channels); //function pointer for new RC data callback
-    static void (*MspCallback)(uint8_t const *const input);
+    MspCallback_t MspCallback;
+    BattInfoCallback_t BattInfoCallback;
+    GpsCallback_t GpsCallback;
 
     static void (*disconnected)();
     static void (*connected)();
@@ -264,7 +266,6 @@ public:
     void GpsStatsExtract(uint8_t const *const data);
     uint8_t GpsStatsPack(uint8_t *const output);
 
-    crsf_sensor_battery_s TLMbattSensor;
     crsf_sensor_gps_s TLMGPSsensor;
     uint8_t tlm_gps_valid;
 

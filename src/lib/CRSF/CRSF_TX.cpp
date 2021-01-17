@@ -25,6 +25,7 @@ elrs_lua_packet_t DMA_ATTR p_lua_packet;
 OpenTxSyncPacket_s DMA_ATTR p_otx_sync_packet;
 crsf_msp_packet_radio_s DMA_ATTR p_msp_packet;
 crsfLinkStatisticsMsg_t DMA_ATTR link_stat_packet;
+crsf_sensor_battery_s DMA_ATTR TLMbattSensor;
 
 void CRSF_TX::Begin(void)
 {
@@ -206,7 +207,8 @@ void CRSF_TX::processPacket(uint8_t const *input)
             if (input[1] == CRSF_ADDRESS_FLIGHT_CONTROLLER &&
                 input[2] == CRSF_ADDRESS_RADIO_TRANSMITTER)
             {
-                MspCallback(&input[3]); // pointer to MSP packet
+                if (MspCallback)
+                    MspCallback(&input[3]); // pointer to MSP packet
             }
             break;
         }

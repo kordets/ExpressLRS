@@ -6,9 +6,11 @@
 #if RX_GHST_ENABLED
 #include "GHST.h"
 #define RX_CLASS GHST
+#define RX_BAUDRATE GHST_RX_BAUDRATE
 #else
 #include "CRSF_RX.h"
 #define RX_CLASS CRSF_RX
+#define RX_BAUDRATE CRSF_RX_BAUDRATE
 #endif
 #include "FHSS.h"
 #include "rx_LinkQuality.h"
@@ -62,6 +64,7 @@ static uint8_t DRAM_ATTR update_servos;
 #endif
 static rc_channels_t DRAM_ATTR CrsfChannels;
 static LinkStats_t DRAM_ATTR LinkStatistics;
+//static GpsOta_t DRAM_ATTR GpsData;
 
 ///////////////////////////////////////////////
 ////////////////  Filters  ////////////////////
@@ -617,6 +620,9 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
 /* FC sends v1 MSPs */
 void msp_data_cb(uint8_t const *const input)
 {
+#if RX_GHST_ENABLED
+    (void)input;
+#else
     if ((read_u8(&tlm_msp_send) != 0) || (tlm_check_ratio == 0))
         return;
 
@@ -648,6 +654,14 @@ void msp_data_cb(uint8_t const *const input)
             msp_packet_tx.reset();
         }
     }
+#endif
+}
+
+void battery_info_cb(uint32_t voltage, uint32_t current, uint32_t capa)
+{
+    LinkStatistics.batt.voltage = voltage;
+    LinkStatistics.batt.current = current;
+    LinkStatistics.batt.capacity = capa;
 }
 
 void setup()
@@ -672,7 +686,7 @@ void setup()
     CRCCaesarCipher = CalcCRC16(UID, sizeof(UID), 0);
 
 #if !SERVO_OUTPUTS_ENABLED
-    CrsfSerial.Begin(CRSF_RX_BAUDRATE);
+    CrsfSerial.Begin(RX_BAUDRATE);
 #endif
 
     msp_packet_tx.reset();
@@ -701,6 +715,7 @@ void setup()
 #else
     // Initialize CRSF protocol handler
     crsf.MspCallback = msp_data_cb;
+    crsf.BattInfoCallback = battery_info_cb;
     crsf.Begin();
 #endif
 }

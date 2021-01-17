@@ -61,6 +61,12 @@
 #define CRSF_to_BIT(val) (((val) > 1000) ? 1 : 0)
 #define BIT_to_CRSF(val) ((val) ? CRSF_CHANNEL_OUT_VALUE_MAX : CRSF_CHANNEL_OUT_VALUE_MIN)
 
+/**
+ * Protocol callbacks
+*/
+typedef void (*MspCallback_t)(uint8_t const *const input);
+typedef void (*BattInfoCallback_t)(uint32_t voltage, uint32_t current, uint32_t capa);
+
 
 // expresslrs packet header types
 // 00 -> standard 4 channel data packet
@@ -191,5 +197,22 @@ void ICACHE_RAM_ATTR
 RcChannels_link_stas_extract(uint8_t const *const input,
                              LinkStats_t &output,
                              int8_t snr, uint8_t rssi);
+
+
+/*************************************************************************************
+ * GPS OTA PACKET
+ *************************************************************************************/
+typedef struct GpsOta_s {
+    int32_t latitude;
+    int32_t longitude;
+    uint16_t speed;
+    uint16_t heading;
+    uint16_t altitude;
+    uint8_t satellites;
+} PACKED GpsOta_t;
+
+/* Packet received callback */
+typedef void (*GpsCallback_t)(GpsOta_t * gps);
+
 
 #endif /* __RC_CHANNELS_H */
