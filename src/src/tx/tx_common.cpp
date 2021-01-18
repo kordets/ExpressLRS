@@ -6,20 +6,18 @@
 #include "POWERMGNT.h"
 #include "HwTimer.h"
 #include "debug_elrs.h"
-#include "rc_channels.h"
 #include "LowPassFilter.h"
-#include "msp.h"
+#include "tx_common.h"
 #include <stdlib.h>
 
-
-static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init = 0);
+#if (GPIO_PIN_RCSIGNAL_RX != UNDEF_PIN) || (GPIO_PIN_RCSIGNAL_TX != UNDEF_PIN)
+#include "CRSF_TX.h"
+extern CRSF_TX crsf;
+#endif
 
 //// CONSTANTS ////
-#define RX_CONNECTION_LOST_TIMEOUT        1500U // After 1500ms of no TLM response consider that slave has lost connection
-#ifndef TLM_REPORT_INTERVAL
-#define TLM_REPORT_INTERVAL               300u
-#endif
-#define TX_POWER_UPDATE_PERIOD            1500
+#define RX_CONNECTION_LOST_TIMEOUT  1500U // After 1500ms of no TLM response consider that slave has lost connection
+#define TX_POWER_UPDATE_PERIOD      1500U
 
 ///////////////////
 /// define some libs to use ///
@@ -32,7 +30,7 @@ static uint8_t red_led_state;
 
 static uint16_t DRAM_ATTR CRCCaesarCipher;
 
-struct platform_config pl_config;
+static struct platform_config pl_config;
 
 /////////// SYNC PACKET ////////
 static uint32_t DRAM_ATTR SyncPacketNextSend;
@@ -43,27 +41,34 @@ static uint32_t DRAM_ATTR LastPacketRecvMillis;
 connectionState_e DRAM_ATTR connectionState;
 
 //////////// TELEMETRY /////////
+static uint32_t DRAM_ATTR TLMinterval;
+static uint32_t DRAM_ATTR tlm_check_ratio;
 static uint32_t DRAM_ATTR expected_tlm_counter;
 static uint32_t DRAM_ATTR recv_tlm_counter;
-static uint32_t DRAM_ATTR tlm_check_ratio;
-static uint32_t DRAM_ATTR TLMinterval;
-static mspPacket_t msp_packet_tx;
-static mspPacket_t msp_packet_rx;
-static MSP msp_packet_parser;
-static uint8_t DRAM_ATTR tlm_msp_send, tlm_msp_rcvd;
-static uint32_t DRAM_ATTR TlmSentToRadioTime;
+
 static LPF DRAM_ATTR LPF_dyn_tx_power(3);
 static uint32_t DRAM_ATTR dyn_tx_updated;
 
-static LinkStats_t DRAM_ATTR LinkStatistics;
-static GpsOta_t DRAM_ATTR GpsTlm;
+static MSP msp_packet_parser;
+
+mspPacket_t msp_packet_tx;
+mspPacket_t msp_packet_rx;
+uint8_t DRAM_ATTR tlm_msp_send, tlm_msp_rcvd;
+
+LinkStats_t DRAM_ATTR LinkStatistics;
+GpsOta_t DRAM_ATTR GpsTlm;
 
 
-//////////// LUA /////////
+static uint8_t SetRadioType(uint8_t type);
+static void SendRCdataToRF(uint32_t const current_us);
+static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init=0);
+
 
 ///////////////////////////////////////
 
-void init_globals(void) {
+void tx_common_init_globals(void) {
+    uint8_t UID[6] = {MY_UID};
+
     current_rate_config = RATE_DEFAULT;
 
     pl_config.key = 0;
@@ -81,6 +86,26 @@ void init_globals(void) {
 #endif
 
     connectionState = STATE_disconnected;
+    CRCCaesarCipher = CalcCRC16(UID, sizeof(UID), 0);
+
+    msp_packet_tx.reset();
+    msp_packet_rx.reset();
+}
+
+void tx_common_init(void)
+{
+    platform_config_load(pl_config);
+    TxTimer.callbackTock = &SendRCdataToRF;
+    SetRadioType(pl_config.rf_mode);
+    SetRFLinkRate(current_rate_config, 1);
+
+#ifdef CTRL_SERIAL
+    uint8_t resp[5], outlen = sizeof(resp);
+    if (0 == SettingsCommandHandle(0, resp, 0, outlen))
+        msp_packet_parser.sendPacket(
+            &ctrl_serial, MSP_PACKET_V1_ELRS,
+            ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, outlen, resp);
+#endif /* CTRL_SERIAL */
 }
 
 ///////////////////////////////////////
@@ -190,7 +215,7 @@ static uint8_t SetRadioType(uint8_t type)
 
 ///////////////////////////////////////
 
-static void process_rx_buffer()
+void process_rx_buffer(void)
 {
     const uint32_t ms = millis();
     const uint16_t crc = CalcCRC16((uint8_t*)rx_buffer, OTA_PACKET_DATA, CRCCaesarCipher);
@@ -302,6 +327,12 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     uint16_t crc;
     uint8_t index = OTA_PACKET_DATA, arm_state = RcChannels_get_arm_channel_state();
 
+    // TODO: move away...
+#if (GPIO_PIN_RCSIGNAL_RX != UNDEF_PIN) || (GPIO_PIN_RCSIGNAL_TX != UNDEF_PIN)
+    // tells the crsf that we want to send data now - this allows opentx packet syncing
+    crsf.UpdateOpenTxSyncOffset(current_us);
+#endif
+
     // Check if telemetry RX ongoing
     if (tlm_ratio && (rxtx_counter & tlm_ratio) == 0) {
         // Skip TX because TLM RX is ongoing
@@ -361,7 +392,7 @@ send_to_rf_exit:
 
 ///////////////////////////////////////
 
-static int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out, uint8_t const inlen, uint8_t & outlen)
+int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out, uint8_t const inlen, uint8_t & outlen)
 {
     uint8_t const cmd = in[0];
     uint8_t value = in[1];
@@ -465,11 +496,21 @@ static int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out, uint8_t con
         TxTimer.start();
     }
 
+#ifdef CTRL_SERIAL
+    if (out) {
+        msp_packet_parser.sendPacket(
+            &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_INT_MSP_PARAMS,
+            MSP_ELRS_INT, outlen, out);
+    }
+#endif /* CTRL_SERIAL */
+
     return 0;
 }
 
+
+
 ///////////////////////////////////////
-static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link (hz)
+uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link (hz)
 {
     const expresslrs_mod_settings_t *const config = get_elrs_airRateConfig(rate);
     if (config == NULL || config == ExpressLRS_currAirRate)
@@ -490,8 +531,10 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
     Radio->Config(config->bw, config->sf, config->cr, GetInitialFreq(),
                   config->PreambleLen, (OTA_PACKET_CRC == 0));
 
-    // TODO: adjust ADC refresh rate!
-
+    //TODO: move...
+#if (GPIO_PIN_RCSIGNAL_RX != UNDEF_PIN) || (GPIO_PIN_RCSIGNAL_TX != UNDEF_PIN)
+    crsf.setRcPacketRate(config->interval);
+#endif
     LinkStatistics.link.rf_Mode = config->rate_osd_num;
 
     tx_tlm_change_interval(TLMinterval, init);
@@ -503,24 +546,21 @@ static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link
     return 1;
 }
 
-static void hw_timer_init(void)
+void hw_timer_init(void)
 {
     red_led_state = 1;
     platform_set_led(1);
     TxTimer.init();
     TxTimer.start();
 }
-static void hw_timer_stop(void)
+
+void hw_timer_stop(void)
 {
     red_led_state = 0;
     platform_set_led(0);
     platform_radio_force_stop();
 }
 
-static void rc_data_cb(uint8_t const *const channels)
-{
-    RcChannels_processChannels((rc_channels_t*)channels);
-}
 
 #ifdef CTRL_SERIAL
 static void MspOtaCommandsSend(mspPacket_t &packet)
@@ -550,128 +590,84 @@ static void MspOtaCommandsSend(mspPacket_t &packet)
 }
 #endif
 
-void setup()
+void tx_common_handle_rx_buffer(void)
 {
-    uint8_t UID[6] = {MY_UID};
-
-    init_globals();
-
-    msp_packet_tx.reset();
-    msp_packet_rx.reset();
-
-    CRCCaesarCipher = CalcCRC16(UID, sizeof(UID), 0);
-
-    platform_setup();
-    DEBUG_PRINTF("ExpressLRS TX Module...\n");
-    platform_config_load(pl_config);
-
-    TxTimer.callbackTock = &SendRCdataToRF;
-
-    SetRadioType(pl_config.rf_mode);
-    SetRFLinkRate(current_rate_config, 1);
-
-#ifdef CTRL_SERIAL
-    uint8_t resp[5], outlen = sizeof(resp);
-    if (0 == SettingsCommandHandle(0, resp, 0, outlen))
-        msp_packet_parser.sendPacket(
-            &ctrl_serial, MSP_PACKET_V1_ELRS,
-            ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, outlen, resp);
-#endif /* CTRL_SERIAL */
-
-    // Start ADC reading
-}
-
-void loop()
-{
-    if (rx_buffer_handle)
-    {
+    if (rx_buffer_handle) {
         process_rx_buffer();
         rx_buffer_handle = 0;
         platform_wd_feed();
     }
+}
 
-    if (TLM_RATIO_NO_TLM < TLMinterval)
-    {
+int tx_common_has_telemetry(void)
+{
+    return (TLM_RATIO_NO_TLM < TLMinterval) ? 0 : -1;
+}
+
+int tx_common_check_connection(void)
+{
+    if (0 <= tx_common_has_telemetry() && STATE_lost < connectionState) {
         uint32_t current_ms = millis();
-
-        if (STATE_lost < connectionState &&
-            RX_CONNECTION_LOST_TIMEOUT < (uint32_t)(current_ms - LastPacketRecvMillis))
-        {
+        if (RX_CONNECTION_LOST_TIMEOUT < (uint32_t)(current_ms - LastPacketRecvMillis)) {
             connectionState = STATE_disconnected;
             platform_connection_state(STATE_disconnected);
             platform_set_led(red_led_state);
-        }
-        else if (connectionState == STATE_connected &&
-                 TLM_REPORT_INTERVAL <= (uint32_t)(current_ms - TlmSentToRadioTime))
-        {
-            TlmSentToRadioTime = current_ms;
-
-            // Calc LQ based on good tlm packets and receptions done
-            uint8_t const rx_cnt = read_u32(&expected_tlm_counter);
-            write_u32(&expected_tlm_counter, 0);
-            uint32_t const tlm_cnt = recv_tlm_counter;
-            recv_tlm_counter = 0; // Clear RX counter
-
-            if (rx_cnt)
-                LinkStatistics.link.downlink_Link_quality = (tlm_cnt * 100u) / rx_cnt;
-            else
-                // failure value??
-                LinkStatistics.link.downlink_Link_quality = 0;
-
-            LinkStatistics.link.uplink_TX_Power = PowerMgmt.power_to_radio_enum();
-
-            //  TODO: send stats to ESP over MSP packets!
-            // Link stats, GPS, battery info
+            return -1;
         }
     }
+    return 0;
+}
 
-    if (!rx_buffer_handle) {
-        // Send MSP resp if allowed and packet ready
-        if (tlm_msp_rcvd)
-        {
-            DEBUG_PRINTF("DL MSP rcvd. func: %x, size: %u\n",
-                msp_packet_rx.function, msp_packet_rx.payloadSize);
-
-            // TODO: Send received MSP packet to ESP!
-
-            msp_packet_rx.reset();
-            tlm_msp_rcvd = 0;
-        }
+void tx_common_handle_ctrl_serial(void)
+{
 #ifdef CTRL_SERIAL
-        else if (ctrl_serial.available()) {
-            platform_wd_feed();
-            uint8_t in = ctrl_serial.read();
-            if (msp_packet_parser.processReceivedByte(in)) {
-                //  MSP received, check content
-                mspPacket_t &packet = msp_packet_parser.getPacket();
+    if (ctrl_serial.available()) {
+        platform_wd_feed();
+        uint8_t in = ctrl_serial.read();
+        if (msp_packet_parser.processReceivedByte(in)) {
+            //  MSP received, check content
+            mspPacket_t &packet = msp_packet_parser.getPacket();
 
-                //DEBUG_PRINTF("MSP rcvd, type:%u\n", packet.type);
+            //DEBUG_PRINTF("MSP rcvd, type:%u\n", packet.type);
 
-                /* Check if packet is ELRS internal */
-                if ((packet.type == MSP_PACKET_V1_ELRS) && (packet.flags & MSP_ELRS_INT)) {
-                    switch (packet.function) {
-                        case ELRS_INT_MSP_PARAMS: {
-                            uint8_t * msg = (uint8_t*)packet.payload;
-                            uint8_t outlen = packet.payloadSize;
-                            if (0 == SettingsCommandHandle(msg, msg, packet.payloadSize, outlen)) {
-                                //packet.type = MSP_PACKET_V1_ELRS;
-                                packet.payloadSize = outlen;
-                                msp_packet_parser.sendPacket(&packet, &ctrl_serial);
-                            }
-                            break;
+            /* Check if packet is ELRS internal */
+            if ((packet.type == MSP_PACKET_V1_ELRS) && (packet.flags & MSP_ELRS_INT)) {
+                switch (packet.function) {
+                    case ELRS_INT_MSP_PARAMS: {
+                        uint8_t * msg = (uint8_t*)packet.payload;
+                        uint8_t outlen = packet.payloadSize;
+                        if (0 == SettingsCommandHandle(msg, msg, packet.payloadSize, outlen)) {
+                            //packet.type = MSP_PACKET_V1_ELRS;
+                            packet.payloadSize = outlen;
+                            msp_packet_parser.sendPacket(&packet, &ctrl_serial);
                         }
-                        default:
-                            break;
-                    };
-                } else {
-                    MspOtaCommandsSend(packet);
-                }
-                msp_packet_parser.markPacketFree();
+                        break;
+                    }
+                    default:
+                        break;
+                };
+            } else {
+                MspOtaCommandsSend(packet);
             }
+            msp_packet_parser.markPacketFree();
         }
-#endif /* CTRL_SERIAL */
     }
+#endif
+}
 
-    platform_loop(connectionState);
-    platform_wd_feed();
+void tx_common_update_link_stats(void)
+{
+    // Calc LQ based on good tlm packets and receptions done
+    uint8_t const rx_cnt = read_u32(&expected_tlm_counter);
+    write_u32(&expected_tlm_counter, 0);
+    uint32_t const tlm_cnt = recv_tlm_counter;
+    recv_tlm_counter = 0; // Clear RX counter
+
+    if (rx_cnt)
+        LinkStatistics.link.downlink_Link_quality = (tlm_cnt * 100u) / rx_cnt;
+    else
+        // failure value??
+        LinkStatistics.link.downlink_Link_quality = 0;
+
+    LinkStatistics.link.uplink_TX_Power = PowerMgmt.power_to_radio_enum();
 }
