@@ -168,7 +168,7 @@ get_pclock_frequency(uint32_t periph_base)
 void gpio_clock_enable(GPIO_TypeDef *regs)
 {
     uint32_t rcc_pos = ((uint32_t)regs - AHB1PERIPH_BASE) / 0x400;
-    RCC->AHB1ENR |= 1 << (17 + rcc_pos);
+    RCC->AHB1ENR |= (1 << rcc_pos);
     (void)RCC->AHB1ENR;
 }
 
