@@ -4,6 +4,8 @@
 #include "stm32_def.h"
 #include "helpers.h"
 #include "targets.h"
+#include "1AUDfilter.h"
+#include "debug_elrs.h"
 
 #if defined(STM32F7xx)
 #include "stm32f7xx_hal_adc.h"
@@ -14,196 +16,295 @@
 #include "stm32f7xx_ll_gpio.h"
 #endif
 
-#define ADC_DMA DMA1
-#define ADC_DMA_CH LL_DMA_CHANNEL_1
+#define TIMx TIM6
+#define TIMx_IRQn TIM6_DAC_IRQn
+#define TIMx_IRQx_FUNC TIM6_DAC_IRQHandler
+
+#define TIMx_ISR_EN     1
+#define TIM_INVERVAL_US 1000
 
 
-#define NUM_READS    16
-struct adc_read {
-    uint16_t ch1;
-    uint16_t ch2;
-    uint16_t ch3;
-    uint16_t ch4;
-};
-union adc_raw {
-    struct {
-        struct adc_read low[NUM_READS/2];
-        struct adc_read high[NUM_READS/2];
-    };
-    struct adc_read values[NUM_READS];
-};
-union adc_raw RawVals;
+struct gpio_out debug;
 
-ADC_HandleTypeDef hadc1;
-DMA_HandleTypeDef hdma_adc1;
-TIM_HandleTypeDef htim;
+/* Contains:
+ *  [ 0... 3] = channel1
+ *  [ 4... 7] = channel2
+ *  [ 8...11] = channel3
+ *  [12...15] = channel4
+*/
+static uint16_t DRAM_ATTR RawVals[16];
 
-struct adc_pins {
-    uint32_t pin;
-    ADC_TypeDef * adc;
-    uint32_t adc_ch;
+/* STM32 ADC pins in channel order 0...n */
+static uint32_t adc_pins[] = {
+    GPIO('A', 0), GPIO('A', 1), GPIO('A', 2), GPIO('A', 3),
+    GPIO('A', 4), GPIO('A', 5), GPIO('A', 6), GPIO('A', 7),
+    GPIO('B', 0), GPIO('B', 1),
+    GPIO('C', 0), GPIO('C', 1), GPIO('C', 2), GPIO('C', 3),
+    GPIO('C', 4), GPIO('C', 5),
 };
 
-struct adc_pins adc_pins[] = {
-    {GPIO('A', 0), ADC1, ADC_CHANNEL_0},
-    {GPIO('A', 1), ADC1, ADC_CHANNEL_1},
-    {GPIO('A', 2), ADC1, ADC_CHANNEL_2},
-    {GPIO('A', 3), ADC1, ADC_CHANNEL_3},
-    {GPIO('A', 4), ADC1, ADC_CHANNEL_4},
-    {GPIO('A', 5), ADC1, ADC_CHANNEL_5},
-    {GPIO('A', 6), ADC1, ADC_CHANNEL_6},
-    {GPIO('A', 7), ADC1, ADC_CHANNEL_7},
-    {GPIO('B', 0), ADC1, ADC_CHANNEL_8},
-    {GPIO('B', 1), ADC1, ADC_CHANNEL_9},
-    {GPIO('C', 0), ADC1, ADC_CHANNEL_10},
-    {GPIO('C', 1), ADC1, ADC_CHANNEL_11},
-    {GPIO('C', 2), ADC1, ADC_CHANNEL_12},
-    {GPIO('C', 3), ADC1, ADC_CHANNEL_13},
-    {GPIO('C', 4), ADC1, ADC_CHANNEL_14},
-    {GPIO('C', 5), ADC1, ADC_CHANNEL_15},
+/* Create a filters */
+static OneAUDfilter DRAM_ATTR filters[4] = {
+    OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
+    OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
+    OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
+    OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
 };
+
+void handle_dma_isr(void)
+{
+    //DEBUG_PRINTF("rdy %u! %u\n", LL_DMA_GetDataLength(DMA2, LL_DMA_STREAM_0), micros());
+    uint32_t val;
+    uint_fast8_t iter;
+    for (iter = 0; iter < ARRAY_SIZE(RawVals); iter+=4) {
+        val = RawVals[iter];
+        val += RawVals[iter+1];
+        val += RawVals[iter+2];
+        val += RawVals[iter+3];
+        filters[(iter / 4)].update((val / 4));
+    }
+}
+
 
 extern "C" {
 void ADC_IRQHandler(void)
 {
-    HAL_ADC_IRQHandler(&hadc1);
+    //DEBUG_PRINTF("ADC %u\n", micros());
+    if (READ_BIT(ADC1->SR, ADC_SR_OVR)) {
+        WRITE_REG(ADC1->SR , ADC_SR_OVR);
+    }
 }
 
 void DMA2_Stream0_IRQHandler(void)
 {
-    HAL_DMA_IRQHandler(&hdma_adc1);
-}
-}
+    // DMA transfer complete.
+    if (READ_BIT(DMA2->LISR, DMA_LISR_TCIF0)) {
+        WRITE_REG(DMA2->LIFCR , DMA_LIFCR_CTCIF0);
+        handle_dma_isr();
+        gpio_out_write(debug, 0);
+    }
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
-{
-    /* Full - handle upper part */
-}
-
-void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
-{
-    /* Half - handle lower part */
-
-}
-
-static void ADC1_ConfigChannel(uint32_t channel, uint8_t rank)
-{
-    /** Configure for the selected ADC regular channel its corresponding
-     * rank in the sequencer and its sample time.
-     */
-    ADC_ChannelConfTypeDef sConfig;
-    sConfig.Channel = channel;
-    sConfig.Rank = rank;
-    //  84 =  6.2us
-    // 112 =  8.3us
-    // 144 = 10.7us
-    // 480 = 35.6us
-    // one shot: 8*4*10.7us = 342.4us;
-    sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
-    sConfig.Offset = 0;
-    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
-        Error_Handler();
+    // DMA transfer error.
+    if (READ_BIT(DMA2->LISR, DMA_LISR_TEIF0)) {
+        WRITE_REG(DMA2->LIFCR , DMA_LIFCR_CTEIF0);
+        DEBUG_PRINTF("DMA ERROR\n");
     }
 }
 
-static void ADC1_Init(void)
+void TIMx_IRQx_FUNC(void)
 {
-    if (hadc1.Instance)
-        return;
+    uint16_t SR = TIMx->SR;
+    if (SR & TIM_SR_UIF) {
+        TIMx->SR = SR & ~(TIM_SR_UIF);
+
+        //DEBUG_PRINTF("TIM %u\n", micros());
+        //gpio_out_toggle(debug);
+        gpio_out_write(debug, 1);
+    }
+}
+}
+
+
+static void configure_dma(void) {
+    // Enable DMA peripheral clock.
+    enable_pclock((uint32_t)DMA2_Stream0);
+
+    // Configure DMA transfer:
+    //  - DMA transfer in circular mode to match with ADC configuration:
+    //    DMA unlimited requests.
+    //  - DMA transfer from ADC without address increment.
+    //  - DMA transfer to memory with address increment.
+    //  - DMA transfer from ADC by half-word to match with ADC configuration:
+    //    ADC resolution 12 bits.
+    //  - DMA transfer to memory by half-word to match with ADC conversion data
+    //    buffer variable type: half-word.
+    MODIFY_REG(DMA2_Stream0->CR, DMA_SxCR_CHSEL, 0x00);
+    MODIFY_REG(DMA2_Stream0->CR,
+                DMA_SxCR_DIR | DMA_SxCR_CIRC | DMA_SxCR_PINC | DMA_SxCR_MINC |
+                DMA_SxCR_PSIZE | DMA_SxCR_MSIZE | DMA_SxCR_PL | DMA_SxCR_PFCTRL,
+                0x00000000U |      // Direction: peripheral to memory
+                DMA_SxCR_CIRC |    // Mode: circular
+                0x00000000U |      // Peripheral: no increment
+                DMA_SxCR_MINC |    // Memory: increment
+                DMA_SxCR_PSIZE_0 | // Peripheral data align: halfword
+                DMA_SxCR_MSIZE_0 | // Memory data align: halfword
+                DMA_SxCR_PL_1);    // Priority: high
+
+    // Set DMA transfer addresses.
+    WRITE_REG(DMA2_Stream0->PAR, (uint32_t)&(ADC1->DR));
+    WRITE_REG(DMA2_Stream0->M0AR, (uint32_t)&RawVals[0]);
+
+    // Set DMA transfer size.
+    MODIFY_REG(DMA2_Stream0->NDTR, DMA_SxNDT, ARRAY_SIZE(RawVals));
+
+    // Enable DMA interrupts.
+    NVIC_SetPriority(DMA2_Stream0_IRQn, 1); // DMA IRQ lower priority than ADC IRQ.
+    NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+    SET_BIT(DMA2_Stream0->CR, DMA_SxCR_TCIE);
+    SET_BIT(DMA2_Stream0->CR, DMA_SxCR_TEIE);
+
+    // Enable DMA transfer.
+    SET_BIT(DMA2_Stream0->CR, DMA_SxCR_EN);
+}
+
+
+static void configure_timer(void)
+{
+    enable_pclock((uint32_t)TIMx);
+
+    /* Config timer to trigger conversions */
+    TIMx->CR1 = 0;
+    TIMx->DIER = 0;
+    TIMx->SR &= ~(TIM_SR_UIF);
+    // Set clock prescaler to 1us
+    TIMx->PSC = (2 * get_pclock_frequency((uint32_t)TIMx) / 1000000) - 1;
+    TIMx->ARR = TIM_INVERVAL_US - 1;
+    TIMx->CNT = 0;
+    MODIFY_REG(TIMx->CR2, TIM_CR2_MMS, 0x2 << TIM_CR2_MMS_Pos); // TRGO update
+#if TIMx_ISR_EN
+    //TIMx->EGR = TIM_EGR_UG;
+    TIMx->DIER = TIM_DIER_UIE;
+    NVIC_SetPriority(TIMx_IRQn,
+        NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 2, 0));
+    NVIC_EnableIRQ(TIMx_IRQn);
+#endif
+    TIMx->CR1 = TIM_CR1_CEN | TIM_CR1_URS | TIM_CR1_DIR;
+}
+
+static void configure_adc_channel(uint32_t channel, uint8_t rank)
+{
+    //delay(100);
+    //DEBUG_PRINTF("ADC cfg: ch %u, rank %u\n", channel, rank);
+
+    /** Configure for the selected ADC regular channel its corresponding
+     * rank in the sequencer and its sample time.
+     */
+    uint32_t mask;
+    __IO uint32_t * REG;
+    rank -= 1;
+
+    /* Set channel time */
+    if (rank < 6) {
+        REG = &ADC1->SQR3;
+    } else if (rank < 12) {
+        rank -= 6;
+        REG = &ADC1->SQR2;
+    } else if (rank < 16) {
+        rank -= 12;
+        REG = &ADC1->SQR1;
+    }
+    rank *= 5;
+    mask = ADC_SQR3_SQ1_Msk << rank;
+    MODIFY_REG(*REG, mask, channel << rank);
+
+    /* Set sampling time */
+    if (channel < 10) {
+        REG = &ADC1->SMPR2;
+    } else {
+        channel -= 10;
+        REG = &ADC1->SMPR1;
+    }
+    channel *= 3;
+    mask = ADC_SMPR1_SMP10_Msk << channel;
+    MODIFY_REG(*REG, mask, (uint32_t)ADC_SAMPLETIME_480CYCLES << channel);
+    /* 480T = ~300us */
+    /* 144T = ~100us */
+    /* 112T =  ~90us */
+    /*  84T =  ~74us */
+}
+
+static void configure_adc(void)
+{
     uint32_t channels[4] = {
         GIMBAL_L1, GIMBAL_L2,
         GIMBAL_R1, GIMBAL_R2,
     };
     uint32_t pin;
-    uint8_t iter, chan;
+    uint8_t iter, chan, jter;
+
+    configure_dma();
+    configure_timer();
 
     /* Peripheral clock enable */
-    __HAL_RCC_ADC1_CLK_ENABLE();
-    __HAL_RCC_DMA2_CLK_ENABLE();
+    enable_pclock((uint32_t)ADC1);
 
-    /* ADC1 DMA Init */
-    hdma_adc1.Instance = DMA2_Stream0;
-    hdma_adc1.Init.Channel = DMA_CHANNEL_0;
-    hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
-    hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_adc1.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-    hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-    hdma_adc1.Init.Mode = DMA_CIRCULAR;
-    hdma_adc1.Init.Priority = DMA_PRIORITY_MEDIUM;
-    hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-    hdma_adc1.Init.MemBurst = DMA_MBURST_SINGLE;
-    hdma_adc1.Init.PeriphBurst = DMA_PBURST_SINGLE;
-    if (HAL_DMA_Init(&hdma_adc1) != HAL_OK) {
-        Error_Handler();
-    }
-    __HAL_LINKDMA(&hadc1, DMA_Handle, hdma_adc1);
+    //NVIC_SetPriority(ADC_IRQn, 0);
+    //NVIC_EnableIRQ(ADC_IRQn);
 
-    /** Configure the global features of the ADC
-     *  (Clock, Resolution, Data Alignment and number of conversion)
-     */
-    hadc1.Instance = ADC1;
-    // Clock = 54MHz / 4 = 13.5MHz
-    hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
-    hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-    hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
-    hadc1.Init.ContinuousConvMode = ARRAY_SIZE(channels) > 1 ? ENABLE : DISABLE;
-    hadc1.Init.DiscontinuousConvMode = DISABLE;
-    hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-    //hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T1_CC1;
-    hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-    hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-    hadc1.Init.NbrOfConversion = ARRAY_SIZE(channels);
-    // Trigger DMA in circular mode
-    hadc1.Init.DMAContinuousRequests = ENABLE;
-    hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-    if (HAL_ADC_Init(&hadc1) != HAL_OK) {
-        Error_Handler();
-    }
+    // Set ADC clock source: APB2 clock / 2.
+    MODIFY_REG(ADC123_COMMON->CCR, ADC_CCR_ADCPRE, 0);
+
 
     for (iter = 0; iter < ARRAY_SIZE(channels); iter++) {
         for (chan = 0; chan < ARRAY_SIZE(adc_pins); chan++) {
             pin = channels[iter];
-            if (adc_pins[chan].pin == pin) {
+            if (adc_pins[chan] == pin) {
                 gpio_peripheral(pin, GPIO_ANALOG, 0);
-                ADC1_ConfigChannel(adc_pins[chan].adc_ch, (iter + 1));
+                for (jter = 0; jter < 4; jter++) {
+                    configure_adc_channel(chan, ((iter * 4) + jter + 1));
+                }
             }
         }
     }
 
-#if 0
-    /* Config 1kHz timer to trigger conversions */
-    enable_pclock((uint32_t)TIM1);
+    //uint32_t CR1 = ADC1->CR1 & ~0x03C0FFFF;
+    uint32_t CR2 = ADC1->CR2 & ~0x7F7F0F03;
 
-    htim.Instance = TIM1;
-    htim.Init.Prescaler = 108 - 1;
-    htim.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim.Init.Period = 1000 - 1;
-    htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-    htim.Init.RepetitionCounter = 0;
-    htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-    HAL_TIM_Base_Init(&htim);
-    HAL_TIM_Base_Start(&htim);
-#endif
+    // Set ADC group regular continuous mode: off.
+    //MODIFY_REG(ADC1->CR2, ADC_CR2_CONT, 0);
 
-    /* ADC1 interrupt Init */
-    //HAL_NVIC_SetPriority(ADC_IRQn, 0, 0);
-    //HAL_NVIC_EnableIRQ(ADC_IRQn);
+    // Set ADC group regular trigger source: rising edge of TIM2 TRGO.
+    //MODIFY_REG(ADC1->CR2, ADC_CR2_EXTSEL, 0x0B << ADC_CR2_EXTSEL_Pos);
+    //MODIFY_REG(ADC1->CR2, ADC_CR2_EXTEN, 0x01 << ADC_CR2_EXTEN_Pos);
+    //CR2 |= (ADC_CR2_EXTSEL_2 | ADC_CR2_EXTSEL_3); // TIM4
+    CR2 |= (ADC_CR2_EXTSEL_2 | ADC_CR2_EXTSEL_3 |ADC_CR2_EXTSEL_0); // TIM6
+    CR2 |= 0x01 << ADC_CR2_EXTEN_Pos;
 
-    //HAL_NVIC_DisableIRQ(ADC_IRQn);
+    // Set ADC group regular sequencer length: four channels.
+    MODIFY_REG(ADC1->SQR1, ADC_SQR1_L, 15LU << ADC_SQR1_L_Pos);
 
-    HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+    // Enable multiple conversions.
+    SET_BIT(ADC1->CR1, (ADC_CR1_SCAN | ADC_IT_OVR));
+    // Enable DMA transfer for ADC. and start
+    //MODIFY_REG(ADC1->CR2, ADC_CR2_DMA | ADC_CR2_DDS, ADC_CR2_DDS | ADC_CR2_DMA);
+    CR2 |= (ADC_CR2_DDS | ADC_CR2_DMA | ADC_CR2_ADON);
+    ADC1->SR &= ~(ADC_FLAG_EOC | ADC_FLAG_OVR);
+    ADC1->CR2 = CR2;
 
-    HAL_ADC_Start_DMA(
-        &hadc1, (uint32_t*)&RawVals, (sizeof(RawVals) / sizeof(uint16_t)));
+
+    DEBUG_PRINTF("ADC started!\n");
 }
 
 
+void gimbals_init(void)
+{
+    debug = gpio_out_setup(PB12, 0);
+    configure_adc();
 
+    //uint32_t CFGR = RCC->DCKCFGR1;
+    //DEBUG_PRINTF("RCC bit: %u\n", (CFGR & RCC_DCKCFGR1_TIMPRE_Msk));
 
+    while(1) {
+        DEBUG_PRINTF("hello! [0]=%u, [1]=%u, [2]=%u, [3]=%u\r\n",
+            (uint32_t)filters[0].getCurrent(), (uint32_t)filters[1].getCurrent(),
+            (uint32_t)filters[2].getCurrent(), (uint32_t)filters[3].getCurrent());
+        delay(1000);
+    }
 
+}
 
+void gimbals_timer_adjust(int32_t off)
+{
+    TIMx->ARR = TIM_INVERVAL_US - off;
+}
+
+void gimbals_get(uint16_t &l1, uint16_t &l2, uint16_t &r1, uint16_t &r2)
+{
+    l1 = filters[0].getCurrent();
+    l2 = filters[1].getCurrent();
+    r1 = filters[2].getCurrent();
+    r2 = filters[3].getCurrent();
+}
 
 
 

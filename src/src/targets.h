@@ -439,6 +439,19 @@ https://github.com/jaxxzer
 // Right gimbal
 #define GIMBAL_R1   PC1
 #define GIMBAL_R2   PC0
+
+#define SWITCH_1_1  PB3
+#define SWITCH_1_2  PB4
+#define SWITCH_2_1  PB5
+#define SWITCH_2_2  PB6
+#define SWITCH_3_1  PB14
+#define SWITCH_3_2  PB15
+#define SWITCH_4_1  PB12
+#define SWITCH_4_2  PB13
+#define SWITCH_5_1  PC12
+#define SWITCH_5_2  PC11
+#define SWITCH_6_1  PB9
+#define SWITCH_6_2  PB8
 #endif
 
 

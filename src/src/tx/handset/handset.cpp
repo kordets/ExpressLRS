@@ -8,8 +8,28 @@
 #include "gimbals.h"
 #include <stdlib.h>
 
+#define THROTTLE    0
+#define YAW         1
+#define PITCH       2
+#define ROLL        3
 
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
+static rc_channels_t DRAM_ATTR rc_data;
+///////////////////////////////////////
+
+void rc_data_collect(void)
+{
+    uint16_t gimbals[4];
+    gimbals_get(gimbals[THROTTLE], gimbals[YAW], gimbals[PITCH], gimbals[ROLL]);
+    rc_data.ch0 = gimbals[THROTTLE];
+    rc_data.ch1 = gimbals[YAW];
+    rc_data.ch2 = gimbals[PITCH];
+    rc_data.ch3 = gimbals[ROLL];
+
+    // Read switches...
+
+    RcChannels_processChannels(&rc_data);
+}
 
 ///////////////////////////////////////
 
@@ -18,6 +38,8 @@ void setup()
     tx_common_init_globals();
     platform_setup();
     DEBUG_PRINTF("ExpressLRS TX Module...\n");
+
+    gimbals_init();
 
     tx_common_init();
 }

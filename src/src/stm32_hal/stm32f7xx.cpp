@@ -126,10 +126,15 @@ void enable_pclock(uint32_t periph_base)
         RCC->APB1ENR;
     } else if (periph_base < AHB1PERIPH_BASE) {
         uint32_t pos = (periph_base - APB2PERIPH_BASE) / 0x400;
+        if (pos == 8) { // ADC
+            if (periph_base == ADC2_BASE) pos = 9;
+            else if (periph_base == ADC3_BASE) pos = 10;
+        }
         RCC->APB2ENR |= (1 << pos);
         RCC->APB2ENR;
     } else if (periph_base < AHB2PERIPH_BASE) {
         uint32_t pos = (periph_base - AHB1PERIPH_BASE) / 0x400;
+        if (18 < pos) pos -= 3;
         RCC->AHB1ENR |= (1 << pos);
         RCC->AHB1ENR;
     } else  {
@@ -147,9 +152,14 @@ uint32_t is_enabled_pclock(uint32_t periph_base)
         return RCC->APB1ENR & (1 << pos);
     } else if (periph_base < AHB1PERIPH_BASE) {
         uint32_t pos = (periph_base - APB2PERIPH_BASE) / 0x400;
+        if (pos == 8) { // ADC
+            if (periph_base == ADC2_BASE) pos = 9;
+            else if (periph_base == ADC3_BASE) pos = 10;
+        }
         return RCC->APB2ENR & (1 << pos);
     } else if (periph_base < AHB2PERIPH_BASE) {
         uint32_t pos = (periph_base - AHB1PERIPH_BASE) / 0x400;
+        if (18 < pos) pos -= 3;
         return RCC->AHB1ENR & (1 << pos);
     } else {
         uint32_t pos = (periph_base - AHB2PERIPH_BASE) / 0x400;
@@ -247,8 +257,9 @@ void timer_init(void)
 
 void SystemClock_Config(void)
 {
-    //SCB_EnableICache();
+    SCB_EnableICache();
     //SCB_EnableDCache();
+    SCB_DisableDCache();
 
     RCC_OscInitTypeDef RCC_OscInitStruct;
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
@@ -315,7 +326,7 @@ void SystemClock_Config(void)
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1; // HCLK
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;  // PCLK1, must be <= 54MHz
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;  // PCLK2
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;  // PCLK2, must be <= 108MHz
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7) != HAL_OK) {
         Error_Handler();
     }
@@ -347,10 +358,11 @@ void SystemClock_Config(void)
     /* Enable SYSCFG Clock */
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 
-    // From BF:
-    // Activating the timerprescalers while the APBx prescalers are 1/2/4 will
-    //    connect the TIMxCLK to HCLK which has been configured to 216MHz
-    __HAL_RCC_TIMCLKPRESCALER(RCC_TIMPRES_ACTIVATED);
+    // The timer prescaler
+    //   * APBx prescaler is 1,2 or 4, then TIMxCLK = HCLK, otherwise TIMxCLK = 4x PCLKx
+    //__HAL_RCC_TIMCLKPRESCALER(RCC_TIMPRES_ACTIVATED);
+    //   * APBx prescaler is 1, then TIMxCLK = PCLKx, otherwise TIMxCLK = 2x PCLKx
+    __HAL_RCC_TIMCLKPRESCALER(RCC_TIMPRES_DESACTIVATED);
 }
 
 void hw_init(void)
@@ -417,7 +429,7 @@ void TIM1_CC_IRQHandler(void) {Error_Handler();}
 void TIM3_IRQHandler(void) {Error_Handler();}
 void TIM4_IRQHandler(void) {Error_Handler();}
 void TIM5_IRQHandler(void) {Error_Handler();}
-void TIM6_DAC_IRQHandler(void) {Error_Handler();}
+//void TIM6_DAC_IRQHandler(void) {Error_Handler();}
 void TIM7_IRQHandler(void) {Error_Handler();}
 void TIM8_BRK_TIM12_IRQHandler(void) {Error_Handler();}
 void TIM8_UP_TIM13_IRQHandler(void) {Error_Handler();}
