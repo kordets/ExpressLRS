@@ -6,6 +6,7 @@
 #include "targets.h"
 #include "1AUDfilter.h"
 #include "debug_elrs.h"
+#include "rc_channels.h"
 
 #if defined(STM32F7xx)
 #include "stm32f7xx_hal_adc.h"
@@ -25,6 +26,8 @@
 
 
 struct gpio_out debug;
+
+static uint32_t last_read_us;
 
 /* Contains:
  *  [ 0... 3] = channel1
@@ -51,6 +54,7 @@ static OneAUDfilter DRAM_ATTR filters[4] = {
     OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
 };
 
+
 void handle_dma_isr(void)
 {
     //DEBUG_PRINTF("rdy %u! %u\n", LL_DMA_GetDataLength(DMA2, LL_DMA_STREAM_0), micros());
@@ -63,6 +67,7 @@ void handle_dma_isr(void)
         val += RawVals[iter+3];
         filters[(iter / 4)].update((val / 4));
     }
+    last_read_us = micros();
 }
 
 
@@ -283,27 +288,27 @@ void gimbals_init(void)
 
     //uint32_t CFGR = RCC->DCKCFGR1;
     //DEBUG_PRINTF("RCC bit: %u\n", (CFGR & RCC_DCKCFGR1_TIMPRE_Msk));
-
-    while(1) {
-        DEBUG_PRINTF("hello! [0]=%u, [1]=%u, [2]=%u, [3]=%u\r\n",
-            (uint32_t)filters[0].getCurrent(), (uint32_t)filters[1].getCurrent(),
-            (uint32_t)filters[2].getCurrent(), (uint32_t)filters[3].getCurrent());
-        delay(1000);
-    }
-
 }
 
-void gimbals_timer_adjust(int32_t off)
+void ICACHE_RAM_ATTR
+gimbals_timer_adjust(uint32_t us)
 {
+    //int32_t off = (int32_t)(us - read_u32(&last_read_us));
+    int32_t off = 400;
     TIMx->ARR = TIM_INVERVAL_US - off;
 }
 
-void gimbals_get(uint16_t &l1, uint16_t &l2, uint16_t &r1, uint16_t &r2)
+void ICACHE_RAM_ATTR
+gimbals_get(uint16_t &l1, uint16_t &l2, uint16_t &r1, uint16_t &r2)
 {
-    l1 = filters[0].getCurrent();
-    l2 = filters[1].getCurrent();
-    r1 = filters[2].getCurrent();
-    r2 = filters[3].getCurrent();
+    l1 = MAP_U16((uint16_t)filters[0].getCurrent(), 0, 4095,
+        CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX);
+    l2 = MAP_U16((uint16_t)filters[1].getCurrent(), 0, 4095,
+        CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX);
+    r1 = MAP_U16((uint16_t)filters[2].getCurrent(), 0, 4095,
+        CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX);
+    r2 = MAP_U16((uint16_t)filters[3].getCurrent(), 0, 4095,
+        CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX);
 }
 
 

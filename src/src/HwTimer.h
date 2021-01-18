@@ -37,6 +37,7 @@ public:
 
     void ICACHE_RAM_ATTR callback();
 
+    void (*callbackTockPre)(uint32_t us);
     void (*callbackTock)(uint32_t us);
 
     void ICACHE_RAM_ATTR setTime(uint32_t time = 0);

@@ -5,30 +5,30 @@
 #include "POWERMGNT.h"
 #include "debug_elrs.h"
 #include "tx_common.h"
+#include "HwTimer.h"
 #include "gimbals.h"
+#include "switches.h"
 #include <stdlib.h>
 
-#define THROTTLE    0
-#define YAW         1
-#define PITCH       2
-#define ROLL        3
 
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static rc_channels_t DRAM_ATTR rc_data;
 ///////////////////////////////////////
 
-void rc_data_collect(void)
+static void ICACHE_RAM_ATTR
+rc_data_collect(uint32_t const current_us)
 {
     uint16_t gimbals[4];
-    gimbals_get(gimbals[THROTTLE], gimbals[YAW], gimbals[PITCH], gimbals[ROLL]);
-    rc_data.ch0 = gimbals[THROTTLE];
-    rc_data.ch1 = gimbals[YAW];
-    rc_data.ch2 = gimbals[PITCH];
-    rc_data.ch3 = gimbals[ROLL];
-
-    // Read switches...
+    gimbals_timer_adjust(current_us);
+    gimbals_get(gimbals[ANALOG_CH0], gimbals[ANALOG_CH1],
+                gimbals[ANALOG_CH2], gimbals[ANALOG_CH3]);
+    rc_data.ch0 = gimbals[ANALOG_CH0];
+    rc_data.ch1 = gimbals[ANALOG_CH1];
+    rc_data.ch2 = gimbals[ANALOG_CH2];
+    rc_data.ch3 = gimbals[ANALOG_CH3];
 
     RcChannels_processChannels(&rc_data);
+    switches_collect(&rc_data);
 }
 
 ///////////////////////////////////////
@@ -40,6 +40,18 @@ void setup()
     DEBUG_PRINTF("ExpressLRS TX Module...\n");
 
     gimbals_init();
+
+    TxTimer.callbackTockPre = rc_data_collect;
+    TxTimer.updateInterval(5000);
+    TxTimer.init();
+    TxTimer.start();
+
+    while (1) {
+        DEBUG_PRINTF("RC: %u, %u, %u, %u -- %u, %u, %u\n",
+            rc_data.ch0, rc_data.ch1, rc_data.ch2, rc_data.ch3,
+            rc_data.ch4, rc_data.ch5, rc_data.ch6);
+        delay(500);
+    }
 
     tx_common_init();
 }

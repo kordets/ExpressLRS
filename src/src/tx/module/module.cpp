@@ -6,6 +6,7 @@
 #include "POWERMGNT.h"
 #include "debug_elrs.h"
 #include "tx_common.h"
+#include "HwTimer.h"
 #include <stdlib.h>
 
 
@@ -70,6 +71,13 @@ static void msp_data_cb(uint8_t const *const input)
     }
 }
 
+static void ICACHE_RAM_ATTR
+update_handset_sync(uint32_t const current_us)
+{
+    // tells the crsf that we want to send data now - this allows opentx packet syncing
+    crsf.UpdateOpenTxSyncOffset(current_us);
+}
+
 void setup()
 {
     CrsfSerial.Begin(CRSF_TX_BAUDRATE_FAST);
@@ -82,6 +90,8 @@ void setup()
     crsf.ParamWriteCallback = ParamWriteHandler;
     crsf.RCdataCallback1 = rc_data_cb;
     crsf.MspCallback = msp_data_cb;
+
+    TxTimer.callbackTockPre = update_handset_sync;
 
     tx_common_init();
 

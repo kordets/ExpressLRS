@@ -327,12 +327,6 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     uint16_t crc;
     uint8_t index = OTA_PACKET_DATA, arm_state = RcChannels_get_arm_channel_state();
 
-    // TODO: move away...
-#if (GPIO_PIN_RCSIGNAL_RX != UNDEF_PIN) || (GPIO_PIN_RCSIGNAL_TX != UNDEF_PIN)
-    // tells the crsf that we want to send data now - this allows opentx packet syncing
-    crsf.UpdateOpenTxSyncOffset(current_us);
-#endif
-
     // Check if telemetry RX ongoing
     if (tlm_ratio && (rxtx_counter & tlm_ratio) == 0) {
         // Skip TX because TLM RX is ongoing
