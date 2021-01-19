@@ -35,7 +35,7 @@
 #define LL_DMA_EnableChannel LL_DMA_EnableStream
 #define LL_DMA_DisableChannel LL_DMA_DisableStream
 #define LL_DMA_IsEnabledChannel LL_DMA_IsEnabledStream
-#define LL_DMA_SetChannelPriorityLevel LL_DMA_ConfigTransfer
+#define LL_DMA_SetChannelPriorityLevel LL_DMA_SetStreamPriorityLevel
 #endif
 #include <string.h>
 
@@ -70,8 +70,12 @@
 
 #ifdef DEBUG_SERIAL
 // dummy putchar
+#ifndef PRINTF_NUM_BLOCKS
 #define PRINTF_NUM_BLOCKS   4
+#endif
+#ifndef PRINTF_BUFF_SIZE
 #define PRINTF_BUFF_SIZE    128
+#endif
 char   printf_out[PRINTF_NUM_BLOCKS][PRINTF_BUFF_SIZE];
 size_t printf_idx, printf_buff;
 
@@ -131,10 +135,10 @@ dma_ifcr_mask_get(uint32_t mask, uint8_t dma_ch)
         mask <<= (DMA_LIFCR_CFEIF1_Pos * dma_ch);
     } else if (dma_ch < 4) {
         mask <<= (16 + (DMA_LIFCR_CFEIF1_Pos * (dma_ch - 2)));
-    } else if (dma_ch < 4) {
-        mask <<= (DMA_LIFCR_CFEIF1_Pos * dma_ch);
+    } else if (dma_ch < 6) {
+        mask <<= (DMA_LIFCR_CFEIF1_Pos * (dma_ch - 4));
     } else {
-        mask <<= (16 + (DMA_LIFCR_CFEIF1_Pos * (dma_ch - 2)));
+        mask <<= (16 + (DMA_LIFCR_CFEIF1_Pos * (dma_ch - 6)));
     }
 #else
     mask <<= (4 * (dma_ch - 1));
@@ -269,18 +273,19 @@ void USARTx_DMA_handler(uint32_t index)
     uint32_t mask, sr;
 #ifdef STM32F7xx
     sr = (channel < 4) ? dma->LISR : dma->HISR;
-    mask = DMA_LISR_TCIF0_Msk;
+    mask = DMA_LIFCR_CTCIF0_Msk;
 #else
     sr = dma->ISR;
-    mask = (DMA_ISR_TCIF1_Msk;
+    mask = DMA_ISR_TCIF1_Msk;
 #endif
     mask = dma_ifcr_mask_get(mask, channel);
     if (sr & mask) {
         LL_DMA_DisableChannel(dma, channel);
-        if (DMA_transmit(serial, channel) < 0)
+        if (DMA_transmit(serial, channel) < 0) {
             serial->hw_enable_receiver();
+        }
 #ifdef STM32F7xx
-        if (channel <= 3)
+        if (channel < 4)
             WRITE_REG(dma->LIFCR, mask);
         else
             WRITE_REG(dma->HIFCR, mask);

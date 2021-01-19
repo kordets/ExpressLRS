@@ -8,6 +8,7 @@
 /* TX module shall ignore reception if some weird delay has happened */
 #define ISR_PRIO_TIM        4
 #define ISR_PRIO_EXTI       5
+#define ISR_PRIO_ADC        6
 #elif defined(RX_MODULE)
 /* RX shall run reception prio to timer */
 #define ISR_PRIO_TIM        5

@@ -13,8 +13,6 @@
 
 uint32_t dma_get(uint32_t periph, uint8_t type, uint8_t index)
 {
-    if (periph == UART5_BASE)
-        return 0;
     if (periph == USART1_BASE || periph == USART6_BASE)
         return DMA2_BASE;
     return DMA1_BASE;
@@ -35,6 +33,8 @@ uint32_t dma_channel_get(uint32_t periph, uint8_t type, uint8_t index)
         return (type == DMA_USART_RX) ? LL_DMA_STREAM_1 : LL_DMA_STREAM_3;
     else if (periph == UART4_BASE)
         return (type == DMA_USART_RX) ? LL_DMA_STREAM_2 : LL_DMA_STREAM_4;
+    else if (periph == UART5_BASE)
+        return (type == DMA_USART_RX) ? LL_DMA_STREAM_0 : LL_DMA_STREAM_7;
     return 0xff;
 }
 
@@ -52,6 +52,8 @@ uint32_t dma_irq_get(uint32_t periph, uint8_t type, uint8_t index)
         return (type == DMA_USART_RX) ? DMA1_Stream1_IRQn : DMA1_Stream3_IRQn;
     else if (periph == UART4_BASE)
         return (type == DMA_USART_RX) ? DMA1_Stream2_IRQn : DMA1_Stream4_IRQn;
+    else if (periph == UART5_BASE)
+        return (type == DMA_USART_RX) ? DMA1_Stream0_IRQn : DMA1_Stream7_IRQn;
     return 0xff;
 }
 
@@ -258,6 +260,7 @@ void timer_init(void)
 void SystemClock_Config(void)
 {
     SCB_EnableICache();
+    //SCB_DisableICache();
     //SCB_EnableDCache();
     SCB_DisableDCache();
 
@@ -403,23 +406,23 @@ void EXTI15_10_IRQHandler(void)
     }
 }
 
-void DMA1_Stream0_IRQHandler(void) {Error_Handler();}
+void DMA1_Stream0_IRQHandler(void) {USARTx_DMA_handler(4);} // UART5 RX
 void DMA1_Stream1_IRQHandler(void) {USARTx_DMA_handler(2);} // USART3 RX
 void DMA1_Stream2_IRQHandler(void) {USARTx_DMA_handler(3);} // UART4 RX
 void DMA1_Stream3_IRQHandler(void) {USARTx_DMA_handler(2);} // USART3 TX
 void DMA1_Stream4_IRQHandler(void) {USARTx_DMA_handler(3);} // UART4 TX
 void DMA1_Stream5_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 RX
 void DMA1_Stream6_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 TX
-void DMA1_Stream7_IRQHandler(void) {Error_Handler();}
+void DMA1_Stream7_IRQHandler(void) {USARTx_DMA_handler(4);} // UART5 TX
 
-//void DMA2_Stream0_IRQHandler(void) {Error_Handler();}
-void DMA2_Stream1_IRQHandler(void) {USARTx_DMA_handler(3);} // USART6 RX
-void DMA2_Stream2_IRQHandler(void) {USARTx_DMA_handler(3);} // USART1 RX
-void DMA2_Stream3_IRQHandler(void) {Error_Handler();}
+//void DMA2_Stream0_IRQHandler(void) {Error_Handler();} // ADC1 DMA
+void DMA2_Stream1_IRQHandler(void) {USARTx_DMA_handler(5);} // USART6 RX
+void DMA2_Stream2_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1 RX
+void DMA2_Stream3_IRQHandler(void) {Error_Handler();} // ADC2 DMA
 void DMA2_Stream4_IRQHandler(void) {Error_Handler();}
 void DMA2_Stream5_IRQHandler(void) {Error_Handler();}
-void DMA2_Stream6_IRQHandler(void) {USARTx_DMA_handler(3);} // USART6 TX
-void DMA2_Stream7_IRQHandler(void) {USARTx_DMA_handler(3);} // USART1 RX
+void DMA2_Stream6_IRQHandler(void) {USARTx_DMA_handler(5);} // USART6 TX
+void DMA2_Stream7_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1 TX
 
 void TIM1_BRK_TIM9_IRQHandler(void) {Error_Handler();}
 void TIM1_UP_TIM10_IRQHandler(void) {Error_Handler();}
