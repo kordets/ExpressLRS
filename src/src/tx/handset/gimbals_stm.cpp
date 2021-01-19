@@ -19,7 +19,7 @@
 #endif
 
 #define ADC_ISR_EN      0
-#define TIMx_ISR_EN     0
+#define TIMx_ISR_EN     1
 
 #define GIMBAL_LOW      194
 #define GIMBAL_HIGH     3622
@@ -29,9 +29,31 @@
 #define TIMx            TIM6
 #define TIMx_IRQn       TIM6_DAC_IRQn
 #define TIMx_IRQx_FUNC  TIM6_DAC_IRQHandler
-#define TIM_INVERVAL_US 1000
+#define TIM_INVERVAL_US 1000U
 
-struct gpio_out debug;
+/**
+ * ADC_SAMPLETIME_480CYCLES = ~309us
+ * ADC_SAMPLETIME_144CYCLES = ~110us
+ * ADC_SAMPLETIME_112CYCLES =  ~90us
+ * ADC_SAMPLETIME_84CYCLES  =  ~74us
+ */
+#define ADC_SAMPLE_TIME 1
+
+#if ADC_SAMPLE_TIME == 0
+#define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_480CYCLES
+#define TIM_MARGIN_US 470U
+#elif ADC_SAMPLE_TIME == 1
+#define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_144CYCLES
+#define TIM_MARGIN_US 170U
+#elif ADC_SAMPLE_TIME == 2
+#define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_112CYCLES
+#define TIM_MARGIN_US 150U
+#else
+#define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_84CYCLES
+#define TIM_MARGIN_US 120U
+#endif
+
+static struct gpio_out debug;
 
 static uint32_t last_read_us;
 
@@ -65,6 +87,24 @@ static OneAUDfilter DRAM_ATTR filters[NUM_ANALOGS] = {
     OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
 };
 
+
+struct gimbal_limit {
+    uint16_t low;
+    uint16_t mid;
+    uint16_t high;
+};
+struct gimbal_limit DRAM_ATTR gimbal_limit[NUM_ANALOGS] = {
+    {GIMBAL_LOW, GIMBAL_MID, GIMBAL_HIGH},
+    {GIMBAL_LOW, GIMBAL_MID, GIMBAL_HIGH},
+    {GIMBAL_LOW, GIMBAL_MID, GIMBAL_HIGH},
+    {GIMBAL_LOW, GIMBAL_MID, GIMBAL_HIGH},
+};
+
+static inline void
+timer_reset_period(void)
+{
+    TIMx->ARR = TIM_INVERVAL_US - 1;
+}
 
 void handle_dma_isr(void)
 {
@@ -115,7 +155,6 @@ void TIMx_IRQx_FUNC(void)
     uint16_t SR = TIMx->SR;
     if (SR & TIM_SR_UIF) {
         TIMx->SR = SR & ~(TIM_SR_UIF);
-
         //DEBUG_PRINTF("TIM %u\n", micros());
         //gpio_out_toggle(debug);
         gpio_out_write(debug, 1);
@@ -225,11 +264,7 @@ static void configure_adc_channel(uint32_t channel, uint8_t rank)
     }
     channel *= 3;
     mask = ADC_SMPR1_SMP10_Msk << channel;
-    MODIFY_REG(*REG, mask, (uint32_t)ADC_SAMPLETIME_144CYCLES << channel);
-    /* 480T = ~300us */
-    /* 144T = ~100us */
-    /* 112T =  ~90us */
-    /*  84T =  ~74us */
+    MODIFY_REG(*REG, mask, ADC_SAMPLE_TIME_VAL << channel);
 }
 
 static void configure_adc(void)
@@ -322,9 +357,8 @@ void gimbals_init(void)
 void ICACHE_RAM_ATTR
 gimbals_timer_adjust(uint32_t us)
 {
-    //int32_t off = (int32_t)(us - read_u32(&last_read_us));
-    int32_t off = 400;
-    TIMx->ARR = TIM_INVERVAL_US - off;
+    // Counts up
+    TIMx->CNT = TIM_MARGIN_US;
 }
 
 void ICACHE_RAM_ATTR
@@ -333,13 +367,14 @@ gimbals_get(uint16_t * const out)
     uint32_t curr;
     uint8_t iter;
     for (iter = 0; iter < NUM_ANALOGS; iter++) {
+        struct gimbal_limit * limit = &gimbal_limit[iter];
         curr = filters[iter].getCurrent();
         if (curr <= GIMBAL_MID)
-            out[iter] = MAP_U16((uint16_t)curr, GIMBAL_LOW, GIMBAL_MID,
+            out[iter] = MAP_U16((uint16_t)curr, limit->low, limit->mid,
                                 CRSF_CHANNEL_IN_VALUE_MIN,
                                 CRSF_CHANNEL_IN_VALUE_MID);
         else
-            out[iter] = MAP_U16((uint16_t)curr, GIMBAL_MID, GIMBAL_HIGH,
+            out[iter] = MAP_U16((uint16_t)curr, limit->mid, limit->high,
                                 CRSF_CHANNEL_IN_VALUE_MID,
                                 CRSF_CHANNEL_IN_VALUE_MAX);
     }

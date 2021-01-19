@@ -10,6 +10,7 @@
 #include "switches.h"
 #include <stdlib.h>
 
+static struct gpio_out debug;
 
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static rc_channels_t DRAM_ATTR rc_data;
@@ -18,6 +19,7 @@ static rc_channels_t DRAM_ATTR rc_data;
 static void ICACHE_RAM_ATTR
 rc_data_collect(uint32_t const current_us)
 {
+    gpio_out_write(debug, 1);
     uint16_t gimbals[NUM_ANALOGS];
     gimbals_timer_adjust(current_us);
     gimbals_get(gimbals);
@@ -25,9 +27,9 @@ rc_data_collect(uint32_t const current_us)
     rc_data.ch1 = gimbals[ANALOG_CH1];
     rc_data.ch2 = gimbals[ANALOG_CH2];
     rc_data.ch3 = gimbals[ANALOG_CH3];
-
-    RcChannels_processChannels(&rc_data);
     switches_collect(&rc_data);
+    RcChannels_processChannels(&rc_data);
+    gpio_out_write(debug, 0);
 }
 
 ///////////////////////////////////////
@@ -37,6 +39,8 @@ void setup()
     tx_common_init_globals();
     platform_setup();
     DEBUG_PRINTF("ExpressLRS HANDSET\n");
+
+    debug = gpio_out_setup(PB13, 0);
 
     switches_init();
     gimbals_init();
