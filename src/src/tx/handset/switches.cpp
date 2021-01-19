@@ -121,7 +121,7 @@ void switches_collect(rc_channels_t * const out)
 #ifdef SWITCH_AUX1
     if (!gpio_in_read(switches[0].low))
         out->ch4 = CRSF_CHANNEL_IN_VALUE_MIN;
-    else if (!gpio_in_read(switches[0].high))
+    else if (!gpio_in_valid(switches[0].high) || !gpio_in_read(switches[0].high))
         out->ch4 = CRSF_CHANNEL_IN_VALUE_MAX;
     else
         out->ch4 = CRSF_CHANNEL_IN_VALUE_MID;
@@ -130,7 +130,7 @@ void switches_collect(rc_channels_t * const out)
 #ifdef SWITCH_AUX2
     if (!gpio_in_read(switches[1].low))
         out->ch5 = CRSF_CHANNEL_IN_VALUE_MIN;
-    else if (!gpio_in_read(switches[1].high))
+    else if (!gpio_in_valid(switches[1].high) || !gpio_in_read(switches[1].high))
         out->ch5 = CRSF_CHANNEL_IN_VALUE_MAX;
     else
         out->ch5 = CRSF_CHANNEL_IN_VALUE_MID;
@@ -139,7 +139,7 @@ void switches_collect(rc_channels_t * const out)
 #ifdef SWITCH_AUX3
     if (!gpio_in_read(switches[2].low))
         out->ch6 = CRSF_CHANNEL_IN_VALUE_MIN;
-    else if (!gpio_in_read(switches[2].high))
+    else if (!gpio_in_valid(switches[2].high) || !gpio_in_read(switches[2].high))
         out->ch6 = CRSF_CHANNEL_IN_VALUE_MAX;
     else
         out->ch6 = CRSF_CHANNEL_IN_VALUE_MID;

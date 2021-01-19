@@ -7,6 +7,7 @@
 #include "1AUDfilter.h"
 #include "debug_elrs.h"
 #include "rc_channels.h"
+#include "priorities.h"
 
 #if defined(STM32F7xx)
 #include "stm32f7xx_hal_adc.h"
@@ -17,13 +18,18 @@
 #include "stm32f7xx_ll_gpio.h"
 #endif
 
-#define TIMx TIM6
-#define TIMx_IRQn TIM6_DAC_IRQn
-#define TIMx_IRQx_FUNC TIM6_DAC_IRQHandler
+#define ADC_ISR_EN      0
+#define TIMx_ISR_EN     0
 
-#define TIMx_ISR_EN     1
+#define GIMBAL_LOW      194
+#define GIMBAL_HIGH     3622
+//#define GIMBAL_MID      (GIMBAL_LOW + (GIMBAL_HIGH - GIMBAL_LOW)/2) // 1906
+#define GIMBAL_MID      1858
+
+#define TIMx            TIM6
+#define TIMx_IRQn       TIM6_DAC_IRQn
+#define TIMx_IRQx_FUNC  TIM6_DAC_IRQHandler
 #define TIM_INVERVAL_US 1000
-
 
 struct gpio_out debug;
 
@@ -35,7 +41,12 @@ static uint32_t last_read_us;
  *  [ 8...11] = channel3
  *  [12...15] = channel4
 */
-static uint16_t DRAM_ATTR RawVals[16];
+static uint16_t DRAM_ATTR RawVals[NUM_ANALOGS * 4];
+
+#define DEBUG_VALS 0
+#if DEBUG_VALS
+static volatile uint16_t DRAM_ATTR DEBUG_VAL[NUM_ANALOGS];
+#endif
 
 /* STM32 ADC pins in channel order 0...n */
 static uint32_t adc_pins[] = {
@@ -47,7 +58,7 @@ static uint32_t adc_pins[] = {
 };
 
 /* Create a filters */
-static OneAUDfilter DRAM_ATTR filters[4] = {
+static OneAUDfilter DRAM_ATTR filters[NUM_ANALOGS] = {
     OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
     OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
     OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
@@ -65,7 +76,10 @@ void handle_dma_isr(void)
         val += RawVals[iter+1];
         val += RawVals[iter+2];
         val += RawVals[iter+3];
-        filters[(iter / 4)].update((val / 4));
+#if DEBUG_VALS
+        DEBUG_VAL[(iter / NUM_ANALOGS)] = (val / NUM_ANALOGS);
+#endif
+        filters[(iter / NUM_ANALOGS)].update((val / NUM_ANALOGS));
     }
     last_read_us = micros();
 }
@@ -143,7 +157,7 @@ static void configure_dma(void) {
     MODIFY_REG(DMA2_Stream0->NDTR, DMA_SxNDT, ARRAY_SIZE(RawVals));
 
     // Enable DMA interrupts.
-    NVIC_SetPriority(DMA2_Stream0_IRQn, 1); // DMA IRQ lower priority than ADC IRQ.
+    NVIC_SetPriority(DMA2_Stream0_IRQn, ISR_PRIO_ADC);
     NVIC_EnableIRQ(DMA2_Stream0_IRQn);
     SET_BIT(DMA2_Stream0->CR, DMA_SxCR_TCIE);
     SET_BIT(DMA2_Stream0->CR, DMA_SxCR_TEIE);
@@ -211,7 +225,7 @@ static void configure_adc_channel(uint32_t channel, uint8_t rank)
     }
     channel *= 3;
     mask = ADC_SMPR1_SMP10_Msk << channel;
-    MODIFY_REG(*REG, mask, (uint32_t)ADC_SAMPLETIME_480CYCLES << channel);
+    MODIFY_REG(*REG, mask, (uint32_t)ADC_SAMPLETIME_144CYCLES << channel);
     /* 480T = ~300us */
     /* 144T = ~100us */
     /* 112T =  ~90us */
@@ -233,8 +247,10 @@ static void configure_adc(void)
     /* Peripheral clock enable */
     enable_pclock((uint32_t)ADC1);
 
-    //NVIC_SetPriority(ADC_IRQn, 0);
-    //NVIC_EnableIRQ(ADC_IRQn);
+#if ADC_ISR_EN
+    NVIC_SetPriority(ADC_IRQn, 0);
+    NVIC_EnableIRQ(ADC_IRQn);
+#endif
 
     // Set ADC clock source: APB2 clock / 2.
     MODIFY_REG(ADC123_COMMON->CCR, ADC_CCR_ADCPRE, 0);
@@ -288,6 +304,19 @@ void gimbals_init(void)
 
     //uint32_t CFGR = RCC->DCKCFGR1;
     //DEBUG_PRINTF("RCC bit: %u\n", (CFGR & RCC_DCKCFGR1_TIMPRE_Msk));
+#if 0
+    while (1) {
+#if DEBUG_VALS
+        DEBUG_PRINTF("DBG! [0]=%u, [1]=%u, [2]=%u, [3]=%u\n",
+            DEBUG_VAL[0], DEBUG_VAL[1], DEBUG_VAL[2], DEBUG_VAL[3]);
+#else
+        DEBUG_PRINTF("Filter: %u, %u, %u, %u\n",
+            (uint32_t)filters[0].getCurrent(), (uint32_t)filters[1].getCurrent(),
+            (uint32_t)filters[2].getCurrent(), (uint32_t)filters[3].getCurrent());
+#endif
+        delay(10);
+    }
+#endif
 }
 
 void ICACHE_RAM_ATTR
@@ -299,16 +328,21 @@ gimbals_timer_adjust(uint32_t us)
 }
 
 void ICACHE_RAM_ATTR
-gimbals_get(uint16_t &l1, uint16_t &l2, uint16_t &r1, uint16_t &r2)
+gimbals_get(uint16_t * const out)
 {
-    l1 = MAP_U16((uint16_t)filters[0].getCurrent(), 0, 4095,
-        CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX);
-    l2 = MAP_U16((uint16_t)filters[1].getCurrent(), 0, 4095,
-        CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX);
-    r1 = MAP_U16((uint16_t)filters[2].getCurrent(), 0, 4095,
-        CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX);
-    r2 = MAP_U16((uint16_t)filters[3].getCurrent(), 0, 4095,
-        CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX);
+    uint32_t curr;
+    uint8_t iter;
+    for (iter = 0; iter < NUM_ANALOGS; iter++) {
+        curr = filters[iter].getCurrent();
+        if (curr <= GIMBAL_MID)
+            out[iter] = MAP_U16((uint16_t)curr, GIMBAL_LOW, GIMBAL_MID,
+                                CRSF_CHANNEL_IN_VALUE_MIN,
+                                CRSF_CHANNEL_IN_VALUE_MID);
+        else
+            out[iter] = MAP_U16((uint16_t)curr, GIMBAL_MID, GIMBAL_HIGH,
+                                CRSF_CHANNEL_IN_VALUE_MID,
+                                CRSF_CHANNEL_IN_VALUE_MAX);
+    }
 }
 
 

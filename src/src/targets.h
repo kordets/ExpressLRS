@@ -428,6 +428,9 @@ https://github.com/jaxxzer
 // ESPbackpack logger (USART1)
 #define CTRL_SERIAL Serial1
 #define DEFINE_SERIAL1
+#define SERIAL1_USE_DMA     1
+#define PRINTF_NUM_BLOCKS   32
+#define PRINTF_BUFF_SIZE    256
 
 // Both radios are included
 #define RADIO_SX128x 1

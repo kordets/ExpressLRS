@@ -18,10 +18,9 @@ static rc_channels_t DRAM_ATTR rc_data;
 static void ICACHE_RAM_ATTR
 rc_data_collect(uint32_t const current_us)
 {
-    uint16_t gimbals[4];
+    uint16_t gimbals[NUM_ANALOGS];
     gimbals_timer_adjust(current_us);
-    gimbals_get(gimbals[ANALOG_CH0], gimbals[ANALOG_CH1],
-                gimbals[ANALOG_CH2], gimbals[ANALOG_CH3]);
+    gimbals_get(gimbals);
     rc_data.ch0 = gimbals[ANALOG_CH0];
     rc_data.ch1 = gimbals[ANALOG_CH1];
     rc_data.ch2 = gimbals[ANALOG_CH2];
@@ -37,8 +36,9 @@ void setup()
 {
     tx_common_init_globals();
     platform_setup();
-    DEBUG_PRINTF("ExpressLRS TX Module...\n");
+    DEBUG_PRINTF("ExpressLRS HANDSET\n");
 
+    switches_init();
     gimbals_init();
 
     TxTimer.callbackTockPre = rc_data_collect;
@@ -50,7 +50,7 @@ void setup()
         DEBUG_PRINTF("RC: %u, %u, %u, %u -- %u, %u, %u\n",
             rc_data.ch0, rc_data.ch1, rc_data.ch2, rc_data.ch3,
             rc_data.ch4, rc_data.ch5, rc_data.ch6);
-        delay(500);
+        delay(10);
     }
 
     tx_common_init();
