@@ -57,7 +57,7 @@ uint32_t dma_irq_get(uint32_t periph, uint8_t type, uint8_t index)
 
 void dma_request_config(uint32_t periph, uint8_t type, uint8_t index)
 {
-    // Link channel to stream
+    // Link channel (peripheral) to stream
     uint32_t channel = LL_DMA_CHANNEL_4;
     if (periph == USART6_BASE)
         channel = LL_DMA_CHANNEL_5;

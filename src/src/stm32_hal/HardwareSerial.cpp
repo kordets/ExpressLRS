@@ -123,6 +123,25 @@ enum {
     USE_DMA_TX      = UART_ENABLE_DMA_TX << 2,
 };
 
+static inline uint32_t
+dma_ifcr_mask_get(uint32_t mask, uint8_t dma_ch)
+{
+#ifdef STM32F7xx
+    if (dma_ch < 2) {
+        mask <<= (DMA_LIFCR_CFEIF1_Pos * dma_ch);
+    } else if (dma_ch < 4) {
+        mask <<= (16 + (DMA_LIFCR_CFEIF1_Pos * (dma_ch - 2)));
+    } else if (dma_ch < 4) {
+        mask <<= (DMA_LIFCR_CFEIF1_Pos * dma_ch);
+    } else {
+        mask <<= (16 + (DMA_LIFCR_CFEIF1_Pos * (dma_ch - 2)));
+    }
+#else
+    mask <<= (4 * (dma_ch - 1));
+#endif
+    return mask;
+}
+
 int8_t DMA_transmit(HardwareSerial * serial, uint8_t dma_ch)
 {
     DMA_TypeDef * dma = (DMA_TypeDef *)serial->dma_unit_tx;
@@ -135,14 +154,19 @@ int8_t DMA_transmit(HardwareSerial * serial, uint8_t dma_ch)
         if (data && len) {
             //LL_DMA_DisableChannel(dma, dma_ch);
             /* Clear all irq flags */
+            __IO uint32_t * IFCR;
+            uint32_t mask;
 #ifdef STM32F7xx
-            if (dma_ch <= 3)
-                WRITE_REG(dma->LIFCR, ((1 << DMA_LIFCR_CFEIF1_Pos) - 1) << dma_ch);
+            mask = ((0x1 << DMA_LIFCR_CFEIF1_Pos) - 1);
+            if (dma_ch < 4)
+                IFCR = &dma->LIFCR;
             else
-                WRITE_REG(dma->HIFCR, ((1 << DMA_LIFCR_CFEIF1_Pos) - 1) << dma_ch);
+                IFCR = &dma->HIFCR;
 #else
-            WRITE_REG(dma->IFCR, 0xF << (dma_ch - 1));
+            mask = 0xF;
+            IFCR = &dma->IFCR;
 #endif
+            WRITE_REG(*IFCR, dma_ifcr_mask_get(mask, dma_ch));
             /* Set source address */
             LL_DMA_SetMemoryAddress(dma, dma_ch, data);
             LL_DMA_SetDataLength(dma, dma_ch, len);
@@ -176,9 +200,11 @@ int8_t UART_transmit(HardwareSerial * serial)
 
 void USART_IDLE_IRQ_handler(uint32_t index)
 {
-    if (serial_cnt <= index) return;
+    if (serial_cnt <= index)
+        return;
     HardwareSerial *serial = _started_serials[index];
-    if (!serial) return;
+    if (!serial)
+        return;
     __IO USART_TypeDef * uart;
 
     if (serial->usart_rx_idx == index) {
@@ -240,23 +266,26 @@ void USARTx_DMA_handler(uint32_t index)
         return;
     uint32_t channel = serial->dma_ch_tx;
     DMA_TypeDef * dma = (DMA_TypeDef *)serial->dma_unit_tx;
+    uint32_t mask, sr;
 #ifdef STM32F7xx
-    uint32_t sr = (channel <= 3) ? dma->LISR : dma->HISR;
-    uint32_t mask = (DMA_LISR_TCIF0_Msk << ((DMA_LISR_TCIF0_Pos + 1) * channel));
+    sr = (channel < 4) ? dma->LISR : dma->HISR;
+    mask = DMA_LISR_TCIF0_Msk;
 #else
-    uint32_t sr = dma->ISR, mask = (DMA_ISR_TCIF1_Msk << (4 * (channel-1)));
+    sr = dma->ISR;
+    mask = (DMA_ISR_TCIF1_Msk;
 #endif
+    mask = dma_ifcr_mask_get(mask, channel);
     if (sr & mask) {
         LL_DMA_DisableChannel(dma, channel);
         if (DMA_transmit(serial, channel) < 0)
             serial->hw_enable_receiver();
 #ifdef STM32F7xx
         if (channel <= 3)
-            dma->LIFCR = mask;
+            WRITE_REG(dma->LIFCR, mask);
         else
-            dma->HIFCR = mask;
+            WRITE_REG(dma->HIFCR, mask);
 #else
-        dma->IFCR = mask;
+        WRITE_REG(dma->IFCR, mask);
 #endif
     }
 }
@@ -396,39 +425,41 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
         uart = (USART_TypeDef*)p_usart_rx;
         dmaptr = (DMA_TypeDef *)dma_get((uint32_t)uart, DMA_USART_RX, 0);
         if (dmaptr) {
-            /*********** USART DMA Init ***********/
-            enable_pclock((uint32_t)dmaptr);
-            dma_unit_rx = dmaptr;
-
+            /*********** USART RX DMA Init ***********/
             dma_ch_rx = dma_channel_get((uint32_t)uart, DMA_USART_RX, 0);
             dma_irq_rx = dma_irq_get((uint32_t)uart, DMA_USART_RX, 0);
+            /* Validate DMA params */
+            if (dma_ch_rx != 0xFF && dma_irq_rx != 0xFF) {
+                enable_pclock((uint32_t)dmaptr);
+                dma_unit_rx = dmaptr;
 
-            /* RX DMA stream config */
-            LL_DMA_DisableChannel(dmaptr, dma_ch_rx);
-            LL_DMA_SetDataTransferDirection(dmaptr, dma_ch_rx, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
-            LL_DMA_SetChannelPriorityLevel(dmaptr, dma_ch_rx, LL_DMA_PRIORITY_LOW);
-            LL_DMA_SetMode(dmaptr, dma_ch_rx, LL_DMA_MODE_CIRCULAR);
-            LL_DMA_SetPeriphIncMode(dmaptr, dma_ch_rx, LL_DMA_PERIPH_NOINCREMENT);
-            LL_DMA_SetMemoryIncMode(dmaptr, dma_ch_rx, LL_DMA_MEMORY_INCREMENT);
-            LL_DMA_SetPeriphSize(dmaptr, dma_ch_rx, LL_DMA_PDATAALIGN_BYTE);
-            LL_DMA_SetMemorySize(dmaptr, dma_ch_rx, LL_DMA_MDATAALIGN_BYTE);
-            /* Set source and target */
-            LL_DMA_SetPeriphAddress(dmaptr, dma_ch_rx, (uint32_t)&uart->RxDataReg);
-            LL_DMA_SetMemoryAddress(dmaptr, dma_ch_rx, (uint32_t)rx_buffer);
-            LL_DMA_SetDataLength(dmaptr, dma_ch_rx, sizeof(rx_buffer));
-            /* Set interrupts */
-            //LL_DMA_EnableIT_HT(dmaptr, dma_ch_rx);
-            //LL_DMA_EnableIT_TC(dmaptr, dma_ch_rx);
-            LL_DMA_DisableIT_HT(dmaptr, dma_ch_rx);
-            LL_DMA_DisableIT_TC(dmaptr, dma_ch_rx);
-            /* Set interrupt configuration */
-            NVIC_SetPriority((IRQn_Type)dma_irq_rx,
-                NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART_DMA, 0));
-            NVIC_EnableIRQ((IRQn_Type)dma_irq_rx);
-            /* Enable DMA */
-            LL_DMA_EnableChannel(dmaptr, dma_ch_rx);
+                /* RX DMA stream config */
+                LL_DMA_DisableChannel(dmaptr, dma_ch_rx);
+                LL_DMA_SetDataTransferDirection(dmaptr, dma_ch_rx, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
+                LL_DMA_SetChannelPriorityLevel(dmaptr, dma_ch_rx, LL_DMA_PRIORITY_LOW);
+                LL_DMA_SetMode(dmaptr, dma_ch_rx, LL_DMA_MODE_CIRCULAR);
+                LL_DMA_SetPeriphIncMode(dmaptr, dma_ch_rx, LL_DMA_PERIPH_NOINCREMENT);
+                LL_DMA_SetMemoryIncMode(dmaptr, dma_ch_rx, LL_DMA_MEMORY_INCREMENT);
+                LL_DMA_SetPeriphSize(dmaptr, dma_ch_rx, LL_DMA_PDATAALIGN_BYTE);
+                LL_DMA_SetMemorySize(dmaptr, dma_ch_rx, LL_DMA_MDATAALIGN_BYTE);
+                /* Set source and target */
+                LL_DMA_SetPeriphAddress(dmaptr, dma_ch_rx, (uint32_t)&uart->RxDataReg);
+                LL_DMA_SetMemoryAddress(dmaptr, dma_ch_rx, (uint32_t)rx_buffer);
+                LL_DMA_SetDataLength(dmaptr, dma_ch_rx, sizeof(rx_buffer));
+                /* Set interrupts */
+                //LL_DMA_EnableIT_HT(dmaptr, dma_ch_rx);
+                //LL_DMA_EnableIT_TC(dmaptr, dma_ch_rx);
+                LL_DMA_DisableIT_HT(dmaptr, dma_ch_rx);
+                LL_DMA_DisableIT_TC(dmaptr, dma_ch_rx);
+                /* Set interrupt configuration */
+                NVIC_SetPriority((IRQn_Type)dma_irq_rx,
+                    NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART_DMA, 0));
+                NVIC_EnableIRQ((IRQn_Type)dma_irq_rx);
+                /* Enable DMA */
+                LL_DMA_EnableChannel(dmaptr, dma_ch_rx);
 
-            dma_request_config((uint32_t)uart, DMA_USART_RX, 0);
+                dma_request_config((uint32_t)uart, DMA_USART_RX, 0);
+            }
         }
     }
 
@@ -436,32 +467,35 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
         uart = (USART_TypeDef*)p_usart_tx;
         dmaptr = (DMA_TypeDef *)dma_get((uint32_t)uart, DMA_USART_TX, 0);
         if (dmaptr) {
-            enable_pclock((uint32_t)dmaptr);
-            dma_unit_tx = dmaptr;
-
+            /*********** USART TX DMA Init ***********/
             dma_ch_tx = dma_channel_get((uint32_t)uart, DMA_USART_TX, 0);
             dma_irq_tx = dma_irq_get((uint32_t)uart, DMA_USART_TX, 0);
+            /* Validate DMA params */
+            if (dma_ch_tx != 0xFF && dma_irq_tx != 0xFF) {
+                enable_pclock((uint32_t)dmaptr);
+                dma_unit_tx = dmaptr;
 
-            /* TX DMA stream config */
-            LL_DMA_DisableChannel(dmaptr, dma_ch_tx);
-            LL_DMA_SetDataTransferDirection(dmaptr, dma_ch_tx, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
-            LL_DMA_SetChannelPriorityLevel(dmaptr, dma_ch_tx, LL_DMA_PRIORITY_LOW);
-            LL_DMA_SetMode(dmaptr, dma_ch_tx, LL_DMA_MODE_NORMAL);
-            LL_DMA_SetPeriphIncMode(dmaptr, dma_ch_tx, LL_DMA_PERIPH_NOINCREMENT);
-            LL_DMA_SetMemoryIncMode(dmaptr, dma_ch_tx, LL_DMA_MEMORY_INCREMENT);
-            LL_DMA_SetPeriphSize(dmaptr, dma_ch_tx, LL_DMA_PDATAALIGN_BYTE);
-            LL_DMA_SetMemorySize(dmaptr, dma_ch_tx, LL_DMA_MDATAALIGN_BYTE);
-            /* Set target address */
-            LL_DMA_SetPeriphAddress(dmaptr, dma_ch_tx, (uint32_t)&uart->TxDataReg);
-            /* Set interrupts */
-            LL_DMA_DisableIT_HT(dmaptr, dma_ch_tx);
-            LL_DMA_EnableIT_TC(dmaptr, dma_ch_tx);
-            /* Set interrupt configuration */
-            NVIC_SetPriority((IRQn_Type)dma_irq_tx,
-                NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART_DMA, 0));
-            NVIC_EnableIRQ((IRQn_Type)dma_irq_tx);
+                /* TX DMA stream config */
+                LL_DMA_DisableChannel(dmaptr, dma_ch_tx);
+                LL_DMA_SetDataTransferDirection(dmaptr, dma_ch_tx, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
+                LL_DMA_SetChannelPriorityLevel(dmaptr, dma_ch_tx, LL_DMA_PRIORITY_LOW);
+                LL_DMA_SetMode(dmaptr, dma_ch_tx, LL_DMA_MODE_NORMAL);
+                LL_DMA_SetPeriphIncMode(dmaptr, dma_ch_tx, LL_DMA_PERIPH_NOINCREMENT);
+                LL_DMA_SetMemoryIncMode(dmaptr, dma_ch_tx, LL_DMA_MEMORY_INCREMENT);
+                LL_DMA_SetPeriphSize(dmaptr, dma_ch_tx, LL_DMA_PDATAALIGN_BYTE);
+                LL_DMA_SetMemorySize(dmaptr, dma_ch_tx, LL_DMA_MDATAALIGN_BYTE);
+                /* Set target address */
+                LL_DMA_SetPeriphAddress(dmaptr, dma_ch_tx, (uint32_t)&uart->TxDataReg);
+                /* Set interrupts */
+                LL_DMA_DisableIT_HT(dmaptr, dma_ch_tx);
+                LL_DMA_EnableIT_TC(dmaptr, dma_ch_tx);
+                /* Set interrupt configuration */
+                NVIC_SetPriority((IRQn_Type)dma_irq_tx,
+                    NVIC_EncodePriority(NVIC_GetPriorityGrouping(), ISR_PRIO_UART_DMA, 0));
+                NVIC_EnableIRQ((IRQn_Type)dma_irq_tx);
 
-            dma_request_config((uint32_t)uart, DMA_USART_TX, 0);
+                dma_request_config((uint32_t)uart, DMA_USART_TX, 0);
+            }
         }
     }
 
@@ -643,4 +677,11 @@ HardwareSerial Serial1(GPIO('A', 10), GPIO('A', 9), SERIAL1_USE_DMA);
 #define SERIAL2_USE_DMA 0
 #endif
 HardwareSerial Serial2(GPIO('A', 3), GPIO('A', 2), SERIAL2_USE_DMA);
+#endif // DEFINE_SERIAL2
+
+#if defined(DEFINE_SERIAL3)
+#ifndef SERIAL3_USE_DMA
+#define SERIAL3_USE_DMA 0
+#endif
+HardwareSerial Serial3(GPIO('B', 11), GPIO('B', 10), SERIAL3_USE_DMA);
 #endif // DEFINE_SERIAL2

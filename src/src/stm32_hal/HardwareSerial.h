@@ -112,3 +112,4 @@ private:
 
 extern HardwareSerial Serial1;
 extern HardwareSerial Serial2;
+extern HardwareSerial Serial3;
