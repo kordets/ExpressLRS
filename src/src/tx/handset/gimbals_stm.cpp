@@ -32,10 +32,10 @@
 #define TIM_INVERVAL_US 1000U
 
 /**
- * ADC_SAMPLETIME_480CYCLES = ~309us
- * ADC_SAMPLETIME_144CYCLES = ~110us
- * ADC_SAMPLETIME_112CYCLES =  ~90us
- * ADC_SAMPLETIME_84CYCLES  =  ~74us
+ * 0 = ADC_SAMPLETIME_480CYCLES = ~309us
+ * 1 = ADC_SAMPLETIME_144CYCLES = ~110us
+ * 2 = ADC_SAMPLETIME_112CYCLES =  ~90us
+ * 3 = ADC_SAMPLETIME_84CYCLES  =  ~74us
  */
 #define ADC_SAMPLE_TIME 1
 
@@ -53,7 +53,9 @@
 #define TIM_MARGIN_US 120U
 #endif
 
-static struct gpio_out debug;
+#if TIMx_ISR_EN
+static struct gpio_out debug_pin;
+#endif
 
 static uint32_t last_read_us;
 
@@ -140,7 +142,9 @@ void DMA2_Stream0_IRQHandler(void)
     if (READ_BIT(DMA2->LISR, DMA_LISR_TCIF0)) {
         WRITE_REG(DMA2->LIFCR , DMA_LIFCR_CTCIF0);
         handle_dma_isr();
-        gpio_out_write(debug, 0);
+#if TIMx_ISR_EN
+        gpio_out_write(debug_pin, 0);
+#endif
     }
 
     // DMA transfer error.
@@ -155,9 +159,9 @@ void TIMx_IRQx_FUNC(void)
     uint16_t SR = TIMx->SR;
     if (SR & TIM_SR_UIF) {
         TIMx->SR = SR & ~(TIM_SR_UIF);
-        //DEBUG_PRINTF("TIM %u\n", micros());
-        //gpio_out_toggle(debug);
-        gpio_out_write(debug, 1);
+#if TIMx_ISR_EN
+        gpio_out_write(debug_pin, 1);
+#endif
     }
 }
 }
@@ -334,7 +338,9 @@ static void configure_adc(void)
 
 void gimbals_init(void)
 {
-    debug = gpio_out_setup(PB12, 0);
+#if TIMx_ISR_EN
+    debug_pin = gpio_out_setup(PB12, 0);
+#endif
     configure_adc();
 
     //uint32_t CFGR = RCC->DCKCFGR1;
