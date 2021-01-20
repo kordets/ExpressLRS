@@ -1,6 +1,4 @@
 #include "msp.h"
-//#include "crc.h"
-//#include "platform.h"
 #include "debug_elrs.h"
 
 /* ==========================================
@@ -217,10 +215,16 @@ void MSP::markPacketFree()
     m_inputState = MSP_IDLE;
 }
 
+static uint8_t msp_send_buffer[MSP_PORT_INBUF_SIZE+sizeof(mspHeaderV2_t)+1];
+
 bool MSP::sendPacket(CtrlSerial *port, mspPacketType_e type,
                      uint16_t function, uint8_t flags,
                      uint8_t payloadSize, uint8_t const * payload)
 {
+    uint8_t * buff = msp_send_buffer;
+    uint16_t i;
+    uint8_t crc = 0, data;
+
     // Sanity check the packet before sending
     if (!payload || !port || type == MSP_PACKET_UNKNOWN)
     {
@@ -235,37 +239,34 @@ bool MSP::sendPacket(CtrlSerial *port, mspPacketType_e type,
     }
 
     // Write out the framing chars
-    port->write('$');
+    *buff++ = ('$');
     if (type == MSP_PACKET_V2_RESPONSE || type == MSP_PACKET_V2_COMMAND)
     {
-        port->write('X');
+        *buff++ = ('X');
     }
     else
     {
-        port->write('M');
+        *buff++ = ('M');
     }
 
     // Write out the packet type
     if (type == MSP_PACKET_V1_ELRS)
     {
-        port->write('?');
+        *buff++ = ('?');
     }
     else if (type == MSP_PACKET_V2_COMMAND || type == MSP_PACKET_V1_CMD)
     {
-        port->write('<');
+        *buff++ = ('<');
     }
     else
     {
-        port->write('>');
+        *buff++ = ('>');
     }
 
     // Subsequent bytes are contained in the crc
-    uint8_t crc = 0;
 
     if (type == MSP_PACKET_V2_RESPONSE || type == MSP_PACKET_V2_COMMAND)
     {
-        uint16_t i;
-        uint8_t data;
         // Pack header struct into buffer
         uint8_t WORD_ALIGNED_ATTR headerBuffer[sizeof(mspHeaderV2_t)];
         mspHeaderV2_t *header = (mspHeaderV2_t *)&headerBuffer[0];
@@ -276,50 +277,50 @@ bool MSP::sendPacket(CtrlSerial *port, mspPacketType_e type,
         // Write out the header buffer, adding each byte to the crc
         for (i = 0; i < sizeof(headerBuffer); ++i)
         {
-            port->write(headerBuffer[i]);
+            *buff++ = (headerBuffer[i]);
             crc = crc8_dvb_s2(crc, headerBuffer[i]);
         }
         // Write out the payload, adding each byte to the crc
         for (i = 0; i < payloadSize; ++i)
         {
             data = payload[i];
-            port->write(data);
+            *buff++ = (data);
             crc = crc8_dvb_s2(crc, data);
         }
     }
     else
     {
-        uint8_t data;
-        uint8_t payloadsize = (uint8_t)payloadSize;
-
         if (type == MSP_PACKET_V1_ELRS)
-            port->write(flags);
+            *buff++ = (flags);
 
         // payload size
-        port->write(payloadsize);
-        crc = CalcCRCxor(&payloadsize, 1, 0);
+        *buff++ = (payloadSize);
+        crc = CalcCRCxor(&payloadSize, 1, 0);
 
         // frame id
         data = (uint8_t)function;
-        port->write(data);
+        *buff++ = (data);
         crc = CalcCRCxor(&data, 1, crc);
 
         // Write out the payload, adding each byte to the crc
-        for (uint8_t i = 0; i < payloadsize; ++i)
+        for (i = 0; i < payloadSize; ++i)
         {
             data = payload[i];
-            port->write(data);
+            *buff++ = (data);
             crc = CalcCRCxor(&data, 1, crc);
         }
     }
 
     // Write out the crc
-    port->write(crc);
-
+    *buff++ = crc;
+    port->write(msp_send_buffer, (buff - msp_send_buffer));
     return true;
 }
 
 bool MSP::sendPacket(mspPacket_t *packet, CtrlSerial *port)
 {
-    return sendPacket(port, packet->type, packet->function, packet->flags, packet->payloadSize, (uint8_t*)packet->payload);
+    if (!packet) return 0;
+    return MSP::sendPacket(port,
+        packet->type, packet->function, packet->flags,
+        packet->payloadSize, (uint8_t*)packet->payload);
 }

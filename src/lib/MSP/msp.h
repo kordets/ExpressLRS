@@ -144,11 +144,11 @@ public:
         return &m_packet;
     }
     void markPacketFree();
-    bool sendPacket(mspPacket_t *packet, CtrlSerial *port);
-    bool sendPacket(CtrlSerial *port, mspPacketType_e type,
-                    uint16_t function, uint8_t flags,
-                    uint8_t len, uint8_t const * payload);
 
+    static bool sendPacket(mspPacket_t *packet, CtrlSerial *port);
+    static bool sendPacket(CtrlSerial *port, mspPacketType_e type,
+                           uint16_t function, uint8_t flags,
+                           uint8_t len, uint8_t const * payload);
 private:
     mspPacket_t m_packet;
     mspState_e m_inputState = MSP_IDLE;
