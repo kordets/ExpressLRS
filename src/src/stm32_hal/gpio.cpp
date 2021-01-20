@@ -305,3 +305,25 @@ void GPIO_EXTI_IRQHandler(uint16_t pin)
         EXTI->PR = index;
     }
 }
+
+/*********************/
+
+struct gpio_adc gpio_adc_setup(uint32_t pin)
+{
+    return {.adc = NULL, .chan = 0};
+}
+
+uint32_t gpio_adc_sample(struct gpio_adc g)
+{
+    return 0;
+}
+
+uint16_t gpio_adc_read(struct gpio_adc g)
+{
+    return 0;
+}
+
+void gpio_adc_cancel_sample(struct gpio_adc g)
+{
+
+}

@@ -18,8 +18,14 @@
 #include "stm32f7xx_ll_gpio.h"
 #endif
 
+/** Filter types */
+#define FILTER_1AUD 1
+#define FILTER_NO   2
+
+#define FILTER_ENABLE   FILTER_NO
+
 #define ADC_ISR_EN      0
-#define TIMx_ISR_EN     1
+#define TIMx_ISR_EN     0
 
 #define GIMBAL_LOW      194
 #define GIMBAL_HIGH     3622
@@ -32,16 +38,20 @@
 #define TIM_INVERVAL_US 1000U
 
 /**
- * 0 = ADC_SAMPLETIME_480CYCLES = ~309us
- * 1 = ADC_SAMPLETIME_144CYCLES = ~110us
- * 2 = ADC_SAMPLETIME_112CYCLES =  ~90us
- * 3 = ADC_SAMPLETIME_84CYCLES  =  ~74us
+ * Filters enabled:
+ *   0 = ADC_SAMPLETIME_480CYCLES = ~309us
+ *   1 = ADC_SAMPLETIME_144CYCLES = ~110us
+ *   2 = ADC_SAMPLETIME_112CYCLES =  ~90us
+ *   3 = ADC_SAMPLETIME_84CYCLES  =  ~74us
+ * No filter:
+ *   0 = ADC_SAMPLETIME_480CYCLES = ~291us
+ *   1 = ADC_SAMPLETIME_144CYCLES = ~97us
  */
 #define ADC_SAMPLE_TIME 1
 
 #if ADC_SAMPLE_TIME == 0
 #define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_480CYCLES
-#define TIM_MARGIN_US 470U
+#define TIM_MARGIN_US 370U
 #elif ADC_SAMPLE_TIME == 1
 #define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_144CYCLES
 #define TIM_MARGIN_US 170U
@@ -57,8 +67,6 @@
 static struct gpio_out debug_pin;
 #endif
 
-static uint32_t last_read_us;
-
 /* Contains:
  *  [ 0... 3] = channel1
  *  [ 4... 7] = channel2
@@ -67,9 +75,11 @@ static uint32_t last_read_us;
 */
 static uint16_t DRAM_ATTR RawVals[NUM_ANALOGS * 4];
 
-#define DEBUG_VALS 0
-#if DEBUG_VALS
+#define DEBUG_VARS 0
+#if DEBUG_VARS
 static volatile uint16_t DRAM_ATTR DEBUG_VAL[NUM_ANALOGS];
+#define DEBUG_VARS_PRINT 1
+#define DEBUG_PRINT_GIMBAL 0
 #endif
 
 /* STM32 ADC pins in channel order 0...n */
@@ -81,14 +91,53 @@ static uint32_t adc_pins[] = {
     GPIO('C', 4), GPIO('C', 5),
 };
 
-/* Create a filters */
-static OneAUDfilter DRAM_ATTR filters[NUM_ANALOGS] = {
-    OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
-    OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
-    OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
-    OneAUDfilter(100, 250, 0.01f, TIM_INVERVAL_US),
+class GimbalNoFilter
+{
+public:
+    GimbalNoFilter() {
+        output = GIMBAL_MID;
+    }
+    uint32_t getCurrent(void) {
+        return output;
+    }
+    uint32_t update(uint32_t input) {
+        output = input;
+        return input;
+    }
+private:
+    uint32_t output;
 };
 
+
+/* Create a filters */
+#if FILTER_ENABLE == FILTER_1AUD
+#define F_MIN   80
+#define F_MAX   150
+#define F_BETA  0.01f
+
+// 1AUDFilter (JamesK):
+//filterSpec_s raceFilter =      {200, 500, 0.01f}; // NOK!
+//filterSpec_s freestyleFilter = {100, 250, 0.01f};
+//filterSpec_s cinematicFilter = {10,   50, 0.01f};
+
+static OneAUDfilter DRAM_ATTR filters[NUM_ANALOGS] = {
+    OneAUDfilter(F_MIN, F_MAX, F_BETA, TIM_INVERVAL_US),
+    OneAUDfilter(F_MIN, F_MAX, F_BETA, TIM_INVERVAL_US),
+    OneAUDfilter(F_MIN, F_MAX, F_BETA, TIM_INVERVAL_US),
+    OneAUDfilter(F_MIN, F_MAX, F_BETA, TIM_INVERVAL_US),
+};
+
+#elif FILTER_ENABLE == FILTER_NO
+static GimbalNoFilter DRAM_ATTR filters[NUM_ANALOGS] = {
+    GimbalNoFilter(),
+    GimbalNoFilter(),
+    GimbalNoFilter(),
+    GimbalNoFilter(),
+};
+
+#else
+#error "invalid filter selected"
+#endif
 
 struct gimbal_limit {
     uint16_t low;
@@ -110,27 +159,40 @@ timer_reset_period(void)
 
 void handle_dma_isr(void)
 {
-    //DEBUG_PRINTF("rdy %u! %u\n", LL_DMA_GetDataLength(DMA2, LL_DMA_STREAM_0), micros());
     uint32_t val;
-    uint_fast8_t iter;
+    uint_fast8_t iter, index;
     for (iter = 0; iter < ARRAY_SIZE(RawVals); iter+=4) {
         val = RawVals[iter];
         val += RawVals[iter+1];
         val += RawVals[iter+2];
         val += RawVals[iter+3];
-#if DEBUG_VALS
-        DEBUG_VAL[(iter / NUM_ANALOGS)] = (val / NUM_ANALOGS);
+        val /= NUM_ANALOGS;
+        index = iter / NUM_ANALOGS;
+#if DEBUG_VARS
+        DEBUG_VAL[index] = val;
 #endif
-        filters[(iter / NUM_ANALOGS)].update((val / NUM_ANALOGS));
+        filters[index].update(val);
     }
-    last_read_us = micros();
+#if DEBUG_VARS && DEBUG_VARS_PRINT
+#if DEBUG_PRINT_GIMBAL < 4
+    DEBUG_PRINTF("%u,%u\n",
+        DEBUG_VAL[DEBUG_PRINT_GIMBAL],
+        (uint32_t)filters[DEBUG_PRINT_GIMBAL].getCurrent());
+#else
+    DEBUG_PRINTF("%u,%u,%u,%u,%u,%u,%u,%u\n",
+        DEBUG_VAL[0], (uint32_t)filters[0].getCurrent(),
+        DEBUG_VAL[1], (uint32_t)filters[1].getCurrent(),
+        DEBUG_VAL[2], (uint32_t)filters[2].getCurrent(),
+        DEBUG_VAL[3], (uint32_t)filters[3].getCurrent()
+        );
+#endif
+#endif
 }
 
 
 extern "C" {
 void ADC_IRQHandler(void)
 {
-    //DEBUG_PRINTF("ADC %u\n", micros());
     if (READ_BIT(ADC1->SR, ADC_SR_OVR)) {
         WRITE_REG(ADC1->SR , ADC_SR_OVR);
     }
@@ -235,7 +297,6 @@ static void configure_timer(void)
 
 static void configure_adc_channel(uint32_t channel, uint8_t rank)
 {
-    //delay(100);
     //DEBUG_PRINTF("ADC cfg: ch %u, rank %u\n", channel, rank);
 
     /** Configure for the selected ADC regular channel its corresponding
@@ -331,8 +392,7 @@ static void configure_adc(void)
     ADC1->SR &= ~(ADC_FLAG_EOC | ADC_FLAG_OVR);
     ADC1->CR2 = CR2;
 
-
-    DEBUG_PRINTF("ADC started!\n");
+    //DEBUG_PRINTF("ADC started!\n");
 }
 
 
@@ -347,7 +407,7 @@ void gimbals_init(void)
     //DEBUG_PRINTF("RCC bit: %u\n", (CFGR & RCC_DCKCFGR1_TIMPRE_Msk));
 #if 0
     while (1) {
-#if DEBUG_VALS
+#if DEBUG_VARS
         DEBUG_PRINTF("DBG! [0]=%u, [1]=%u, [2]=%u, [3]=%u\n",
             DEBUG_VAL[0], DEBUG_VAL[1], DEBUG_VAL[2], DEBUG_VAL[3]);
 #else
@@ -384,26 +444,4 @@ gimbals_get(uint16_t * const out)
                                 CRSF_CHANNEL_IN_VALUE_MID,
                                 CRSF_CHANNEL_IN_VALUE_MAX);
     }
-}
-
-
-
-struct gpio_adc gpio_adc_setup(uint32_t pin)
-{
-    return {.adc = NULL, .chan = 0};
-}
-
-uint32_t gpio_adc_sample(struct gpio_adc g)
-{
-    return 0;
-}
-
-uint16_t gpio_adc_read(struct gpio_adc g)
-{
-    return 0;
-}
-
-void gpio_adc_cancel_sample(struct gpio_adc g)
-{
-
 }

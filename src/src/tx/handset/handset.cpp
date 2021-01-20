@@ -46,18 +46,23 @@ void setup()
     gimbals_init();
 
     TxTimer.callbackTockPre = rc_data_collect;
+
+#if 0
     TxTimer.updateInterval(5000);
     TxTimer.init();
     TxTimer.start();
-
     while (1) {
         DEBUG_PRINTF("RC: %u, %u, %u, %u -- %u, %u, %u\n",
             rc_data.ch0, rc_data.ch1, rc_data.ch2, rc_data.ch3,
             rc_data.ch4, rc_data.ch5, rc_data.ch6);
-        delay(10);
+        delay(100);
     }
+#endif
 
     tx_common_init();
+
+    /* Start TX */
+    hw_timer_init();
 }
 
 void loop()
