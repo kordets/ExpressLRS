@@ -63,6 +63,7 @@ static uint8_t SetRadioType(uint8_t type);
 static void SendRCdataToRF(uint32_t const current_us);
 static uint8_t SetRFLinkRate(uint8_t rate, uint8_t init=0);
 
+//static struct gpio_out debug_pin_tx;
 
 ///////////////////////////////////////
 
@@ -90,6 +91,8 @@ void tx_common_init_globals(void) {
 
     msp_packet_tx.reset();
     msp_packet_rx.reset();
+
+    //debug_pin_tx = gpio_out_setup(PC12, 0);
 }
 
 void tx_common_init(void)
@@ -98,13 +101,11 @@ void tx_common_init(void)
     TxTimer.callbackTock = &SendRCdataToRF;
     SetRadioType(pl_config.rf_mode);
     SetRFLinkRate(current_rate_config, 1);
+    //delay(10);
 
 #ifdef CTRL_SERIAL
-    uint8_t resp[5], outlen = sizeof(resp);
-    if (0 == SettingsCommandHandle(0, resp, 0, outlen))
-        msp_packet_parser.sendPacket(
-            &ctrl_serial, MSP_PACKET_V1_ELRS,
-            ELRS_INT_MSP_PARAMS, MSP_ELRS_INT, outlen, resp);
+    uint8_t resp[2] = {0, 0};
+    SettingsCommandHandle(resp, NULL, 0, resp[1]);
 #endif /* CTRL_SERIAL */
 }
 
@@ -191,7 +192,18 @@ static uint8_t SetRadioType(uint8_t type)
         /* Stop radio processing if chaning RF type */
         if (Radio)
             stop_processing();
-        Radio = common_config_radio(type);
+        RadioInterface *new_radio = common_config_radio(type);
+        if (!new_radio) {
+            if (!Radio) {
+                /* TODO: blink led... */
+                while(1) {
+                    DEBUG_PRINTF("RADIO CONFIG ERROR!\n");
+                    delay(1000);
+                }
+            }
+            return 0;
+        }
+        Radio = new_radio;
 
         current_rate_config =
             pl_config.rf[type].mode % get_elrs_airRateMax();
@@ -199,6 +211,9 @@ static uint8_t SetRadioType(uint8_t type)
         PowerLevels_e power =
             (PowerLevels_e)(pl_config.rf[type].power % PWR_UNKNOWN);
         platform_mode_notify(get_elrs_airRateMax() - current_rate_config);
+
+        DEBUG_PRINTF("SetRadioType type:%u, rate:%u, tlm:%u, pwr:%u\n",
+            type, current_rate_config, TLMinterval, power);
 
 #if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
         PowerMgmt.Begin(Radio, &r9dac);
@@ -210,6 +225,7 @@ static uint8_t SetRadioType(uint8_t type)
 
         return 1;
     }
+    DEBUG_PRINTF("SetRadioType skipped (type:%u)\n", type);
     return 0;
 }
 
@@ -317,6 +333,7 @@ GenerateSyncPacketData(uint8_t *const output, uint32_t rxtx_counter)
 
 static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
 {
+    //gpio_out_write(debug_pin_tx, 1);
     // Called by HW timer
     uint32_t freq;
     uint32_t const rxtx_counter = _rf_rxtx_counter;
@@ -382,12 +399,15 @@ send_to_rf_exit:
     _rf_rxtx_counter++;
 
     //DEBUG_PRINTF(" T");
+    //gpio_out_write(debug_pin_tx, 0);
 }
 
 ///////////////////////////////////////
-
-int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out, uint8_t const inlen, uint8_t & outlen)
+int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out,
+                             uint8_t const inlen, uint8_t &outlen)
 {
+    uint8_t settings_buff[16];
+    uint8_t * buff = settings_buff;
     uint8_t const cmd = in[0];
     uint8_t value = in[1];
     uint8_t modified = 0;
@@ -404,7 +424,6 @@ int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out, uint8_t const inle
             // set air rate
             if (get_elrs_airRateMax() > value)
                 modified |= (SetRFLinkRate(value) << 1);
-            DEBUG_PRINTF("Rate: %u\n", ExpressLRS_currAirRate->rate);
             break;
 
         case 2:
@@ -450,29 +469,40 @@ int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out, uint8_t const inle
             return -1;
     }
 
+    //buff[0] = get_elrs_airRateIndex((void*)ExpressLRS_currAirRate);
+    buff[0] = (uint8_t)current_rate_config;
+    buff[1] = (uint8_t)TLMinterval;
+    buff[2] = (uint8_t)PowerMgmt.currPower();
+    buff[3] = (uint8_t)PowerMgmt.maxPowerGet();
+    buff[4] = RADIO_RF_MODE_INVALID;
+    if (RADIO_SX127x && pl_config.rf_mode == RADIO_TYPE_127x) {
+#if defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915)
+        buff[4] = RADIO_RF_MODE_915_AU_FCC;
+#elif defined(Regulatory_Domain_EU_868) || defined(Regulatory_Domain_EU_868_R9)
+        buff[4] = RADIO_RF_MODE_868_EU;
+#elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
+        buff[4] = RADIO_RF_MODE_433_AU_EU;
+#endif
+    } else if (RADIO_SX128x && pl_config.rf_mode == RADIO_TYPE_128x) {
+        buff[4] = RADIO_RF_MODE_2400_ISM_500Hz;
+    }
+    buff += 5;
+
+    /* TODO: fill version info etc */
+
+#ifdef CTRL_SERIAL
+    msp_packet_parser.sendPacket(
+        &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_INT_MSP_PARAMS,
+        MSP_ELRS_INT, (buff - settings_buff), settings_buff);
+#endif /* CTRL_SERIAL */
+
     // Fill response
     if (out && 5 <= outlen) {
-        //out[0] = get_elrs_airRateIndex((void*)ExpressLRS_currAirRate);
-        out[0] = (uint8_t)current_rate_config;
-        out[1] = (uint8_t)TLMinterval;
-        out[2] = (uint8_t)PowerMgmt.currPower();
-        out[3] = (uint8_t)PowerMgmt.maxPowerGet();
-        out[4] = RADIO_RF_MODE_INVALID;
-        if (RADIO_SX127x && pl_config.rf_mode == RADIO_TYPE_127x) {
-#if defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915)
-            out[4] = RADIO_RF_MODE_915_AU_FCC;
-#elif defined(Regulatory_Domain_EU_868) || defined(Regulatory_Domain_EU_868_R9)
-            out[4] = RADIO_RF_MODE_868_EU;
-#elif defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433)
-            out[4] = RADIO_RF_MODE_433_AU_EU;
-#endif
-        } else if (RADIO_SX128x && pl_config.rf_mode == RADIO_TYPE_128x) {
-            out[4] = RADIO_RF_MODE_2400_ISM_500Hz;
-        }
+        outlen = 5;
+        memcpy(out, settings_buff, 5);
     }
 
-    if (modified)
-    {
+    if (cmd && modified) {
         // Stop timer before save if not already done
         if ((modified & (1 << 1)) == 0) {
             stop_processing();
@@ -489,14 +519,6 @@ int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out, uint8_t const inle
         // and restart timer
         TxTimer.start();
     }
-
-#ifdef CTRL_SERIAL
-    if (out) {
-        msp_packet_parser.sendPacket(
-            &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_INT_MSP_PARAMS,
-            MSP_ELRS_INT, outlen, out);
-    }
-#endif /* CTRL_SERIAL */
 
     return 0;
 }
@@ -536,6 +558,9 @@ uint8_t SetRFLinkRate(uint8_t rate, uint8_t init) // Set speed of RF link (hz)
     write_u32(&sync_send_interval, config->syncInterval);
 
     platform_connection_state(connectionState);
+
+    DEBUG_PRINTF("RF params configured, rate: %u (idx:%u)\n",
+        config->rate, current_rate_config);
 
     return 1;
 }
@@ -630,11 +655,7 @@ void tx_common_handle_ctrl_serial(void)
                     case ELRS_INT_MSP_PARAMS: {
                         uint8_t * msg = (uint8_t*)packet.payload;
                         uint8_t outlen = packet.payloadSize;
-                        if (0 == SettingsCommandHandle(msg, msg, packet.payloadSize, outlen)) {
-                            //packet.type = MSP_PACKET_V1_ELRS;
-                            packet.payloadSize = outlen;
-                            msp_packet_parser.sendPacket(&packet, &ctrl_serial);
-                        }
+                        SettingsCommandHandle(msg, NULL, packet.payloadSize, outlen);
                         break;
                     }
                     default:

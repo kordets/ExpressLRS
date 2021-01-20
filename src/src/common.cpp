@@ -181,7 +181,10 @@ RadioInterface* common_config_radio(uint8_t type)
     radio->SetPins(config->rst, config->dio0, config->dio1, config->dio2,
                    config->busy, config->txen, config->rxen);
     radio->SetSyncWord(getSyncWord());
-    radio->Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, config->nss);
+    if (0 > radio->Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, config->nss)) {
+        DEBUG_PRINTF("[ERROR] Radio config failed!\n");
+        return NULL;
+    }
     current_radio_index = type;
     DEBUG_PRINTF("Radio configured\n");
     return radio;

@@ -29,7 +29,7 @@ void tx_common_handle_ctrl_serial(void);
 void tx_common_update_link_stats(void);
 
 int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out,
-                             uint8_t const inlen, uint8_t & outlen);
+                             uint8_t inlen, uint8_t &outlen);
 
 void hw_timer_init(void);
 void hw_timer_stop(void);

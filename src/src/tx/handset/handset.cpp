@@ -64,7 +64,7 @@ void setup()
     /* Start TX */
     hw_timer_init();
 }
-
+static uint32_t last_rc_info;
 void loop()
 {
     tx_common_handle_rx_buffer();
@@ -81,6 +81,15 @@ void loop()
 
             // TODO: Send TLM data to CTRL_SERIAL (MSP)
         }
+    }
+
+    if (2000 <= (millis() - last_rc_info)) {
+        last_rc_info = millis();
+#if 1
+        DEBUG_PRINTF("RC: %u, %u, %u, %u -- %u, %u, %u\n",
+            rc_data.ch0, rc_data.ch1, rc_data.ch2, rc_data.ch3,
+            rc_data.ch4, rc_data.ch5, rc_data.ch6);
+#endif
     }
 
     // Send MSP resp if allowed and packet ready
