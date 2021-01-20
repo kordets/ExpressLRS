@@ -7,6 +7,8 @@
 
 #define BLOCK_SIZE 128
 
+#define STM32F103 0x410
+#define STM32F722 0x452
 
 extern WebSocketsServer webSocket;
 
@@ -68,7 +70,9 @@ uint8_t cmd_get();
 
 uint8_t isp_serial_write(uint8_t *buffer, uint8_t length)
 {
-	return Serial.write(buffer, length);
+	uint8_t len = Serial.write(buffer, length);
+	Serial.flush();
+	return len;
 }
 
 uint8_t isp_serial_read(uint8_t *buffer, uint8_t length, uint8_t timeout = 100)
@@ -199,13 +203,18 @@ uint8_t cmd_getID()
 		id <<= 8;
 		id += buffer[2];
 
-		DEBUG_PRINT("Chip ID: 0x%X", id);
-
 		retval = wait_for_ack("cmd_getID");
-
-		if (id != 0x410) {
-			DEBUG_PRINT("[ERROR] Wrong ID. No R9M found!");
-			retval = 0;
+		switch (id) {
+			case STM32F103:
+				DEBUG_PRINT("STM32F1 found!");
+				break;
+			case STM32F722:
+				DEBUG_PRINT("STM32F7 found!");
+				break;
+			default:
+				DEBUG_PRINT("[ERROR] Not supported Chip ID (0x%X).", id);
+				retval = 0;
+				break;
 		}
 	}
 	return retval;
@@ -287,10 +296,9 @@ uint8_t cmd_write_memory(uint32_t address, uint8_t length)
 
 // if bootversion < 0x30
 // pg 7 of https://www.st.com/resource/en/application_note/cd00264342-usart-protocol-used-in-the-stm32-bootloader-stmicroelectronics.pdf
-static uint8_t cmd_erase_all_memory(uint32_t const start_addr, uint32_t filesize)
+static uint8_t cmd_erase_memory(uint32_t const pages, uint8_t page_offset)
 {
-	if (cmd_generic(0x43) == 1)
-	{
+	if (cmd_generic(0x43) == 1) {
 #if 0 //(FLASH_OFFSET == 0)
 		DEBUG_PRINT("erasing all memory...");
 		// Global erase aka mass erase
@@ -300,14 +308,7 @@ static uint8_t cmd_erase_all_memory(uint32_t const start_addr, uint32_t filesize
 		isp_serial_write(cmd, sizeof(cmd));
 		return wait_for_ack("mass_erase");
 #else
-		// Erase only defined pages
 		uint8_t checksum = 0, page;
-		uint8_t pages = (FLASH_SIZE / FLASH_PAGE_SIZE);
-		if (filesize)
-			pages = (filesize + (FLASH_PAGE_SIZE - 1)) / FLASH_PAGE_SIZE;
-		uint8_t page_offset = ((start_addr - FLASH_START) / FLASH_PAGE_SIZE);
-		DEBUG_PRINT("erasing pages: %u...%u", page_offset, (page_offset + pages));
-		// Send to DFU
 		Serial.write((uint8_t)(pages-1));
 		checksum ^= (pages-1);
 		for (page = page_offset; page < (page_offset + pages); page++) {
@@ -322,19 +323,30 @@ static uint8_t cmd_erase_all_memory(uint32_t const start_addr, uint32_t filesize
 }
 
 // else if bootversion >= 0x30
-static uint8_t cmd_erase_all_memory_extended()
+static uint8_t cmd_erase_memory_extended(uint32_t const pages, uint8_t page_offset)
 {
-	if (cmd_generic(0x44) == 1)
-	{
+	if (cmd_generic(0x44) == 1) {
 #if 0 //(FLASH_OFFSET == 0)
 		uint8_t cmd[3];
 		cmd[0] = 0xFF;
 		cmd[1] = 0xFF;
 		cmd[2] = 0x00;
-		isp_serial_write(cmd, 3);
-		return wait_for_ack("mass_erase");
+		isp_serial_write(cmd, sizeof(cmd));
+		return wait_for_ack("mass_erase", 100);
 #else
-		DEBUG_PRINT("[ERROR] extended erase implementation missing!");
+		uint8_t checksum = 0, page;
+		// Send number of pages (16bit, MSB first)
+		Serial.write(0);
+		Serial.write((uint8_t)(pages-1));
+		checksum ^= (pages-1);
+		for (page = page_offset; page < (page_offset + pages); page++) {
+			// Send page number (16bit, MSB first)
+			Serial.write(0);
+			Serial.write(page);
+			checksum ^= page;
+		}
+		Serial.write(checksum);
+		return wait_for_ack("erase_pages", 100);
 #endif
 	}
 	return 0;
@@ -342,9 +354,16 @@ static uint8_t cmd_erase_all_memory_extended()
 
 uint8_t cmd_erase(uint32_t const start_addr, uint32_t filesize, uint8_t bootloader_ver)
 {
+	// Erase only defined pages
+	uint8_t pages = (FLASH_SIZE / FLASH_PAGE_SIZE);
+	if (filesize)
+		pages = (filesize + (FLASH_PAGE_SIZE - 1)) / FLASH_PAGE_SIZE;
+	uint8_t page_offset = ((start_addr - FLASH_START) / FLASH_PAGE_SIZE);
+	DEBUG_PRINT("erasing pages: %u...%u", page_offset, (page_offset + pages));
+
 	if (bootloader_ver < 0x30)
-		return cmd_erase_all_memory(start_addr, filesize);
-	return cmd_erase_all_memory_extended();
+		return cmd_erase_memory(pages, page_offset);
+	return cmd_erase_memory_extended(pages, page_offset);
 }
 
 uint8_t cmd_go(uint32_t address)
