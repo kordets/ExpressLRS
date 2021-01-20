@@ -4,10 +4,17 @@
 #include <stddef.h>
 #include "gpio.h"
 #include "irq.h"
+#include "platform.h"
 
 #define SERIAL_8N1 0x06
 
 #define UART_BUFF_SIZE 256
+
+#if defined(STM32F7xx)
+#define UART_DMA_TX_BUFF    64
+#else
+#define UART_DMA_TX_BUFF    16
+#endif
 
 /* This is to avoid unnecessary data copy */
 #define UART_USE_TX_POOL_ONLY 0
@@ -57,11 +64,12 @@ public:
     {
         uint8_t * ret = NULL;
         irqstatus_t flag = irq_save();
-        if (tx_pool_head != tx_pool_tail) {
-            ret = tx_pool_tail->data_ptr;
-            *len = tx_pool_tail->len;
-            tx_pool_tail->data_ptr = NULL;
-            tx_pool_tail = tx_pool_tail->next;
+        struct tx_pool_s * tail = tx_pool_tail_get();
+        if (tx_pool_head_get() != tail) {
+            ret = tail->data_ptr;
+            *len = tail->len;
+            tail->data_ptr = NULL;
+            tx_pool_tail_set(tail->next);
         }
         irq_restore(flag);
         return ret;
@@ -90,21 +98,38 @@ private:
     uint8_t half_duplex;
 
     // for DMA TX
-    struct tx_pool_s tx_pool[16];
+    struct tx_pool_s tx_pool[UART_DMA_TX_BUFF];
     struct tx_pool_s * tx_pool_head;
     struct tx_pool_s * tx_pool_tail;
 
     uint32_t DR_RX;
     uint32_t DR_TX;
 
+    struct tx_pool_s * tx_pool_head_get(void) {
+        //return (struct tx_pool_s *)read_u32(&tx_pool_head);
+        return tx_pool_head;
+    }
+    void tx_pool_head_set(struct tx_pool_s * head) {
+        //write_u32(&tx_pool_head, (uint32_t)head);
+        tx_pool_head = head;
+    }
+    struct tx_pool_s * tx_pool_tail_get(void) {
+        //return (struct tx_pool_s *)read_u32(&tx_pool_tail);
+        return tx_pool_tail;
+    }
+    void tx_pool_tail_set(struct tx_pool_s * tail) {
+        //write_u32(&tx_pool_tail, (uint32_t)tail);
+        tx_pool_tail = tail;
+    }
+
     void tx_pool_add(const uint8_t * data, uint32_t len)
     {
         irqstatus_t flag = irq_save();
-        struct tx_pool_s * next = tx_pool_head;
+        struct tx_pool_s * next = tx_pool_head_get();
         if (!next->data_ptr) {
             next->data_ptr = (uint8_t*)data;
             next->len = len;
-            tx_pool_head = next->next;
+            tx_pool_head_set(next->next);
         }
         irq_restore(flag);
     }
