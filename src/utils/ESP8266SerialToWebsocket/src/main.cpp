@@ -116,6 +116,7 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
     </style>
     <script>
         var websock;
+        var log_history = [];
         function start() {
             document.getElementById("logField").scrollTop = document.getElementById("logField").scrollHeight;
             websock = new WebSocket('ws://' + window.location.hostname + ':81/');
@@ -137,9 +138,15 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
                 } else {
                   var logger = document.getElementById("logField");
                   var autoscroll = document.getElementById("autoscroll").checked;
+                  var scrollsize = parseInt(document.getElementById("scrollsize").value, 10);
+                  while (scrollsize < log_history.length) {
+                    log_history.shift();
+                  }
                   var date = new Date();
                   var n=new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString();
-                  logger.value += n + ' ' + text + '\n';
+                  log_history.push(n + ' ' + text);
+                  //logger.value += n + ' ' + text + '\n';
+                  logger.value = log_history.join('\n');
                   if (autoscroll)
                     logger.scrollTop = logger.scrollHeight;
                 }
@@ -255,7 +262,8 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
     <textarea id="logField" rows="40" cols="100" style="margin: 0px; height: 621px; width: 968px;"></textarea>
     <br>
     <button type="button" onclick="saveTextAsFile()" value="save" id="save">Save log to file...</button> |
-    <input type="checkbox" id="autoscroll" checked><label for="autoscroll"> Auto scroll</label>
+    <input type="checkbox" id="autoscroll" checked><label for="autoscroll"> Auto scroll</label> |
+    <input type='number' value='512' name='scrollsize' id='scrollsize' min="256"><label for="scrollsize"> Scroll len</label>
     <hr/>
     <h2>Settings</h2>
     <table>
