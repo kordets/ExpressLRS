@@ -124,6 +124,7 @@ typedef struct {
     int busy, txen, rxen;
     uint32_t nss;
     RadioInterface* radio_if;
+    const char * str;
 } RadioParameters_t;
 
 #if RADIO_SX127x
@@ -132,18 +133,21 @@ SX127xDriver DRAM_FORCE_ATTR Radio127x(OTA_PACKET_SIZE);
 #if RADIO_SX128x
 SX1280Driver DRAM_FORCE_ATTR Radio128x(OTA_PACKET_SIZE);
 #endif
+#if !RADIO_SX127x && !RADIO_SX128x
+#error "NO VALID RADIO!"
+#endif
 RadioInterface DRAM_FORCE_ATTR *Radio;
 
 static RadioParameters_t DRAM_FORCE_ATTR RadioType[] = {
 #if RADIO_SX127x
     {GPIO_PIN_RST_127x, GPIO_PIN_DIO0_127x, GPIO_PIN_DIO1_127x, GPIO_PIN_DIO2_127x,
      UNDEF_PIN, GPIO_PIN_TXEN_127x, GPIO_PIN_RXEN_127x, GPIO_PIN_NSS_127x,
-     &Radio127x},
+     &Radio127x, "SX127x"},
 #endif
 #if RADIO_SX128x
     {GPIO_PIN_RST_128x, GPIO_PIN_DIO0_128x, GPIO_PIN_DIO1_128x, GPIO_PIN_DIO2_128x,
      GPIO_PIN_BUSY, GPIO_PIN_TXEN_128x, GPIO_PIN_RXEN_128x, GPIO_PIN_NSS_128x,
-     &Radio128x},
+     &Radio128x, "SX128x"},
 #endif
 };
 
@@ -170,7 +174,7 @@ RadioInterface* common_config_radio(uint8_t type)
     RadioParameters_t * config = &RadioType[type];
     RadioInterface* radio = config->radio_if;
 
-    DEBUG_PRINTF("Using radio type: %u\n", type);
+    DEBUG_PRINTF("Using radio type: %s\n", config->str);
 
     FHSS_init(type);
 
@@ -178,8 +182,7 @@ RadioInterface* common_config_radio(uint8_t type)
                    config->busy, config->txen, config->rxen);
     radio->SetSyncWord(getSyncWord());
     radio->Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, config->nss);
-
     current_radio_index = type;
-
+    DEBUG_PRINTF("Radio configured\n");
     return radio;
 }
