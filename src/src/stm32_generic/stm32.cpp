@@ -146,8 +146,10 @@ void platform_setup(void)
 #endif /* DEBUG_SERIAL */
 
 #if defined(CTRL_SERIAL)
-    //CTRL_SERIAL.begin(460800);
-    CTRL_SERIAL.begin(420000);
+#ifndef CTRL_SERIAL_BAUD
+#define CTRL_SERIAL_BAUD 460800
+#endif
+    CTRL_SERIAL.begin(CTRL_SERIAL_BAUD);
     CTRL_SERIAL.setTimeout(5);
 #endif // CTRL_SERIAL
 #if defined(BT_SERIAL)

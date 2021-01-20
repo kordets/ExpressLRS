@@ -20,6 +20,9 @@
 #endif // ESP_NOW_PEERS
 #endif // ESP_NOW
 
+#ifndef SERIAL_BAUD
+#define SERIAL_BAUD 460800
+#endif
 
 #define STRINGIFY(s) #s
 #define STRINGIFY_TMP(A) STRINGIFY(A)
@@ -761,7 +764,7 @@ int8_t flash_stm32(uint32_t flash_addr)
   } else {
     webSocket.broadcastTXT("Invalid file!");
   }
-  Serial.begin(460800);
+  Serial.begin(SERIAL_BAUD);
   return result;
 }
 
@@ -1077,9 +1080,9 @@ void setup()
   uint8_t sta_up = 0;
 
 #ifdef INVERTED_SERIAL
-  Serial.begin(460800, SERIAL_8N1, SERIAL_FULL, 1, true); // inverted serial
+  Serial.begin(SERIAL_BAUD, SERIAL_8N1, SERIAL_FULL, 1, true); // inverted serial
 #else
-  Serial.begin(460800); // non-inverted serial
+  Serial.begin(SERIAL_BAUD); // non-inverted serial
 #endif
 
 #if (BOOT0_PIN == 2 || BOOT0_PIN == 0)
