@@ -64,7 +64,7 @@ spi_setup(uint32_t speed, int sck, int miso, int mosi, uint8_t mode)
                         (div << SPI_CR1_BR_Pos) |
                         SPI_CR1_SPE | SPI_CR1_MSTR |
                         SPI_CR1_SSM | SPI_CR1_SSI);
-#ifdef STM32L4xx
+#if defined STM32L4xx || defined STM32F7xx
         spi->CR2 = SPI_DATASIZE_8BIT | SPI_RXFIFO_THRESHOLD_QF;
 #endif
         return (struct spi_config){.spi = spi, .spi_cr1 = cr1};
