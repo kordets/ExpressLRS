@@ -129,7 +129,7 @@ SX127xDriver::SX127xDriver(uint8_t payload_len):
 #endif
 }
 
-void SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
+int8_t SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
 {
     TxRxDisable();
 
@@ -138,10 +138,8 @@ void SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
     // initialize low-level drivers
     RadioHalSpi::Begin(SX127X_SPI_SPEED, sck, miso, mosi, ss);
 
-    if (CheckChipVersion() != ERR_NONE)
-    {
-        while(1);
-        return;
+    if (CheckChipVersion() != ERR_NONE) {
+        return -1;
     }
 
     // Store mode register locally
@@ -155,6 +153,7 @@ void SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
     /* Attach interrupts to pins */
     if (gpio_in_valid(_DIO1))
         gpio_in_isr(_DIO1, _rxtx_isr_handler_dio0, RISING);
+    return 0;
 }
 
 void SX127xDriver::End(void)

@@ -43,7 +43,7 @@ SX1280Driver::SX1280Driver(uint8_t payload_len):
 #endif
 }
 
-void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
+int8_t SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
 {
     TxRxDisable();
     // initialize low-level drivers
@@ -51,7 +51,8 @@ void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
 
     if (!gpio_in_valid(_BUSY)) {
         // Error handler!
-        while(1);
+        DEBUG_PRINTF("[ERROR] BUSY pin is mandatory for SX128x!\n");
+        return -1;
     }
 
     Reset();
@@ -68,14 +69,15 @@ void SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
     uint16_t firmwareRev = buffer[4];
     firmwareRev <<= 8;
     firmwareRev += buffer[5];
-    DEBUG_PRINTF("SX1280 fw rev %u\n", firmwareRev);
+    DEBUG_PRINTF("SX128x fw rev %u\n", firmwareRev);
     if (43447 != firmwareRev) {
-        // Error handler!
-        while(1);
+        DEBUG_PRINTF("[ERROR] Invalid revision!\n");
+        return -1;
     }
 
     if (gpio_in_valid(_DIO1))
         gpio_in_isr(_DIO1, _rxtx_isr_handler, RISING);
+    return 0;
 }
 
 void SX1280Driver::End(void)

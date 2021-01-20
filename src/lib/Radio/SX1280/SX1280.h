@@ -24,7 +24,7 @@ public:
 
     ////////////////Configuration Functions/////////////
     SX1280Driver(uint8_t payload_len = RX_BUFFER_LEN);
-    void Begin(int sck, int miso, int mosi, int ss);
+    int8_t Begin(int sck, int miso, int mosi, int ss);
     void End(void);
     int16_t MeasureNoiseFloor(uint32_t num_meas, uint32_t freq);
     void SetMode(SX1280_RadioOperatingModes_t OPmode);

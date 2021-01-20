@@ -49,7 +49,7 @@ public:
     uint8_t _syncWord;
 
     ////////////////Configuration Functions/////////////
-    void Begin(int sck, int miso, int mosi, int ss);
+    int8_t Begin(int sck, int miso, int mosi, int ss);
     void End(void);
     void Config(uint32_t bw, uint32_t sf, uint32_t cr,
                 uint32_t freq, uint16_t PreambleLength,

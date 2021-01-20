@@ -44,7 +44,7 @@ public:
 
     void SetPins(int rst, int dio1, int dio2, int dio3,
                  int busy, int txpin, int rxpin);
-    virtual void Begin(int sck, int miso, int mosi, int ss) = 0;
+    virtual int8_t Begin(int sck, int miso, int mosi, int ss) = 0;
     virtual void End(void) = 0;
     virtual void Config(uint32_t bw, uint32_t sf, uint32_t cr,
                         uint32_t freq, uint16_t PreambleLength,
