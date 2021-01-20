@@ -3,8 +3,10 @@ import stlink
 import UARTupload
 import opentx
 import upload_via_esp8266_backpack
+import esp_compress
 
-stm = env.get('PIOPLATFORM', '') in ['ststm32']
+platform = env.get('PIOPLATFORM', '')
+stm = platform in ['ststm32']
 
 # don't overwrite if custom command defined
 if stm and "$UPLOADER $UPLOADERFLAGS" in env.get('UPLOADCMD', '$UPLOADER $UPLOADERFLAGS'):
@@ -20,3 +22,7 @@ if stm and "$UPLOADER $UPLOADERFLAGS" in env.get('UPLOADCMD', '$UPLOADER $UPLOAD
         env.Replace(UPLOADCMD=UARTupload.on_upload)
     else: # "_STLINK"
         env.Replace(UPLOADCMD=stlink.on_upload)
+elif platform in ['espressif8266']:
+    env.AddPostAction("buildprog", esp_compress.compressFirmware)
+else:
+    print("*** PLATFORM: '%s'" % platform)
