@@ -8,6 +8,12 @@
 /// General Features ///
 #define LED_MAX_BRIGHTNESS 50 //0..255 for max led brightness
 
+/// Gimbal defines ///
+#define PITCH       0
+#define ROLL        1
+#define THROTTLE    2
+#define YAW         3
+
 /******************************************************************************************/
 /*                                     ESP TX CONFIGS                                     */
 /******************************************************************************************/
@@ -439,19 +445,23 @@ https://github.com/jaxxzer
 #define RADIO_SX128x 1
 #define RADIO_SX127x 1
 
-// Left gimbal
-#define GIMBAL_L1   PC3     // G_L_1
-#define GIMBAL_L2   PC2     // G_L_2
-// Right gimbal
-#define GIMBAL_R1   PC1     // G_R_1
-#define GIMBAL_R2   PC0     // G_R_2
+// Gimbal pins
+#define GIMBAL_L1       PC3 // G_L_1
+#define GIMBAL_L2       PC2 // G_L_2
+#define GIMBAL_R1       PC1 // G_R_1
+#define GIMBAL_R2       PC0 // G_R_2
+// Gimbal inversions
+#define GIMBAL_L1_INV   0   // pitch
+#define GIMBAL_L2_INV   1   // roll
+#define GIMBAL_R1_INV   1   // throttle
+#define GIMBAL_R2_INV   0   // yaw
 
 #define SWITCH_1_1  PB3     // S1_1
-#define SWITCH_1_2  PB4     // S1_2
+//#define SWITCH_1_2  PB4     // S1_2
 #define SWITCH_2_1  PB5     // S2_1
-#define SWITCH_2_2  PB6     // S2_2
+//#define SWITCH_2_2  PB6     // S2_2
 #define SWITCH_3_1  PB14    // S3_1
-//#define SWITCH_3_2  PB15    // S3_2
+#define SWITCH_3_2  PB15    // S3_2
 #define SWITCH_4_1  PB12    // S4_1
 #define SWITCH_4_2  PB13    // S4_2
 #define SWITCH_5_1  PC12    // S5_1
@@ -461,14 +471,20 @@ https://github.com/jaxxzer
 
 
 // ********** OUTPUT MAPPING **********
-#define ANALOG_CH0  0
-#define ANALOG_CH1  1
-#define ANALOG_CH2  2
-#define ANALOG_CH3  3
+/*
+CH0 = Thr
+CH1 = Ail (roll)
+CH2 = Ele (pitch)
+CH3 = Rud (yaw)
+*/
+#define ANALOG_CH0      THROTTLE
+#define ANALOG_CH1      ROLL
+#define ANALOG_CH2      PITCH
+#define ANALOG_CH3      YAW
 
-#define SWITCH_AUX1     SWITCH_1
-#define SWITCH_AUX2     SWITCH_2
-#define SWITCH_AUX3     SWITCH_3
+#define SWITCH_AUX1     SWITCH_3
+#define SWITCH_AUX2     SWITCH_1
+#define SWITCH_AUX3     SWITCH_2
 
 #endif
 

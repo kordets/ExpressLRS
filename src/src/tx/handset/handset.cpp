@@ -83,7 +83,7 @@ void loop()
         }
     }
 
-    if (2000 <= (millis() - last_rc_info)) {
+    if (1000 <= (millis() - last_rc_info)) {
         last_rc_info = millis();
 #if 1
         DEBUG_PRINTF("RC: %u, %u, %u, %u -- %u, %u, %u\n",

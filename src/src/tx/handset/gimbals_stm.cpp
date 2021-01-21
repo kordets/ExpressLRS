@@ -27,6 +27,7 @@
 #define ADC_ISR_EN      0
 #define TIMx_ISR_EN     0
 
+// Just defaults
 #define GIMBAL_LOW      194
 #define GIMBAL_HIGH     3622
 //#define GIMBAL_MID      (GIMBAL_LOW + (GIMBAL_HIGH - GIMBAL_LOW)/2) // 1906
@@ -48,19 +49,19 @@
  *   1 = ADC_SAMPLETIME_144CYCLES = ~97us
  */
 #define ADC_SAMPLE_TIME 1
-
+#define ADC_MARGIN      40U
 #if ADC_SAMPLE_TIME == 0
 #define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_480CYCLES
-#define TIM_MARGIN_US 370U
+#define TIM_MARGIN_US   (310U + ADC_MARGIN)
 #elif ADC_SAMPLE_TIME == 1
 #define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_144CYCLES
-#define TIM_MARGIN_US 170U
+#define TIM_MARGIN_US   (110U + ADC_MARGIN)
 #elif ADC_SAMPLE_TIME == 2
 #define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_112CYCLES
-#define TIM_MARGIN_US 150U
+#define TIM_MARGIN_US   (90U + ADC_MARGIN)
 #else
 #define ADC_SAMPLE_TIME_VAL ADC_SAMPLETIME_84CYCLES
-#define TIM_MARGIN_US 120U
+#define TIM_MARGIN_US   (75U + ADC_MARGIN)
 #endif
 
 #if TIMx_ISR_EN
@@ -78,7 +79,7 @@ static uint16_t DRAM_ATTR RawVals[NUM_ANALOGS * 4];
 #define DEBUG_VARS 0
 #if DEBUG_VARS
 static volatile uint16_t DRAM_ATTR DEBUG_VAL[NUM_ANALOGS];
-#define DEBUG_VARS_PRINT 1
+#define DEBUG_VARS_PRINT 2
 #define DEBUG_PRINT_GIMBAL 0
 #endif
 
@@ -143,12 +144,13 @@ struct gimbal_limit {
     uint16_t low;
     uint16_t mid;
     uint16_t high;
+    uint8_t  inv;
 };
 struct gimbal_limit DRAM_ATTR gimbal_limit[NUM_ANALOGS] = {
-    {GIMBAL_LOW, GIMBAL_MID, GIMBAL_HIGH},
-    {GIMBAL_LOW, GIMBAL_MID, GIMBAL_HIGH},
-    {GIMBAL_LOW, GIMBAL_MID, GIMBAL_HIGH},
-    {GIMBAL_LOW, GIMBAL_MID, GIMBAL_HIGH},
+    {183, 1860, 3628, GIMBAL_L1_INV},
+    {490, 2094, 3738, GIMBAL_L2_INV},
+    {900, 2196, 3536, GIMBAL_R1_INV},
+    {194, 2023, 3796, GIMBAL_R2_INV},
 };
 
 static inline void
@@ -173,20 +175,25 @@ void handle_dma_isr(void)
 #endif
         filters[index].update(val);
     }
-#if DEBUG_VARS && DEBUG_VARS_PRINT
+#if DEBUG_VARS
+#if (DEBUG_VARS_PRINT == 1)
 #if DEBUG_PRINT_GIMBAL < 4
     DEBUG_PRINTF("%u,%u\n",
         DEBUG_VAL[DEBUG_PRINT_GIMBAL],
         (uint32_t)filters[DEBUG_PRINT_GIMBAL].getCurrent());
-#else
+#else // !(DEBUG_PRINT_GIMBAL < 4)
     DEBUG_PRINTF("%u,%u,%u,%u,%u,%u,%u,%u\n",
         DEBUG_VAL[0], (uint32_t)filters[0].getCurrent(),
         DEBUG_VAL[1], (uint32_t)filters[1].getCurrent(),
         DEBUG_VAL[2], (uint32_t)filters[2].getCurrent(),
         DEBUG_VAL[3], (uint32_t)filters[3].getCurrent()
         );
-#endif
-#endif
+#endif // DEBUG_PRINT_GIMBAL
+#elif (DEBUG_VARS_PRINT == 2)
+    DEBUG_PRINTF("%u,%u,%u,%u\n",
+        DEBUG_VAL[0],DEBUG_VAL[1],DEBUG_VAL[2],DEBUG_VAL[3]);
+#endif // DEBUG_VARS_PRINT
+#endif // DEBUG_VARS
 }
 
 
@@ -443,5 +450,8 @@ gimbals_get(uint16_t * const out)
             out[iter] = MAP_U16((uint16_t)curr, limit->mid, limit->high,
                                 CRSF_CHANNEL_IN_VALUE_MID,
                                 CRSF_CHANNEL_IN_VALUE_MAX);
+        if (limit->inv) {
+            out[iter] = CRSF_CHANNEL_IN_VALUE_MAX - out[iter];
+        }
     }
 }
