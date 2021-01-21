@@ -69,8 +69,8 @@ int8_t SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
     uint16_t firmwareRev = buffer[4];
     firmwareRev <<= 8;
     firmwareRev += buffer[5];
-    DEBUG_PRINTF("SX128x fw rev %u\n", firmwareRev);
-    if (43447 != firmwareRev) {
+    DEBUG_PRINTF("SX128x fw rev %u\n", firmwareRev); // 43445, 43447
+    if (43440 != (firmwareRev & 0xfff0)) {
         DEBUG_PRINTF("[ERROR] Invalid revision!\n");
         return -1;
     }
