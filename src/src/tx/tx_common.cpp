@@ -30,7 +30,7 @@ static uint8_t red_led_state;
 
 static uint16_t DRAM_ATTR CRCCaesarCipher;
 
-static struct platform_config pl_config;
+struct platform_config DRAM_ATTR pl_config;
 
 /////////// SYNC PACKET ////////
 static uint32_t DRAM_ATTR SyncPacketNextSend;
@@ -486,6 +486,10 @@ int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out,
     } else if (RADIO_SX128x && pl_config.rf_mode == RADIO_TYPE_128x) {
         buff[4] = RADIO_RF_MODE_2400_ISM_500Hz;
     }
+#if TARGET_HANDSET
+    buff[4] |= 0x80;
+#endif
+
     buff += 5;
 
     /* TODO: fill version info etc */
@@ -637,6 +641,7 @@ int tx_common_check_connection(void)
     return 0;
 }
 
+
 void tx_common_handle_ctrl_serial(void)
 {
 #ifdef CTRL_SERIAL
@@ -658,8 +663,13 @@ void tx_common_handle_ctrl_serial(void)
                         SettingsCommandHandle(msg, NULL, packet.payloadSize, outlen);
                         break;
                     }
-                    default:
+                    default: {
+                        if (0 <= tx_handle_msp_input(packet)) {
+                            /* Send resp */
+                            msp_packet_parser.sendPacket(&packet, &ctrl_serial);
+                        }
                         break;
+                    }
                 };
             } else {
                 MspOtaCommandsSend(packet);
@@ -667,8 +677,9 @@ void tx_common_handle_ctrl_serial(void)
             msp_packet_parser.markPacketFree();
         }
     }
-#endif
+#endif // CTRL_SERIAL
 }
+
 
 void tx_common_update_link_stats(void)
 {

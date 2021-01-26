@@ -8,6 +8,7 @@
 #include "debug_elrs.h"
 #include "rc_channels.h"
 #include "priorities.h"
+#include "common_defs.h"
 
 #if defined(STM32F7xx)
 #include "stm32f7xx_hal_adc.h"
@@ -139,19 +140,6 @@ static GimbalNoFilter DRAM_ATTR filters[NUM_ANALOGS] = {
 #else
 #error "invalid filter selected"
 #endif
-
-struct gimbal_limit {
-    uint16_t low;
-    uint16_t mid;
-    uint16_t high;
-    uint8_t  inv;
-};
-struct gimbal_limit DRAM_ATTR gimbal_limit[NUM_ANALOGS] = {
-    {183, 1860, 3628, GIMBAL_L1_INV},
-    {490, 2094, 3738, GIMBAL_L2_INV},
-    {900, 2196, 3536, GIMBAL_R1_INV},
-    {194, 2023, 3796, GIMBAL_R2_INV},
-};
 
 static inline void
 timer_reset_period(void)
@@ -341,12 +329,14 @@ static void configure_adc_channel(uint32_t channel, uint8_t rank)
 
 static void configure_adc(void)
 {
-    uint32_t channels[4] = {
-        GIMBAL_L1, GIMBAL_L2,
-        GIMBAL_R1, GIMBAL_R2,
-    };
+    uint32_t channels[4];
     uint32_t pin;
     uint8_t iter, chan, jter;
+
+    channels[GIMBAL_IDX_L1] = GIMBAL_L1;
+    channels[GIMBAL_IDX_L2] = GIMBAL_L2;
+    channels[GIMBAL_IDX_R1] = GIMBAL_R1;
+    channels[GIMBAL_IDX_R2] = GIMBAL_R2;
 
     configure_dma();
     configure_timer();
@@ -437,10 +427,11 @@ gimbals_timer_adjust(uint32_t us)
 void ICACHE_RAM_ATTR
 gimbals_get(uint16_t * const out)
 {
+    struct gimbal_limit * limit;
     uint32_t curr;
     uint8_t iter;
-    for (iter = 0; iter < NUM_ANALOGS; iter++) {
-        struct gimbal_limit * limit = &gimbal_limit[iter];
+    for (iter = 0; iter < ARRAY_SIZE(pl_config.gimbals); iter++) {
+        limit = &pl_config.gimbals[iter];
         curr = filters[iter].getCurrent();
         if (curr <= GIMBAL_MID)
             out[iter] = MAP_U16((uint16_t)curr, limit->low, limit->mid,
@@ -450,8 +441,48 @@ gimbals_get(uint16_t * const out)
             out[iter] = MAP_U16((uint16_t)curr, limit->mid, limit->high,
                                 CRSF_CHANNEL_IN_VALUE_MID,
                                 CRSF_CHANNEL_IN_VALUE_MAX);
-        if (limit->inv) {
-            out[iter] = CRSF_CHANNEL_IN_VALUE_MAX - out[iter];
-        }
     }
+}
+
+
+uint8_t gimbals_calibrate(uint8_t * data)
+{
+    uint8_t success = 0;
+    if (data[1] == 0) {
+        /* Stop if needed... */
+        return 0;
+    }
+    switch (data[0]) {
+    case GIMBAL_CALIB_THR:
+        break;
+    case GIMBAL_CALIB_YAW:
+        break;
+    case GIMBAL_CALIB_PITCH:
+        break;
+    case GIMBAL_CALIB_ROLL:
+        break;
+    default:
+        return 0;
+    }
+    data[0] = success;
+    return 1;
+}
+
+uint8_t gimbals_adjust_min(uint16_t val, uint8_t idx)
+{
+    if (idx < GIMBAL_IDX_MAX)
+        pl_config.gimbals[idx].low = val;
+    return 0;
+}
+uint8_t gimbals_adjust_mid(uint16_t val, uint8_t idx)
+{
+    if (idx < GIMBAL_IDX_MAX)
+        pl_config.gimbals[idx].mid = val;
+    return 0;
+}
+uint8_t gimbals_adjust_max(uint16_t val, uint8_t idx)
+{
+    if (idx < GIMBAL_IDX_MAX)
+        pl_config.gimbals[idx].high = val;
+    return 0;
 }

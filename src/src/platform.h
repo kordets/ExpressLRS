@@ -2,6 +2,7 @@
 #define _PLATFORM_H_
 
 #include "platform_internal.h"
+#include "common_defs.h"
 #include <stdint.h>
 #include <stddef.h>
 
@@ -58,7 +59,12 @@ struct platform_config
         uint32_t power;
         uint32_t tlm;
     } rf[2]; // rf_mode: 0 = SX127x, 1 = SX128x
+
+    /* Handset specific data */
+    struct gimbal_limit gimbals[TX_NUM_ANALOGS];
+    struct mixer mixer[TX_NUM_MIXER];
 };
+extern struct platform_config pl_config;
 
 int8_t platform_config_load(struct platform_config &config);
 int8_t platform_config_save(struct platform_config &config);

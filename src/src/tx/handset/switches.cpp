@@ -4,6 +4,7 @@
 #include "gpio.h"
 #include "Arduino.h"
 #include "targets.h"
+#include "rc_channels.h"
 
 #define CONCAT_helper(x, y) x ## y
 #define CONCAT(S, N) CONCAT_helper(S, _##N)
@@ -14,78 +15,78 @@ struct switch_init {
 };
 
 struct switch_init switch_gpios[] = {
-#ifdef SWITCH_AUX1
+#ifdef SWITCH_CH_1
     {
-#if CONCAT(SWITCH_AUX1, 1)
-        .low = CONCAT(SWITCH_AUX1, 1),
+#if CONCAT(SWITCH_CH_1, 1)
+        .low = CONCAT(SWITCH_CH_1, 1),
 #endif
-#if CONCAT(SWITCH_AUX1, 2)
-        .high = CONCAT(SWITCH_AUX1, 2)
+#if CONCAT(SWITCH_CH_1, 2)
+        .high = CONCAT(SWITCH_CH_1, 2)
 #else
         .high = UNDEF_PIN
 #endif
     },
 #endif
 
-#ifdef SWITCH_AUX2
+#ifdef SWITCH_CH_2
     {
-#if CONCAT(SWITCH_AUX2, 1)
-        .low = CONCAT(SWITCH_AUX2, 1),
+#if CONCAT(SWITCH_CH_2, 1)
+        .low = CONCAT(SWITCH_CH_2, 1),
 #endif
-#if CONCAT(SWITCH_AUX2, 2)
-        .high = CONCAT(SWITCH_AUX2, 2)
+#if CONCAT(SWITCH_CH_2, 2)
+        .high = CONCAT(SWITCH_CH_2, 2)
 #else
         .high = UNDEF_PIN
 #endif
     },
 #endif
 
-#ifdef SWITCH_AUX3
+#ifdef SWITCH_CH_3
     {
-#if CONCAT(SWITCH_AUX3, 1)
-        .low = CONCAT(SWITCH_AUX3, 1),
+#if CONCAT(SWITCH_CH_3, 1)
+        .low = CONCAT(SWITCH_CH_3, 1),
 #endif
-#if CONCAT(SWITCH_AUX3, 2)
-        .high = CONCAT(SWITCH_AUX3, 2)
+#if CONCAT(SWITCH_CH_3, 2)
+        .high = CONCAT(SWITCH_CH_3, 2)
 #else
         .high = UNDEF_PIN
 #endif
     },
 #endif
 
-#ifdef SWITCH_AUX4
+#ifdef SWITCH_CH_4
     {
-#if CONCAT(SWITCH_AUX4, 1)
-        .low = CONCAT(SWITCH_AUX4, 1),
+#if CONCAT(SWITCH_CH_4, 1)
+        .low = CONCAT(SWITCH_CH_4, 1),
 #endif
-#if CONCAT(SWITCH_AUX4, 2)
-        .high = CONCAT(SWITCH_AUX4, 2)
+#if CONCAT(SWITCH_CH_4, 2)
+        .high = CONCAT(SWITCH_CH_4, 2)
 #else
         .high = UNDEF_PIN
 #endif
     },
 #endif
 
-#ifdef SWITCH_AUX5
+#ifdef SWITCH_CH_5
     {
-#if CONCAT(SWITCH_AUX5, 1)
-        .low = CONCAT(SWITCH_AUX5, 1),
+#if CONCAT(SWITCH_CH_5, 1)
+        .low = CONCAT(SWITCH_CH_5, 1),
 #endif
-#if CONCAT(SWITCH_AUX5, 2)
-        .high = CONCAT(SWITCH_AUX5, 2)
+#if CONCAT(SWITCH_CH_5, 2)
+        .high = CONCAT(SWITCH_CH_5, 2)
 #else
         .high = UNDEF_PIN
 #endif
     },
 #endif
 
-#ifdef SWITCH_AUX6
+#ifdef SWITCH_CH_6
     {
-#if CONCAT(SWITCH_AUX6, 1)
-        .low = CONCAT(SWITCH_AUX6, 1),
+#if CONCAT(SWITCH_CH_6, 1)
+        .low = CONCAT(SWITCH_CH_6, 1),
 #endif
-#if CONCAT(SWITCH_AUX6, 2)
-        .high = CONCAT(SWITCH_AUX6, 2)
+#if CONCAT(SWITCH_CH_6, 2)
+        .high = CONCAT(SWITCH_CH_6, 2)
 #else
         .high = UNDEF_PIN
 #endif
@@ -116,59 +117,23 @@ void switches_init(void)
     }
 }
 
-void switches_collect(rc_channels_t * const out)
+void switches_collect(uint16_t * const out)
 {
-#ifdef SWITCH_AUX1
-    if (!gpio_in_read(switches[0].low))
-        out->ch4 = CRSF_CHANNEL_IN_VALUE_MIN;
-    else if (!gpio_in_valid(switches[0].high) || !gpio_in_read(switches[0].high))
-        out->ch4 = CRSF_CHANNEL_IN_VALUE_MAX;
-    else
-        out->ch4 = CRSF_CHANNEL_IN_VALUE_MID;
-#endif
+    uint16_t value;
+    uint8_t iter;
+    for (iter = 0; iter < num_switches; iter++) {
+        if (!gpio_in_read(switches[iter].low))
+            value = CRSF_CHANNEL_IN_VALUE_MIN;
+        else if (!gpio_in_valid(switches[iter].high) ||
+                 !gpio_in_read(switches[iter].high))
+            value = CRSF_CHANNEL_IN_VALUE_MAX;
+        else
+            value = CRSF_CHANNEL_IN_VALUE_MID;
+        out[iter] = value;
+    }
+}
 
-#ifdef SWITCH_AUX2
-    if (!gpio_in_read(switches[1].low))
-        out->ch5 = CRSF_CHANNEL_IN_VALUE_MIN;
-    else if (!gpio_in_valid(switches[1].high) || !gpio_in_read(switches[1].high))
-        out->ch5 = CRSF_CHANNEL_IN_VALUE_MAX;
-    else
-        out->ch5 = CRSF_CHANNEL_IN_VALUE_MID;
-#endif
-
-#ifdef SWITCH_AUX3
-    if (!gpio_in_read(switches[2].low))
-        out->ch6 = CRSF_CHANNEL_IN_VALUE_MIN;
-    else if (!gpio_in_valid(switches[2].high) || !gpio_in_read(switches[2].high))
-        out->ch6 = CRSF_CHANNEL_IN_VALUE_MAX;
-    else
-        out->ch6 = CRSF_CHANNEL_IN_VALUE_MID;
-#endif
-
-#ifdef SWITCH_AUX4
-    if (!gpio_in_read(switches[3].low))
-        out->ch7 = CRSF_CHANNEL_IN_VALUE_MIN;
-    else if (!gpio_in_valid(switches[2].high) || !gpio_in_read(switches[3].high))
-        out->ch7 = CRSF_CHANNEL_IN_VALUE_MAX;
-    else
-        out->ch7 = CRSF_CHANNEL_IN_VALUE_MID;
-#endif
-
-#ifdef SWITCH_AUX5
-    if (!gpio_in_read(switches[4].low))
-        out->ch8 = CRSF_CHANNEL_IN_VALUE_MIN;
-    else if (!gpio_in_valid(switches[2].high) || !gpio_in_read(switches[4].high))
-        out->ch8 = CRSF_CHANNEL_IN_VALUE_MAX;
-    else
-        out->ch8 = CRSF_CHANNEL_IN_VALUE_MID;
-#endif
-
-#ifdef SWITCH_AUX6
-    if (!gpio_in_read(switches[5].low))
-        out->ch9 = CRSF_CHANNEL_IN_VALUE_MIN;
-    else if (!gpio_in_valid(switches[2].high) || !gpio_in_read(switches[5].high))
-        out->ch9 = CRSF_CHANNEL_IN_VALUE_MAX;
-    else
-        out->ch9 = CRSF_CHANNEL_IN_VALUE_MID;
-#endif
+uint8_t switches_get_available(void)
+{
+    return num_switches;
 }

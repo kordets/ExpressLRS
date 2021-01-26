@@ -1,5 +1,6 @@
 #pragma once
 
+#include "platform.h"
 #include "rc_channels.h"
 #include "msp.h"
 #include <stdint.h>
@@ -33,3 +34,5 @@ int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out,
 
 void hw_timer_init(void);
 void hw_timer_stop(void);
+
+int8_t tx_handle_msp_input(mspPacket_t &packet);

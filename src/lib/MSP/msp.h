@@ -6,6 +6,16 @@
 
 enum {
     ELRS_INT_MSP_PARAMS = 1,
+
+    ELRS_HANDSET_BASE = 100,
+    ELRS_HANDSET_CALIBRATE = (ELRS_HANDSET_BASE + 1),
+    ELRS_HANDSET_MIXER,
+    ELRS_HANDSET_ADJUST,
+    ELRS_HANDSET_ADJUST_MIN,
+    ELRS_HANDSET_ADJUST_MID,
+    ELRS_HANDSET_ADJUST_MAX,
+    ELRS_HANDSET_CONFIGS_LOAD,
+    ELRS_HANDSET_CONFIGS_SAVE,
 };
 
 #define MSP_PORT_INBUF_SIZE 256
@@ -142,6 +152,9 @@ public:
     }
     mspPacket_t *getPacketPtr() {
         return &m_packet;
+    }
+    uint8_t error() {
+        return m_packet.error;
     }
     void markPacketFree();
 

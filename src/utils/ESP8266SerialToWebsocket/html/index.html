@@ -1,206 +1,408 @@
 <!DOCTYPE html>
 <html>
-
-<head>
+  <head>
     <meta name="viewport" content="width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0">
-    <title>TX Log Messages</title>
-    <style>
-        body {
-            background-color: #1E1E1E;
-            font-family: Arial, Helvetica, Sans-Serif;
-            Color: #69cbf7;
-        }
-
-        textarea {
-            background-color: #252525;
-            Color: #C5C5C5;
-            border-radius: 5px;
-            border: none;
-        }
-    </style>
-    <script>
-        var websock;
-        function start() {
-            document.getElementById("logField").scrollTop = document.getElementById("logField").scrollHeight;
-            websock = new WebSocket('ws://' + window.location.hostname + ':81/');
-            websock.onopen = function (evt) { console.log('websock open'); };
-            websock.onclose = function(e) {
-              console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
-              setTimeout(function() {
-                start();
-              }, 1000);
-            };
-            websock.onerror = function (evt) { console.log(evt); };
-            websock.onmessage = function (evt) {
-                console.log(evt);
-                var text = evt.data;
-                if (text.startsWith("setting_")) {
-                  var res = str.replace("setting_", "");
-                  res = res.split("=");
-                  setting_set(res[0], res[1]);
-                } else {
-                  var d = new Date();
-                  var n = d.toISOString();
-                  document.getElementById("logField").value += n + ' ' + text + '\n';
-                  document.getElementById("logField").scrollTop = document.getElementById("logField").scrollHeight;
-                }
-            };
-        }
-
-        function saveTextAsFile() {
-            var textToWrite = document.getElementById('logField').value;
-            var textFileAsBlob = new Blob([textToWrite], { type: 'text/plain' });
-
-            var downloadLink = document.createElement("a");
-            downloadLink.download = "r9m_tx_log.txt";
-            downloadLink.innerHTML = "Download File";
-            if (window.webkitURL != null) {
-                // Chrome allows the link to be clicked without actually adding it to the DOM.
-                downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
-            } else {
-                // Firefox requires the link to be added to the DOM before it can be clicked.
-                downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
-                downloadLink.onclick = destroyClickedElement;
-                downloadLink.style.display = "none";
-                document.body.appendChild(downloadLink);
-            }
-
-            downloadLink.click();
-        }
-
-        function destroyClickedElement(event) {
-            // remove the link from the DOM
-            document.body.removeChild(event.target);
-        }
-
-        function setting_set(type, value) {
-          var elem = document.getElementById(type);
-          elem.selectedIndex = [...elem.options].findIndex (option => option.value === value);
-        }
-
-        function setting_send(type, elem) {
-          console.log(type+"="+elem.value);
-          //websock.send(type+"="+event.target.value);
-          setting_set("tlm_input", "5");
-        }
-    </script>
-</head>
+    <title>ExpressLRS</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script type="text/javascript" src="scripts.js"></script>
+  </head>
 
 <body onload="javascript:start();">
-  <center>
-    <h2>TX Log Messages</h2>
-    <textarea id="logField" rows="40" cols="100" style="margin: 0px; height: 621px; width: 968px;"></textarea>
-    <br>
-    <button type="button" onclick="saveTextAsFile()" value="save" id="save">Save log to file...</button>
-    <hr/>
-    <h2>Settings</h2>
+  <div class="center-area">
+
     <div>
-        <table>
-            <tr><td style="padding: 1px 20px 1px 1px;">
+      <div class="heading_big">ExpressLRS TX</div>
+      <!-- TAB BAR -->
+      <div class="tab content">
+        <script type="text/javascript">
+          function change_tab(evt, tabName) {
+              // Declare all variables
+              var i, tabcontent, tablinks;
 
-        Rate:
-      <select list="rates" name="rate" onchange="setting_send('rate', this)" id="rates_input">
-        <option value="0">200Hz</option>
-        <option value="1">100Hz</option>
-        <option value="2">50Hz</option>
-      </select>
-    </td>
-        <td style="padding: 1px 20px 1px 20px;">
+              // Get all elements with class="tabcontent" and hide them
+              tabcontent = document.getElementsByClassName("tabcontent");
+              for (i = 0; i < tabcontent.length; i++) {
+                  tabcontent[i].style.display = "none";
+              }
 
-      Power:
-      <select list="powers" name="power" onchange="setting_send('pwr', this)" id="power_input">
-        <option value="0">Dynamic</option>
-        <option value="1">10mW</option>
-        <option value="2">25mW</option>
-        <option value="3">50mW</option>
-        <option value="4">100mW</option>
-        <option value="5">250mW</option>
-        <option value="6">500mW</option>
-        <option value="7">1000mW</option>
-        <option value="8">2000mW</option>
-        <option value="ff">Reset</option>
-      </select>
-    </td>
-    <td style="padding: 1px 1px 1px 20px;">
+              // Get all elements with class="tablinks" and remove the class "active"
+              tablinks = document.getElementsByClassName("tablinks");
+              for (i = 0; i < tablinks.length; i++) {
+                  tablinks[i].className = tablinks[i].className.replace(" active", "");
+              }
 
-      Telemetry:
-      <select list="telemtries" name="telemetry" onchange="setting_send('tlm', this)" id="tlm_input">
-        <option value="0">Off</option>
-        <option value="1">1/128</option>
-        <option value="2">1/64</option>
-        <option value="3">1/32</option>
-        <option value="4">1/16</option>
-        <option value="5">1/8</option>
-        <option value="6">1/4</option>
-        <option value="7">1/2</option>
-        <option value="ff">Reset</option>
-      </select>
-    </td></tr>
-    <!--
-      <tr>
-        <td style="padding: 1px 1px 1px 20px;">
-          VTX Settings
-        </td>
-        <td style="padding: 1px 1px 1px 20px;">
-          Freq:
-          <select name="vtx_freq" onchange="setting_send('S_vtx_freq', this)" id="vtx_f_input">
-            <option value="5740">F1</option>
-            <option value="5760">F2</option>
-            <option value="5780">F3</option>
-            <option value="5800">F4</option>
-            <option value="5820">F5</option>
-            <option value="5840">F6</option>
-            <option value="5860">F7</option>
-            <option value="5880">F8</option>
-          </select>
-        </td>
-        <td style="padding: 1px 1px 1px 20px;">
-          Power:
-          <select name="vtx_pwr" onchange="setting_send('S_vtx_pwr', this)" id="vtx_p_input">
-            <option value="0">Pit</option>
-            <option value="1">0</option>
-            <option value="2">1</option>
-            <option value="3">2</option>
-          </select>
-        </td>
-      </tr>
-    -->
-</table>
+              // Show the current tab, and add an "active" class to the link that opened the tab
+              document.getElementById(tabName).style.display = "block";
+              evt.currentTarget.className += " active";
+          }
+        </script>
+        <a href="javascript:void(0)" class="tablinks active"
+            onclick="change_tab(event, 'control_main')">Log</a>
+        <a href="javascript:void(0)" class="tablinks"
+            onclick="change_tab(event, 'control_settings')">Settings</a>
+        <a href="javascript:void(0)" class="tablinks"
+            onclick="change_tab(event, 'control_flash')">Update</a>
+        <a href="javascript:void(0)" class="tablinks" name="handset"
+            onclick="change_tab(event, 'control_handset')">Handset</a>
+        <a href="javascript:void(0)" class="tablinks" name="handset"
+            onclick="change_tab(event, 'handset_telemetry')">Telemetry</a>
+      </div>
+    </div> <!-- header -->
+
+  <div class="content">
+
+    <!-- MAIN -->
+    <div id="control_main" class="tabcontent" style="display:block;">
+      <div style="text-align: center;">
+        <textarea id="logField" readonly></textarea>
+        <br>
+        <button type="button" onclick="saveTextAsFile()" value="save" id="save">Save log to file...</button> |
+        <input type="checkbox" id="autoscroll" checked><label for="autoscroll"> Auto scroll</label> |
+        <input type='number' value='512' name='scrollsize' id='scrollsize' min="256"><label for="scrollsize"> Scroll len</label>
+        <br>
+      </div>
+      <hr/>
+      <pre>
+  The following command can be used to connect to the websocket using curl,
+  which is a lot faster over the terminal than Chrome.
+
+  curl --include \
+        --output - \
+        --no-buffer \
+        --header "Connection: Upgrade" \
+        --header "Upgrade: websocket" \
+        --header "Host: example.com:80" \
+        --header "Origin: http://example.com:80" \
+        --header "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" \
+        --header "Sec-WebSocket-Version: 13" \
+        http://elrs_tx.local:81/
+      </pre>
     </div>
-    <hr/>
-	  <h2>Danger Zone</h2>
-      <div>
-        <form method='POST' action='/update' enctype='multipart/form-data'>
-             Self Firmware:
-             <input type='file' accept='.bin' name='firmware'>
-             <input type='submit' value='Flash Self'>
-        </form>
-      </div>
-      <br>
-      <div>
-        <form method='POST' action='/upload' enctype='multipart/form-data'>
-             R9M Firmware:
-             <input type='file' accept='.bin' name='filesystem'>
-             <input type='submit' value='Flash R9M'>
-        </form>
-      </div>
-    </center>
-  <hr/>
-  <pre>
-The following command can be used to connect to the websocket using curl, which is a lot faster over the terminal than Chrome.
+    <!-- MAIN END -->
 
-curl --include \
-     --output - \
-     --no-buffer \
-     --header "Connection: Upgrade" \
-     --header "Upgrade: websocket" \
-     --header "Host: elrs_tx.local:80" \
-     --header "Origin: http://elrs_tx.local:80" \
-     --header "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" \
-     --header "Sec-WebSocket-Version: 13" \
-     http://elrs_tx.local:81/
-  </pre>
+
+    <!-- SETTINGS -->
+    <div id="control_settings" class="tabcontent" style="display:none;">
+      <fieldset>
+        <legend>Radio params</legend>
+        <table style="width: 100%">
+          <tr>
+            <td style="width: 150px;">
+              RF mode
+            </td>
+            <td>
+              <select name="rf_module" onchange="setting_send('S_rf_module', this)" id="rf_module">
+                <option value="0"> 900 (SX127x)</option>
+                <option value="3">2400 (SX128x)</option>
+              </select>
+            </td>
+            <td id="region_domain">
+              Regulatory domain UNKNOWN
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Packet Rate
+            </td>
+            <td colspan="2">
+              <select name="rate" onchange="setting_send('S_rate', this)" id="rates_input">
+                <option value="0">200Hz</option>
+                <option value="1">100Hz</option>
+                <option value="2">50Hz</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              TX Power
+            </td>
+            <td colspan="2">
+              <select name="power" onchange="setting_send('S_power', this)" id="power_input">
+                <option value="R">Reset</option>
+                <option value="0">Dynamic</option>
+                <option value="1">10mW</option>
+                <option value="2">25mW</option>
+                <option value="3">50mW</option>
+                <option value="4">100mW</option>
+                <option value="5">250mW</option>
+                <option value="6">500mW</option>
+                <option value="7">1000mW</option>
+                <option value="8">2000mW</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Telemetry Ratio
+            </td>
+            <td colspan="2">
+              <select name="telemetry" onchange="setting_send('S_telemetry', this)" id="tlm_input">
+                <option value="R">Reset</option>
+                <option value="0">Off</option>
+                <option value="1">1/128</option>
+                <option value="2">1/64</option>
+                <option value="3">1/32</option>
+                <option value="4">1/16</option>
+                <option value="5">1/8</option>
+                <option value="6">1/4</option>
+                <option value="7">1/2</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <!--
+            <td>
+              RF PWR
+            </td>
+            <td colspan="2">
+              <select name="rf_pwr" onchange="setting_send('S_rf_pwr', this)" id="rf_pwr">
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="A">10</option>
+                <option value="B">11</option>
+                <option value="C">12</option>
+                <option value="D">13</option>
+                <option value="E">14</option>
+                <option value="F">15</option>
+              </select>
+            </td>
+            -->
+          </tr>
+        </table>
+      </fieldset>
+
+      <fieldset>
+        <legend>VTX Settings</legend>
+        <div class="note">(will be sent to FC using MSP protocol)</div>
+        <table style="width: 100%">
+          <tr>
+            <td style="width: 150px;">
+              Frequency
+            </td>
+            <td>
+              <select name="vtx_freq" onchange="setting_send('S_vtx_freq', this)" id="vtx_f_input">
+                <option value="5740">F1</option>
+                <option value="5760">F2</option>
+                <option value="5780">F3</option>
+                <option value="5800">F4</option>
+                <option value="5820">F5</option>
+                <option value="5840">F6</option>
+                <option value="5860">F7</option>
+                <option value="5880">F8</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <!--
+            <td>
+              Power
+            </td>
+            <td>
+              <select name="vtx_pwr" onchange="setting_send('S_vtx_pwr', this)" id="vtx_p_input">
+                <option value="0">Pit</option>
+                <option value="1">0</option>
+                <option value="2">1</option>
+                <option value="3">2</option>
+              </select>
+            </td>
+            -->
+          </tr>
+        </table>
+      </fieldset>
+    </div>  <!-- SETTINGS END -->
+
+
+    <!-- FLASH -->
+    <div id="control_flash" class="tabcontent" style="display:none;">
+      <p>
+        <fieldset>
+          <legend>Self Firmware</legend>
+          <form method='POST' action='/update' enctype='multipart/form-data'>
+            <table style="width: 100%;">
+              <tr>
+                <td><input type='file' accept='.bin,.bin.gz' name='backpack_fw' id='esp_fw'></td>
+                <td style="width: 80px;"><input type='submit' value='FLASH' id='esp_submit' disabled='disabled'></td>
+              </tr>
+            </table>
+          </form>
+        </fieldset>
+        <fieldset>
+          <legend>STM32 Firmware</legend>
+          <div>
+            <form method='POST' action='/upload' enctype='multipart/form-data'>
+              <table style="width:100%;">
+                <tr>
+                  <td><input type='file' accept='.bin,.elrs' name='firmware' id='stm_fw'></td>
+                  <td><input type='text' value='0x0' name='flash_address' size='6' id='stm_addr' class="hide"></td>
+                  <td style="width: 80px;"><input type='submit' value='FLASH' id='stm_submit' disabled='disabled'></td>
+                </tr>
+              </table>
+            </form>
+          </div>
+          <br>
+          <div style="text-align: center;">
+            <button onclick="command_stm32('reset')">RESET</button>
+          </div>
+        </fieldset>
+      </p>
+      <p><span id="validationMessage" class="hide">
+        Please check firmware file is correct!
+      </span></p>
+      <br/>
+
+      <script type="text/javascript">
+        const message = document.getElementById('validationMessage');
+        document.getElementById('esp_fw').onchange = function (ev) {
+          const FIRMWARE_PATTERN = /backpack\.bin$/g;
+          const uploadButton = document.getElementById('esp_submit');
+          const value = ev.target.value;
+          if (FIRMWARE_PATTERN.test(value)) {
+            uploadButton.removeAttribute('disabled');
+            message.classList.add('hide');
+          } else {
+            uploadButton.setAttribute('disabled', 'disabled');
+            message.classList.remove('hide');
+          }
+        };
+        document.getElementById('stm_fw').onchange = function (ev) {
+          const FW_PATTERN_BIN = /firmware\.bin$/g;
+          const FW_PATTERN_ELRS = /firmware\.elrs$/g;
+          const uploadButton = document.getElementById('stm_submit');
+          const address = document.getElementById('stm_addr');
+          const value = ev.target.value;
+          address.classList.add('hide');
+          if (FW_PATTERN_BIN.test(value)) {
+            uploadButton.removeAttribute('disabled');
+            address.classList.remove('hide');
+            message.classList.add('hide');
+          } else if (FW_PATTERN_ELRS.test(value)) {
+            uploadButton.removeAttribute('disabled');
+            message.classList.add('hide');
+          } else {
+            uploadButton.setAttribute('disabled', 'disabled');
+            message.classList.remove('hide');
+          }
+        };
+      </script>
+    </div>
+    <!-- FLASH END -->
+
+
+    <!-- HANDSET -->
+    <div id="control_handset" class="tabcontent" style="display:none;">
+      <fieldset>
+        <legend>Channel Mixer</legend>
+        <table style="width: 60%;" id="handset_mixer">
+        </table>
+        <div style="padding: 10px; text-align: right;">
+          <br/>
+          <button style="width: 100px;" onclick="mixer_send()">SET</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Calibrate</legend>
+        <table id="calibrate" style="width: 50%;">
+          <tr>
+            <td style="padding: 10px;"><button onclick="handset_calibrate('thr')">LEFT<br>vertical</button></td>
+            <td><input type="number" min='0' max='4095' value="0" style="width: 50px;" id="thr_min" onchange="handset_calibrate_adjust(event);"></td>
+            <td><input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="thr_mid" onchange="handset_calibrate_adjust(event);"></td>
+            <td><input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="thr_max" onchange="handset_calibrate_adjust(event);"></td>
+            <td style="text-align: left;">(throttle)</td>
+          <tr>
+          </tr>
+            <td style="padding: 10px;"><button onclick="handset_calibrate('yaw')">LEFT<br>horizontal</button></td>
+            <td><input type="number" min='0' max='4095' value="0" style="width: 50px;" id="yaw_min" onchange="handset_calibrate_adjust(event);"></td>
+            <td><input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="yaw_mid" onchange="handset_calibrate_adjust(event);"></td>
+            <td><input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="yaw_max" onchange="handset_calibrate_adjust(event);"></td>
+            <td style="text-align: left;">(yaw)</td>
+          <tr>
+          </tr>
+            <td style="padding: 10px;"><button onclick="handset_calibrate('pit')">RIGHT<br>vertical</button></td>
+            <td><input type="number" min='0' max='4095' value="0" style="width: 50px;" id="pit_min" onchange="handset_calibrate_adjust(event);"></td>
+            <td><input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="pit_mid" onchange="handset_calibrate_adjust(event);"></td>
+            <td><input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="pit_max" onchange="handset_calibrate_adjust(event);"></td>
+            <td style="text-align: left;">(pitch)</td>
+          <tr>
+          </tr>
+            <td style="padding: 10px;"><button onclick="handset_calibrate('rol')">RIGHT<br>horizontal</button></td>
+            <td><input type="number" min='0' max='4095' value="0" style="width: 50px;" id="rol_min" onchange="handset_calibrate_adjust(event);"></td>
+            <td><input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="rol_mid" onchange="handset_calibrate_adjust(event);"></td>
+            <td><input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="rol_max" onchange="handset_calibrate_adjust(event);"></td>
+            <td style="text-align: left;">(roll)</td>
+          </tr>
+          <tr>
+            <td id="handset_calibrate_stat" colspan="4">&nbsp;</td>
+          </tr>
+        </table>
+      </fieldset>
+
+      <div style="padding: 10px; text-align: center;">
+        <button style="width: 100px;" onclick="refresh_values()">Refresh</button>
+      </div>
+      <div style="padding: 10px; text-align: center;">
+        <button style="width: 100px;" onclick="save_values()">Save</button>
+      </div>
+    </div>
+    <!-- HANDSET END -->
+
+
+    <!-- TELEMETRY -->
+    <div id="handset_telemetry" class="tabcontent" style="display:none;">
+      <fieldset>
+        <legend>Radiolink, Uplink</legend>
+        <table class="telem" id="tlm_ul">
+          <tr id="LQ"><td>LQ</td><td>N/A</td></tr>
+          <tr id="S1"><td>RSSI 1</td><td>N/A</td></tr>
+          <tr id="S2"><td>RSSI 2</td><td>N/A</td></tr>
+          <tr id="NS"><td>SNR</td><td>N/A</td></tr>
+          <tr id="PWR"><td>TX Power</td><td>N/A</td></tr>
+          <tr id="MO"><td>Mode</td><td>N/A</td></tr>
+        </table>
+      </fieldset>
+
+      <fieldset>
+        <legend>Radiolink, Downlink</legend>
+        <table class="telem" id="tlm_dl">
+          <tr id="LQ"><td>LQ</td><td>N/A</td></tr>
+          <tr id="RS"><td>RSSI</td><td>N/A</td></tr>
+          <tr id="SN"><td>SNR</td><td>N/A</td></tr>
+        </table>
+      </fieldset>
+
+      <fieldset>
+        <legend>Battery</legend>
+        <table class="telem" id="tlm_batt">
+          <tr id="V"><td>voltage</td><td>N/A</td></tr>
+          <tr id="A"><td>current</td><td>N/A</td></tr>
+          <tr id="C"><td>capacity</td><td>N/A</td></tr>
+          <tr id="R"><td>remaining</td><td>N/A</td></tr>
+        </table>
+      </fieldset>
+
+      <fieldset>
+        <legend>GPS</legend>
+        <table class="telem" id="tlm_gps">
+          <tr id="lat"><td>latitude</td><td>N/A</td></tr>
+          <tr id="lon"><td>longitude</td><td>N/A</td></tr>
+          <tr id="spe"><td>speed</td><td>N/A</td></tr>
+          <tr id="hea"><td>heading</td><td>N/A</td></tr>
+          <tr id="alt"><td>altitude</td><td>N/A</td></tr>
+          <tr id="sat"><td>satellites</td><td>N/A</td></tr>
+        </table>
+      </fieldset>
+    </div>
+    <!-- TELEMETRY END -->
+
+  </div> <!-- content -->
+  </div> <!-- content-area -->
 </body>
 </html>
-
-curl --include --output - --no-buffer --header "Connection: Upgrade" --header "Upgrade: websocket" --header "Host: elrs_tx.local:80" --header "Origin: http://elrs_tx.local:80" --header "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" --header "Sec-WebSocket-Version: 13" http://elrs_tx.local:81/

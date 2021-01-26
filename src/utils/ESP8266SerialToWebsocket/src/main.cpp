@@ -13,6 +13,7 @@
 #include "stm32Updater.h"
 #include "stk500.h"
 #include "msp.h"
+#include "common_defs.h"
 
 #ifdef ESP_NOW
 #ifndef ESP_NOW_PEERS
@@ -71,7 +72,7 @@ ESP8266HTTPUpdateServer httpUpdater;
 File fsUploadFile; // a File object to temporarily store the received file
 String uploadedfilename; // filename of uploaded file
 
-uint8_t socketNumber;
+//uint8_t socketNumber;
 
 String inputString = "";
 String my_ipaddress_info_str = "NA";
@@ -81,385 +82,37 @@ String espnow_init_info = "";
 #endif
 String bootlog = "";
 
+#if CONFIG_HANDSET
+/* Handset specific data */
+struct gimbal_limit gimbals[TX_NUM_ANALOGS];
+struct mixer mixer[TX_NUM_MIXER];
+static uint8_t handset_num_switches, handset_num_aux;
+static uint8_t handset_mixer_ok = 0, handset_adjust_ok = 0;
+#endif
+
 static const char PROGMEM GO_BACK[] = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-</head>
-<body>
-<script>
-javascript:history.back();
-</script>
-</body>
+<!DOCTYPE html><html><head></head>
+<body><script>javascript:history.back();</script></body>
 </html>
 )rawliteral";
 
 static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 <!DOCTYPE html>
 <html>
-
 <head>
-    <meta name="viewport" content="width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0">
-    <title>TX Log Messages</title>
-    <style>
-        body {
-            background-color: #1E1E1E;
-            font-family: Arial, Helvetica, Sans-Serif;
-            Color: #69cbf7;
-        }
-
-        textarea {
-            background-color: #252525;
-            Color: #C5C5C5;
-            border-radius: 5px;
-            border: none;
-        }
-        #validationMessage {color: red;}
-        .hide {display: none;}
-    </style>
-    <script>
-        var websock;
-        var log_history = [];
-        function start() {
-            document.getElementById("logField").scrollTop = document.getElementById("logField").scrollHeight;
-            websock = new WebSocket('ws://' + window.location.hostname + ':81/');
-            websock.onopen = function (evt) { console.log('websock open'); };
-            websock.onclose = function(e) {
-              console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
-              setTimeout(function() {
-                start();
-              }, 1000);
-            };
-            websock.onerror = function (evt) { console.log(evt); };
-            websock.onmessage = function (evt) {
-                //console.log(evt);
-                var text = evt.data;
-                if (text.startsWith("ELRS_setting_")) {
-                  var res = text.replace("ELRS_setting_", "");
-                  res = res.split("=");
-                  setting_set(res[0], res[1]);
-                } else {
-                  var logger = document.getElementById("logField");
-                  var autoscroll = document.getElementById("autoscroll").checked;
-                  var scrollsize = parseInt(document.getElementById("scrollsize").value, 10);
-                  while (scrollsize < log_history.length) {
-                    log_history.shift();
-                  }
-                  var date = new Date();
-                  var n=new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString();
-                  log_history.push(n + ' ' + text);
-                  //logger.value += n + ' ' + text + '\n';
-                  logger.value = log_history.join('\n');
-                  if (autoscroll)
-                    logger.scrollTop = logger.scrollHeight;
-                }
-            };
-        }
-
-        function saveTextAsFile() {
-            var textToWrite = document.getElementById('logField').value;
-            var textFileAsBlob = new Blob([textToWrite], { type: 'text/plain' });
-
-            var downloadLink = document.createElement("a");
-            downloadLink.download = "tx_log.txt";
-            downloadLink.innerHTML = "Download File";
-            if (window.webkitURL != null) {
-                // Chrome allows the link to be clicked without actually adding it to the DOM.
-                downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
-            } else {
-                // Firefox requires the link to be added to the DOM before it can be clicked.
-                downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
-                downloadLink.onclick = destroyClickedElement;
-                downloadLink.style.display = "none";
-                document.body.appendChild(downloadLink);
-            }
-
-            downloadLink.click();
-        }
-
-        function destroyClickedElement(event) {
-            // remove the link from the DOM
-            document.body.removeChild(event.target);
-        }
-
-        function setting_set(type, value) {
-          var elem = document.getElementById(type);
-          if (elem) {
-            if (type == "region_domain") {
-              var domain_info = "Regulatory domain UNKNOWN";
-              if (value == "0")
-                domain_info = "Regulatory domain 915MHz";
-              else if (value == "1")
-                domain_info = "Regulatory domain 868MHz";
-              else if (value == "2")
-                domain_info = "Regulatory domain 433MHz";
-              else if (value == "3")
-                domain_info = "Regulatory domain ISM 2400 (BW 0.8MHz)";
-              else if (value == "4")
-                domain_info = "Regulatory domain ISM 2400 (BW 1.6MHz)";
-              elem.innerHTML = domain_info;
-
-              var rf_module = document.getElementById("rf_module");
-              // update rate options
-              var rates = document.getElementById("rates_input");
-              while (rates.length > 0) {
-                rates.remove(rates.length-1);
-              }
-              var options = [];
-              if (value == "4") {
-                options = ['500Hz', '250Hz', '125Hz', '50Hz'];
-                rf_module.selectedIndex = 1;
-              } else if (value == "3") {
-                options = ['250Hz', '125Hz', '50Hz'];
-                rf_module.selectedIndex = 1;
-              } else {
-                options = ['200Hz', '100Hz', '50Hz'];
-                rf_module.selectedIndex = 0;
-              }
-              for (i = 0; i < options.length; i++) {
-                var option = document.createElement("option");
-                option.text = options[i];
-                option.value = i;
-                rates.add(option);
-              }
-            } else {
-              value = value.split(",");
-              if (1 < value.length) {
-                var max_value = parseInt(value[1], 10);
-                if (elem.options[0].value == "R")
-                  max_value = max_value + 1; // include reset
-                var i;
-                // enable all
-                for (i = 0; i < elem.length; i++) {
-                  elem.options[i].disabled = false;
-                }
-                // disable unavailable values
-                for (i = (elem.length-1); max_value < i; i--) {
-                  //elem.remove(i);
-                  elem.options[i].disabled = true;
-                }
-              }
-              elem.selectedIndex = [...elem.options].findIndex (option => option.value === value[0]);
-            }
-          }
-        }
-
-        function setting_send(type, elem=null) {
-          if (elem) {
-            websock.send(type + "=" + elem.value);
-          } else {
-            websock.send(type + "?");
-          }
-        }
-
-        function command_stm32(type) {
-          websock.send("stm32_cmd=" + type);
-        }
-
-    </script>
-</head>
-
-<body onload="javascript:start();">
-  <center>
-    <h2>TX Log Messages</h2>
-    <textarea id="logField" rows="40" cols="100" style="margin: 0px; height: 621px; width: 968px;"></textarea>
-    <br>
-    <button type="button" onclick="saveTextAsFile()" value="save" id="save">Save log to file...</button> |
-    <input type="checkbox" id="autoscroll" checked><label for="autoscroll"> Auto scroll</label> |
-    <input type='number' value='512' name='scrollsize' id='scrollsize' min="256"><label for="scrollsize"> Scroll len</label>
-    <hr/>
-    <h2>Settings</h2>
-    <table>
-      <tr>
-        <td style="padding: 1px 1px 1px 20px;">
-          RF mode:
-          <select name="rf_module" onchange="setting_send('S_rf_module', this)" id="rf_module">
-            <option value="0"> 900 (SX127x)</option>
-            <option value="3">2400 (SX128x)</option>
-          </select>
-        </td>
-        <td style="padding: 1px 20px 1px 1px;" colspan="3" id="region_domain">
-          Regulatory domain UNKNOWN
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 1px 20px 1px 1px;">
-          Rate:
-          <select name="rate" onchange="setting_send('S_rate', this)" id="rates_input">
-            <option value="0">200Hz</option>
-            <option value="1">100Hz</option>
-            <option value="2">50Hz</option>
-          </select>
-        </td>
-
-        <td style="padding: 1px 20px 1px 20px;">
-          Power:
-          <select name="power" onchange="setting_send('S_power', this)" id="power_input">
-            <option value="R">Reset</option>
-            <option value="0">Dynamic</option>
-            <option value="1">10mW</option>
-            <option value="2">25mW</option>
-            <option value="3">50mW</option>
-            <option value="4">100mW</option>
-            <option value="5">250mW</option>
-            <option value="6">500mW</option>
-            <option value="7">1000mW</option>
-            <option value="8">2000mW</option>
-          </select>
-        </td>
-
-        <td style="padding: 1px 1px 1px 20px;">
-          Telemetry:
-          <select name="telemetry" onchange="setting_send('S_telemetry', this)" id="tlm_input">
-            <option value="R">Reset</option>
-            <option value="0">Off</option>
-            <option value="1">1/128</option>
-            <option value="2">1/64</option>
-            <option value="3">1/32</option>
-            <option value="4">1/16</option>
-            <option value="5">1/8</option>
-            <option value="6">1/4</option>
-            <option value="7">1/2</option>
-          </select>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 1px 1px 1px 20px;">
-        VTX Settings
-        </td>
-        <td style="padding: 1px 1px 1px 20px;">
-          Freq:
-          <select name="vtx_freq" onchange="setting_send('S_vtx_freq', this)" id="vtx_f_input">
-            <option value="5740">F1</option>
-            <option value="5760">F2</option>
-            <option value="5780">F3</option>
-            <option value="5800">F4</option>
-            <option value="5820">F5</option>
-            <option value="5840">F6</option>
-            <option value="5860">F7</option>
-            <option value="5880">F8</option>
-          </select>
-        </td>
-        <!--
-        <td style="padding: 1px 1px 1px 20px;">
-          Power:
-          <select name="vtx_pwr" onchange="setting_send('S_vtx_pwr', this)" id="vtx_p_input">
-            <option value="0">Pit</option>
-            <option value="1">0</option>
-            <option value="2">1</option>
-            <option value="3">2</option>
-          </select>
-        </td>
-        -->
-      </tr>
-      <tr>
-        <!--
-        <td style="padding: 1px 1px 1px 20px;">
-          RF PWR:
-          <select name="rf_pwr" onchange="setting_send('S_rf_pwr', this)" id="rf_pwr">
-            <option value="0">0</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="A">10</option>
-            <option value="B">11</option>
-            <option value="C">12</option>
-            <option value="D">13</option>
-            <option value="E">14</option>
-            <option value="F">15</option>
-          </select>
-        </td>
-        -->
-      </tr>
-    </table>
-
-    <hr/>
-	  <h2>Danger Zone</h2>
-    <p>
-    <div>
-      <form method='POST' action='/update' enctype='multipart/form-data'>
-          Self Firmware:
-          <input type='file' accept='.bin,.bin.gz' name='backpack_fw' id='esp_fw'>
-          <input type='submit' value='Flash Self' id='esp_submit' disabled='disabled'>
-      </form>
-    </div>
-    <br>
-    <div>
-      <form method='POST' action='/upload' enctype='multipart/form-data'>
-          STM32 Firmware:
-          <input type='file' accept='.bin,.elrs' name='firmware' id='stm_fw'>
-          <input type='text' value='0x0' name='flash_address' size='6' id='stm_addr' class="hide">
-          <input type='submit' value='Flash STM32' id='stm_submit' disabled='disabled'>
-      </form>
-    </div>
-    </p>
-    <p><span id="validationMessage" class="hide">
-      Please check firmware file is correct!
-    </span></p>
-
-<script type="text/javascript">
-  const message = document.getElementById('validationMessage');
-  document.getElementById('esp_fw').onchange = function (ev) {
-    const FIRMWARE_PATTERN = /backpack\.bin$/g;
-    const uploadButton = document.getElementById('esp_submit');
-    const value = ev.target.value;
-    if (FIRMWARE_PATTERN.test(value)) {
-      uploadButton.removeAttribute('disabled');
-      message.classList.add('hide');
-    } else {
-      uploadButton.setAttribute('disabled', 'disabled');
-      message.classList.remove('hide');
-    }
-  };
-  document.getElementById('stm_fw').onchange = function (ev) {
-    const FW_PATTERN_BIN = /firmware\.bin$/g;
-    const FW_PATTERN_ELRS = /firmware\.elrs$/g;
-    const uploadButton = document.getElementById('stm_submit');
-    const address = document.getElementById('stm_addr');
-    const value = ev.target.value;
-    address.classList.add('hide');
-    if (FW_PATTERN_BIN.test(value)) {
-      uploadButton.removeAttribute('disabled');
-      address.classList.remove('hide');
-      message.classList.add('hide');
-    } else if (FW_PATTERN_ELRS.test(value)) {
-      uploadButton.removeAttribute('disabled');
-      message.classList.add('hide');
-    } else {
-      uploadButton.setAttribute('disabled', 'disabled');
-      message.classList.remove('hide');
-    }
-  };
-</script>
-    <br>
-    <div>
-    <button onclick="command_stm32('reset')">STM32 Reset</button>
-    </div>
-
-  </center>
-  <hr/>
-  <pre>
-The following command can be used to connect to the websocket using curl, which is a lot faster over the terminal than Chrome.
-
-curl --include \
-     --output - \
-     --no-buffer \
-     --header "Connection: Upgrade" \
-     --header "Upgrade: websocket" \
-     --header "Host: example.com:80" \
-     --header "Origin: http://example.com:80" \
-     --header "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" \
-     --header "Sec-WebSocket-Version: 13" \
-     http://elrs_tx.local:81/
-  </pre>
-</body>
-</html>
+<meta name="viewport" content="width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0">
+<title>ExpressLRS</title>
+<style>
+body {
+background-color: #1E1E1E;
+font-family: Arial, Helvetica, Sans-Serif;
+Color: #69cbf7;
+}
+</style>
+</head><body onload="javascript:start();">
+This is a backup page<br/>
+Open <a href="/update">/update</a> and update filesystem also...<br/>
+</body></html>
 )rawliteral";
 
 /*************************************************************************/
@@ -482,10 +135,10 @@ public:
 CtrlSerialPrivate my_ctrl_serial;
 CtrlSerial& ctrl_serial = my_ctrl_serial;
 
-static uint8_t settings_rate = 1;
-static uint8_t settings_power = 4, settings_power_max = 8;
-static uint8_t settings_tlm = 7;
-static uint8_t settings_region = 0;
+static uint8_t settings_rate;
+static uint8_t settings_power, settings_power_max;
+static uint8_t settings_tlm;
+static uint8_t settings_region;
 String settings_out;
 
 MSP msp_handler;
@@ -500,13 +153,7 @@ void SettingsWrite(uint8_t * buff, uint8_t len)
   msp_out.function = ELRS_INT_MSP_PARAMS;
   memcpy((void*)msp_out.payload, buff, len);
   // Send packet
-  msp_handler.sendPacket(&msp_out, &my_ctrl_serial);
-}
-
-void SettingsGet(void)
-{
-  uint8_t buff[] = {0, 0};
-  SettingsWrite(buff, sizeof(buff));
+  MSP::sendPacket(&msp_out, &my_ctrl_serial);
 }
 
 void handleSettingRate(const char * input, int num = -1)
@@ -635,6 +282,21 @@ void handleSettingDomain(const char * input, int num = -1)
     webSocket.broadcastTXT(settings_out);
 }
 
+void SettingsGet(uint8_t wsnum)
+{
+  if (settings_region == 255) {
+    /* Unknown... reguest update */
+    uint8_t buff[] = {0, 0};
+    SettingsWrite(buff, sizeof(buff));
+  } else {
+    /* Valid, just send those to client */
+    handleSettingDomain(NULL, wsnum);
+    handleSettingRate(NULL, wsnum);
+    handleSettingPower(NULL, wsnum);
+    handleSettingTlm(NULL, wsnum);
+  }
+}
+
 void MspVtxWrite(const char * input, int num = -1)
 {
   (void)num;
@@ -663,8 +325,257 @@ void MspVtxWrite(const char * input, int num = -1)
   msp_out.payloadSize = sizeof(vtx_cmd);
   memcpy((void*)msp_out.payload, vtx_cmd, sizeof(vtx_cmd));
   // Send packet
-  msp_handler.sendPacket(&msp_out, &my_ctrl_serial);
+  MSP::sendPacket(&msp_out, &my_ctrl_serial);
 }
+
+#if CONFIG_HANDSET
+uint8_t char_to_hex(uint8_t chr)
+{
+  if ('A' <= chr)
+    chr = 10 + (chr - 'A');
+  else
+    chr = chr - '0';
+  return chr;
+}
+
+uint8_t u8_to_hex(uint8_t * chr)
+{
+  uint8_t val = char_to_hex(*chr++);
+  val <<= 4;
+  val += char_to_hex(*chr++);
+  return val;
+}
+
+uint16_t u12_to_hex(uint8_t * chr)
+{
+  uint16_t val = char_to_hex(*chr++);
+  val <<= 4;
+  val += char_to_hex(*chr++);
+  val <<= 4;
+  val += char_to_hex(*chr++);
+  return val;
+}
+
+void handleHandsetCalibrate(const char * input)
+{
+  // Fill MSP packet
+  msp_out.reset();
+  msp_out.type = MSP_PACKET_V1_ELRS;
+  msp_out.flags = MSP_ELRS_INT;
+  msp_out.function = ELRS_HANDSET_CALIBRATE;
+  msp_out.payloadSize = 2;
+  if (!strncmp(input, "thr", 3)) {
+    msp_out.payload[0] = GIMBAL_CALIB_THR;
+  } else if (!strncmp(input, "yaw", 3)) {
+    msp_out.payload[0] = GIMBAL_CALIB_YAW;
+  } else if (!strncmp(input, "pit", 3)) {
+    msp_out.payload[0] = GIMBAL_CALIB_PITCH;
+  } else if (!strncmp(input, "rol", 3)) {
+    msp_out.payload[0] = GIMBAL_CALIB_ROLL;
+  }
+  msp_out.payload[1] = 1; // Start
+  // Send packet
+  MSP::sendPacket(&msp_out, &my_ctrl_serial);
+}
+
+void handleHandsetCalibrateResp(uint8_t * data, int num = -1)
+{
+  String out = "ELRS_handset_calibrate=";
+  if (data && data[0] == 1)
+    out += "SUCCESS";
+  else
+    out += "ERROR!";
+
+  if (0 <= num)
+    webSocket.sendTXT(num, out);
+  else
+    webSocket.broadcastTXT(out);
+}
+
+
+void handleHandsetMixer(const char * input, size_t length)
+{
+  webSocket.broadcastTXT(input, length);
+  uint32_t iter;
+  // Fill MSP packet
+  msp_out.reset();
+  msp_out.type = MSP_PACKET_V1_ELRS;
+  msp_out.flags = MSP_ELRS_INT;
+  msp_out.function = ELRS_HANDSET_MIXER;
+  for (iter = 0; iter < (3 * TX_NUM_MIXER) && (iter < length); iter+=3) {
+    // channel index
+    msp_out.payload[iter] = char_to_hex(input[iter]);
+    // channel out
+    msp_out.payload[iter+1] = char_to_hex(input[iter+1]);
+    // inverted
+    msp_out.payload[iter+2] = char_to_hex(input[iter+2]);
+  }
+  msp_out.payloadSize = iter;
+  // Send packet
+  MSP::sendPacket(&msp_out, &my_ctrl_serial);
+}
+
+void handleHandsetMixerResp(uint8_t * data, int num = -1)
+{
+  String out = "ELRS_handset_mixer=";
+  uint8_t iter;
+  if (data) {
+    for (iter = 0; iter < ARRAY_SIZE(mixer); iter++) {
+      if (data[0] < ARRAY_SIZE(mixer)) {
+        mixer[iter] = (struct mixer){.index=data[1], .inv=data[2]};
+      }
+      data += 3;
+    }
+    handset_num_switches = *data++;
+    handset_num_aux = *data++;
+    String temp = "Num switches: ";
+    temp += handset_num_switches;
+    temp += " , num aux: ";
+    temp += handset_num_aux;
+    webSocket.broadcastTXT(temp);
+  }
+
+  out += handset_num_aux;
+  out += ";";
+  out += handset_num_switches;
+  out += ";";
+
+  for (iter = 0; iter < ARRAY_SIZE(mixer); iter++) {
+    if (iter)
+      out += ',';
+    out += iter;
+    out += ":";
+    out += mixer[iter].index;
+    out += ":";
+    out += mixer[iter].inv;
+  }
+
+  if (0 <= num)
+    webSocket.sendTXT(num, out);
+  else
+    webSocket.broadcastTXT(out);
+}
+
+
+void handleHandsetAdjust(const char * input)
+{
+  uint16_t value;
+  // Fill MSP packet
+  msp_out.reset();
+  msp_out.type = MSP_PACKET_V1_ELRS;
+  msp_out.flags = MSP_ELRS_INT;
+  msp_out.function =
+    !strncmp(input, "_min", 4) ?
+      ELRS_HANDSET_ADJUST_MIN :
+      (!strncmp(input, "_max", 4) ?
+        ELRS_HANDSET_ADJUST_MAX :
+        ELRS_HANDSET_ADJUST_MID);
+  msp_out.payloadSize = 3;
+  if (!strncmp(input, "thr", 3)) {
+    msp_out.payload[0] = GIMBAL_IDX_R1;
+  } else if (!strncmp(input, "yaw", 3)) {
+    msp_out.payload[0] = GIMBAL_IDX_R2;
+  } else if (!strncmp(input, "pit", 3)) {
+    msp_out.payload[0] = GIMBAL_IDX_L1;
+  } else if (!strncmp(input, "rol", 3)) {
+    msp_out.payload[0] = GIMBAL_IDX_L2;
+  }
+  uint8_t * temp = (uint8_t*)strstr((char*)input, "=");
+  value = u12_to_hex(temp);
+  msp_out.payload[1] = (uint8_t)(value >> 8);
+  msp_out.payload[2] = (uint8_t)value;
+  // Send packet
+  MSP::sendPacket(&msp_out, &my_ctrl_serial);
+}
+
+void handleHandsetAdjustChannelResp(uint8_t type, struct gimbal_limit * limits, int num)
+{
+  String out = "ELRS_handset_adjust_";
+  switch (type)
+  {
+  case GIMBAL_IDX_L1:
+    out += "pit=";
+    break;
+  case GIMBAL_IDX_L2:
+    out += "rol=";
+    break;
+  case GIMBAL_IDX_R1:
+    out += "thr=";
+    break;
+  case GIMBAL_IDX_R2:
+    out += "yaw=";
+    break;
+  default:
+    return;
+  }
+  out += limits->low;
+  out += ":";
+  out += limits->mid;
+  out += ":";
+  out += limits->high;
+  if (0 <= num)
+    webSocket.sendTXT(num, out);
+  else
+    webSocket.broadcastTXT(out);
+}
+
+void handleHandsetAdjustResp(uint8_t * data, int num = -1)
+{
+  uint16_t min, mid, max;
+  uint8_t iter;
+  if (data) {
+    for (iter = 0; iter < ARRAY_SIZE(gimbals); iter++) {
+      if (data[0] < ARRAY_SIZE(gimbals)) {
+        min = ((uint16_t)data[1] << 8) + data[2];
+        mid = ((uint16_t)data[3] << 8) + data[4];
+        max = ((uint16_t)data[5] << 8) + data[6];
+        gimbals[data[0]] = (struct gimbal_limit){.low=min, .mid=mid, .high=max};
+      }
+      data += 7;
+    }
+  }
+
+  for (iter = 0; iter < ARRAY_SIZE(gimbals); iter++) {
+    handleHandsetAdjustChannelResp(iter, &gimbals[iter], num);
+  }
+}
+
+void HandsetConfigGet(uint8_t wsnum, uint8_t force=0)
+{
+  if (!handset_mixer_ok || !handset_adjust_ok || force) {
+    // Fill MSP packet
+    msp_out.reset();
+    msp_out.type = MSP_PACKET_V1_ELRS;
+    msp_out.flags = MSP_ELRS_INT;
+    msp_out.function = ELRS_HANDSET_CONFIGS_LOAD;
+    msp_out.payload[0] = 1;
+    msp_out.payload[1] = 1;
+    msp_out.payloadSize = 2;
+    // Send packet
+    MSP::sendPacket(&msp_out, &my_ctrl_serial);
+    return;
+  }
+
+  handleHandsetMixerResp(NULL, wsnum);
+  handleHandsetAdjustResp(NULL, wsnum);
+}
+
+void HandsetConfigSave(uint8_t wsnum)
+{
+  // Fill MSP packet
+  msp_out.reset();
+  msp_out.type = MSP_PACKET_V1_ELRS;
+  msp_out.flags = MSP_ELRS_INT;
+  msp_out.function = ELRS_HANDSET_CONFIGS_SAVE;
+  msp_out.payload[0] = 1;
+  msp_out.payload[1] = 1;
+  msp_out.payloadSize = 2;
+  // Send packet
+  MSP::sendPacket(&msp_out, &my_ctrl_serial);
+}
+
+#endif // CONFIG_HANDSET
+
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
@@ -680,7 +591,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   {
     //IPAddress ip = webSocket.remoteIP(num);
     //Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-    socketNumber = num;
+    //socketNumber = num;
 
     webSocket.sendTXT(num, my_ipaddress_info_str);
 #if ESP_NOW
@@ -688,7 +599,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 #endif
 
     // Send settings
-    SettingsGet();
+    SettingsGet(num);
+#if CONFIG_HANDSET
+    HandsetConfigGet(num);
+#endif
   }
   break;
   case WStype_TEXT:
@@ -704,32 +618,81 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
         reset_stm32_to_app_mode();
       }
     } else {
-      // ExLRS setting commands
-      temp = strstr((char*)payload, "S_rate");
+
+#if CONFIG_HANDSET
+      /* Handset specific */
+      temp = strstr((char*)payload, "handset_");
       if (temp) {
-        handleSettingRate(&temp[6], num);
-        break;
-      }
-      temp = strstr((char*)payload, "S_power");
-      if (temp) {
-        handleSettingPower(&temp[7], num);
-        break;
-      }
-      temp = strstr((char*)payload, "S_telemetry");
-      if (temp) {
-        handleSettingTlm(&temp[11], num);
-      }
-      temp = strstr((char*)payload, "S_vtx_freq");
-      if (temp) {
-        MspVtxWrite(&temp[10], num);
-      }
-      temp = strstr((char*)payload, "S_rf_pwr");
-      if (temp) {
-        handleSettingRfPwr(&temp[8], num);
-      }
-      temp = strstr((char*)payload, "S_rf_module");
-      if (temp) {
-        handleSettingRfModule(&temp[11], num);
+
+        // handset_mixer=
+        temp = strstr((char*)payload, "mixer=");
+        if (temp) {
+          temp = &temp[6];
+          handleHandsetMixer(temp, (length - ((uintptr_t)temp - (uintptr_t)payload)));
+          break;
+        }
+
+        // handset_calibrate=
+        temp = strstr((char*)payload, "calibrate=");
+        if (temp) {
+          handleHandsetCalibrate(&temp[10]);
+          break;
+        }
+
+        // handset_adjust_[axe]_[min|max]=val
+        temp = strstr((char*)payload, "_adjust_");
+        if (temp) {
+          handleHandsetAdjust(&temp[8]);
+          break;
+        }
+
+        temp = strstr((char*)payload, "_refresh");
+        if (temp) {
+          HandsetConfigGet(num, 1);
+          break;
+        }
+
+        temp = strstr((char*)payload, "_save");
+        if (temp) {
+          HandsetConfigSave(num);
+          break;
+        }
+
+      } else
+#endif // CONFIG_HANDSET
+
+      {
+        // ExLRS setting commands
+        temp = strstr((char*)payload, "S_rate");
+        if (temp) {
+          handleSettingRate(&temp[6], num);
+          break;
+        }
+        temp = strstr((char*)payload, "S_power");
+        if (temp) {
+          handleSettingPower(&temp[7], num);
+          break;
+        }
+        temp = strstr((char*)payload, "S_telemetry");
+        if (temp) {
+          handleSettingTlm(&temp[11], num);
+          break;
+        }
+        temp = strstr((char*)payload, "S_vtx_freq");
+        if (temp) {
+          MspVtxWrite(&temp[10], num);
+          break;
+        }
+        temp = strstr((char*)payload, "S_rf_pwr");
+        if (temp) {
+          handleSettingRfPwr(&temp[8], num);
+          break;
+        }
+        temp = strstr((char*)payload, "S_rf_module");
+        if (temp) {
+          handleSettingRfModule(&temp[11], num);
+          break;
+        }
       }
     }
     break;
@@ -807,6 +770,14 @@ void handleFileUpload()
     FSInfo fs_info;
     if (FILESYSTEM.info(fs_info))
     {
+      Dir dir = FILESYSTEM.openDir("/");
+      while (dir.next()) {
+        String file = dir.fileName();
+        if (file.endsWith(".bin")) {
+          FILESYSTEM.remove(file);
+        }
+      }
+
       String output = "Filesystem: used: ";
       output += fs_info.usedBytes;
       output += " / free: ";
@@ -814,8 +785,8 @@ void handleFileUpload()
       webSocket.broadcastTXT(output);
 
       if (fs_info.usedBytes > 0) {
-        webSocket.broadcastTXT("formatting filesystem");
-        FILESYSTEM.format();
+        //webSocket.broadcastTXT("formatting filesystem");
+        //FILESYSTEM.format();
       }
     }
     else
@@ -941,26 +912,9 @@ void sendReturn()
   server.send_P(200, "text/html", GO_BACK);
 }
 
-void handleRoot()
+void handle_recover()
 {
   server.send_P(200, "text/html", INDEX_HTML);
-}
-
-void handleNotFound()
-{
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++)
-  {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  server.send(404, "text/plain", message);
 }
 
 void handleMacAddress()
@@ -977,6 +931,65 @@ void handleMacAddress()
   message += WiFi.softAPIP().toString();
   message += "\n";
   server.send(200, "text/plain", message);
+}
+
+void handle_fs(void)
+{
+  FSInfo fs_info;
+  FILESYSTEM.info(fs_info);
+  String message = "FS ino: used ";
+  message += fs_info.usedBytes;
+  message += "/";
+  message += fs_info.totalBytes;
+  message += "\n**** FS files ****\n";
+
+  Dir dir = FILESYSTEM.openDir("/");
+  while (dir.next()) {
+      message += dir.fileName();
+      if(dir.fileSize()) {
+          File f = dir.openFile("r");
+          message += " - ";
+          message += f.size();
+          message += "B";
+      }
+      message += "\n";
+  }
+
+  server.send(200, "text/plain", message);
+}
+
+String getContentType(String filename)
+{
+  if(filename.endsWith(".html"))
+    return "text/html";
+  else if(filename.endsWith(".css"))
+    return "text/css";
+  else if(filename.endsWith(".js"))
+    return "application/javascript";
+  else if(filename.endsWith(".ico"))
+    return "image/x-icon";
+  else if(filename.endsWith(".gz"))
+    return "application/x-gzip";
+  return "text/plain";
+}
+
+bool handleFileRead(String path)
+{
+  if (path.endsWith("/"))
+    // Send the index file if a folder is requested
+    path += "index.html";
+  // Get the MIME type
+  String contentType = getContentType(path);
+  uint8_t pathWithGz = FILESYSTEM.exists(path + ".gz");
+  if (pathWithGz || FILESYSTEM.exists(path)) {
+    if (pathWithGz)
+      path += ".gz";
+    File file = FILESYSTEM.open(path, "r");
+    server.streamFile(file, contentType);
+    file.close();
+    return true;
+  }
+  return false;
 }
 
 /******************* ESP-NOW *********************/
@@ -1007,9 +1020,9 @@ public:
   }
   void send_now(mspPacket_t *msp_in) {
     reset();
-    if (msp_handler.sendPacket(msp_in, this) && p_iterator <= sizeof(p_buffer)) // check overflow
+    if (MSP::sendPacket(msp_in, this) && p_iterator <= sizeof(p_buffer)) // check overflow
     {
-      msp_handler.sendPacket(msp_in, this);
+      MSP::sendPacket(msp_in, this);
       esp_now_send(NULL, (uint8_t*)p_buffer, p_iterator);
       //webSocket.broadcastTXT("MSP sent!");
     }
@@ -1078,11 +1091,32 @@ void setup()
 {
   IPAddress my_ip;
   uint8_t sta_up = 0;
+  rst_info *resetInfo;
+  resetInfo = ESP.getResetInfoPtr();
+  int reset_reason = resetInfo->reason;
 
+  msp_handler.markPacketFree();
+
+  /* Reset values */
+  settings_rate = 1;
+  settings_power = 4;
+  settings_power_max = 8;
+  settings_tlm = 7;
+  settings_region = 255;
+#if CONFIG_HANDSET
+  handset_num_switches = 6;
+  handset_num_aux = 5;
+  handset_mixer_ok = 0;
+  handset_adjust_ok = 0;
+#endif
+
+  //Serial.setRxBufferSize(256);
 #ifdef INVERTED_SERIAL
-  Serial.begin(SERIAL_BAUD, SERIAL_8N1, SERIAL_FULL, 1, true); // inverted serial
+  // inverted serial
+  Serial.begin(SERIAL_BAUD, SERIAL_8N1, SERIAL_FULL, 1, true);
 #else
-  Serial.begin(SERIAL_BAUD); // non-inverted serial
+  // non-inverted serial
+  Serial.begin(SERIAL_BAUD);
 #endif
 
 #if (BOOT0_PIN == 2 || BOOT0_PIN == 0)
@@ -1090,6 +1124,7 @@ void setup()
 #endif
 
   FILESYSTEM.begin();
+  //FILESYSTEM.format();
 
   wifi_station_set_hostname("elrs_tx");
 
@@ -1138,6 +1173,9 @@ void setup()
   }
   my_ipaddress_info_str = "My IP address = ";
   my_ipaddress_info_str += my_ip.toString();
+  my_ipaddress_info_str += " (RST: ";
+  my_ipaddress_info_str += reset_reason;
+  my_ipaddress_info_str += ")";
 
 #if 0 && defined(LATEST_COMMIT)
   my_ipaddress_info_str += "\nCurrent version (SHA): ";
@@ -1149,7 +1187,7 @@ void setup()
   //Serial.print("Connect to http://elrs_tx.local or http://");
   //Serial.println(my_ip);
 
-  server.on("/", handleRoot);
+  server.on("/fs", handle_fs);
   server.on("/return", sendReturn);
   server.on("/mac", handleMacAddress);
 #if LOCAL_OTA
@@ -1158,8 +1196,14 @@ void setup()
 #endif // LOCAL_OTA
   server.on("/upload", HTTP_POST, // STM32 OTA upgrade
     handleFileUploadEnd, handleFileUpload);
+  server.onNotFound([]() {
+    if (!handleFileRead(server.uri())) {
+      // No matching file, respond with a 404 (Not Found) error
+      //server.send(404, "text/plain", "404: Not Found");
+      handle_recover();
+    }
+  });
 
-  server.onNotFound(handleRoot);
   httpUpdater.setup(&server);
   server.begin();
 
@@ -1169,11 +1213,15 @@ void setup()
 
 int serialEvent()
 {
-  char inChar;
+  int temp;
+  uint8_t inChar;
   while (Serial.available())
   {
-    inChar = (char)Serial.read();
+    temp = Serial.read();
+    if (temp < 0)
+      break;
 
+    inChar = (uint8_t)temp;
     if (msp_handler.processReceivedByte(inChar)) {
       webSocket.broadcastTXT("MSP received");
       // msp fully received
@@ -1195,24 +1243,51 @@ int serialEvent()
             handleSettingTlm(NULL);
             break;
           }
+#if CONFIG_HANDSET
+          case ELRS_HANDSET_CALIBRATE: {
+            webSocket.broadcastTXT("CALIBRATE config");
+            handleHandsetCalibrateResp(payload);
+            break;
+          }
+          case ELRS_HANDSET_MIXER: {
+            webSocket.broadcastTXT("MIXER config");
+            handleHandsetMixerResp(payload);
+            handset_mixer_ok = 1;
+            break;
+          }
+          case ELRS_HANDSET_ADJUST: {
+            webSocket.broadcastTXT("ADJUST config");
+            handleHandsetAdjustResp(payload);
+            handset_adjust_ok = 1;
+            break;
+          }
+#endif /* CONFIG_HANDSET */
+          default:
+            break;
         };
       }
 
+      yield();
 #if ESP_NOW
       // Send received MSP packet to clients
       esp_now_sender.send_now(&msp_in);
 #endif
 
       msp_handler.markPacketFree();
-    } else if (!msp_handler.mspOngoing())
-    {
+    } else if (!msp_handler.mspOngoing()) {
       if (inChar == '\r') {
         continue;
       } else if (inChar == '\n' || 128 <= inputString.length()) {
         return 0;
       }
-      inputString += inChar;
+      if (isprint(inChar))
+        inputString += (char)inChar;
     }
+
+    //if (msp_handler.error())
+    //  msp_handler.markPacketFree();
+
+    yield();
   }
   return -1;
 }

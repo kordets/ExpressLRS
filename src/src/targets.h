@@ -8,12 +8,6 @@
 /// General Features ///
 #define LED_MAX_BRIGHTNESS 50 //0..255 for max led brightness
 
-/// Gimbal defines ///
-#define PITCH       0
-#define ROLL        1
-#define THROTTLE    2
-#define YAW         3
-
 /******************************************************************************************/
 /*                                     ESP TX CONFIGS                                     */
 /******************************************************************************************/
@@ -450,11 +444,6 @@ https://github.com/jaxxzer
 #define GIMBAL_L2       PC2 // G_L_2
 #define GIMBAL_R1       PC1 // G_R_1
 #define GIMBAL_R2       PC0 // G_R_2
-// Gimbal inversions
-#define GIMBAL_L1_INV   0   // pitch
-#define GIMBAL_L2_INV   1   // roll
-#define GIMBAL_R1_INV   1   // throttle
-#define GIMBAL_R2_INV   0   // yaw
 
 #define SWITCH_1_1  PB3     // S1_1
 //#define SWITCH_1_2  PB4     // S1_2
@@ -469,22 +458,10 @@ https://github.com/jaxxzer
 #define SWITCH_6_1  PB9     // S6_1
 #define SWITCH_6_2  PB8     // S6_2
 
-
 // ********** OUTPUT MAPPING **********
-/*
-CH0 = Thr
-CH1 = Ail (roll)
-CH2 = Ele (pitch)
-CH3 = Rud (yaw)
-*/
-#define ANALOG_CH0      THROTTLE
-#define ANALOG_CH1      ROLL
-#define ANALOG_CH2      PITCH
-#define ANALOG_CH3      YAW
-
-#define SWITCH_AUX1     SWITCH_3
-#define SWITCH_AUX2     SWITCH_1
-#define SWITCH_AUX3     SWITCH_2
+#define SWITCH_CH_1     SWITCH_3
+#define SWITCH_CH_2     SWITCH_1
+#define SWITCH_CH_3     SWITCH_2
 
 #endif
 

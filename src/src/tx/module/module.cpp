@@ -140,3 +140,9 @@ void loop()
     platform_loop(connectionState);
     platform_wd_feed();
 }
+
+int8_t tx_handle_msp_input(mspPacket_t &packet)
+{
+    (void)packet;
+    return -1;
+}

@@ -1,0 +1,172 @@
+.main, html {
+    width: 100%;
+    height: 100%;
+    margin: 0px;
+    padding: 0px;
+}
+
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0px;
+    padding: 0px;
+    background-color: #1E1E1E;
+    font-family: Arial, Helvetica, Sans-Serif;
+    Color: #69cbf7;
+}
+
+.header {
+    position:absolute;
+    top:0px;
+    left:0px;
+    height:200px;
+    right:0px;
+    overflow:hidden;
+}
+.footer-status {
+    display: inline-block;
+    vertical-align: middle;
+    line-height: normal;
+}
+
+.center-area {
+    width:100%;
+    position:absolute;
+    top:0px; /* Change if header is used */
+    bottom:0px;
+    left:0px;
+    right:0px;
+    overflow:auto;
+}
+
+.content {
+  max-width: 700px;
+  margin: auto;
+}
+
+#logField {
+    font-size: 12px;
+    background-color: #252525;
+    Color: #C5C5C5;
+    border-radius: 5px;
+    border: none;
+    width: 100%;
+    max-width: 700px;
+    height: auto;
+    min-height: 621px;
+    margin: 0px;
+    overflow: auto;
+}
+
+.heading_big {
+    text-align: center;
+    font-weight: bold;
+    font-size: 30px;
+}
+.heading_small {
+    color: #6692a8;
+    text-align: center;
+    font-weight: bold;
+    font-size: 18px;
+    padding-top: 20px;
+}
+.note {
+    color: #6692a8;
+    /*text-align: center;*/
+    font-weight: lighter;
+    font-size: 10px;
+}
+
+fieldset {
+    margin: 10px;
+    /*box-shadow: 0 0 10px #666;*/
+    border: 1px solid #666;
+    border-radius: 8px;
+}
+
+legend {
+    color: #6692a8;
+    /*text-align: center;*/
+    font-weight: bold;
+    font-size: 18px;
+    padding: 2px 4px;
+}
+
+button {
+    border-radius: 5px;
+}
+
+button:hover {
+    background: #464949;
+    color: rgb(226, 226, 226);
+}
+
+#validationMessage {color: red;}
+.hide {display: none;}
+
+table.a {
+    table-layout: auto;
+    width: 80%;
+    text-align: left;
+}
+td {
+    padding: 1px 1px 1px 1px;
+}
+
+.telem {
+    width: 100%;
+}
+.telem td {
+    width: 200px;
+}
+
+#calibrate {
+    width: 100%;
+    text-align: center;
+}
+
+#calibrate button {
+    width: 80px;
+}
+
+/************ TABS ***********/
+ /* Style the tab */
+ div.tab {
+    overflow: hidden;
+    border: 1px solid #000;
+    background-color: #181717;
+    z-index: 999;
+    height: 27px;
+}
+/* Style the links inside the tab */
+div.tab a {
+    float: left;
+    display: block;
+    color: #015780;
+    /*font-size:   14pt;*/
+    font-weight: bold;
+    text-align: center;
+    padding: 2px 20px;
+    text-decoration: none;
+    transition: 0.3s;
+    font-size: 20px;
+}
+/* Change background color of links on hover */
+div.tab a:hover {
+    background-color: #ddd;
+    color: #015780;
+}
+/* Create an active/current tablink class */
+div.tab a:focus, .active {
+    background-color: #ccc;
+    color: #015780;
+}
+/* Create an active/current tablink class */
+div.tab .disabled {
+    pointer-events: none;
+    color: #002536;
+}
+/* Style the tab content */
+.tabcontent {
+    z-index: 1;
+}

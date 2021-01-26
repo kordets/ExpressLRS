@@ -16,3 +16,4 @@ user_defines_private.txt
 *.code-workspace
 *.map
 
+utils/data
