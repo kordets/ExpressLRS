@@ -5,8 +5,9 @@
 /////////////////////////////////////////////////////////////////
 
 void RadioInterface::SetPins(int rst, int dio1, int dio2, int dio3,
-                             int busy, int txpin, int rxpin)
+                             int busy, int txpin, int rxpin, int cs)
 {
+    CS = gpio_out_setup(cs, 1);
     _RST = gpio_out_setup(rst, 1);
     _DIO1 = gpio_in_setup(dio1, 0);
     _DIO2 = gpio_in_setup(dio2, 0),

@@ -10,7 +10,7 @@ public:
 protected:
     RadioHalSpi(uint8_t read = 0, uint8_t write = 0)
             : p_write(write), p_read(read) {}
-    void Begin(uint32_t speed, int sck, int miso, int mosi, int ss);
+    void Begin(uint32_t speed, int sck, int miso, int mosi);
 
     void transfer(uint8_t *data, uint8_t len, uint8_t receive=1) const;
 
@@ -25,9 +25,10 @@ protected:
     void writeRegisterOffset(uint8_t reg, uint8_t offset,
                              uint8_t *data, uint8_t numBytes) const;
 
+    struct gpio_out CS;
+
 private:
     struct spi_config spi_bus;
-    struct gpio_out CS;
     const uint8_t p_write;
     const uint8_t p_read;
 };

@@ -129,14 +129,14 @@ SX127xDriver::SX127xDriver(uint8_t payload_len):
 #endif
 }
 
-int8_t SX127xDriver::Begin(int sck, int miso, int mosi, int ss)
+int8_t SX127xDriver::Begin(int sck, int miso, int mosi)
 {
     TxRxDisable();
 
     Reset();
 
     // initialize low-level drivers
-    RadioHalSpi::Begin(SX127X_SPI_SPEED, sck, miso, mosi, ss);
+    RadioHalSpi::Begin(SX127X_SPI_SPEED, sck, miso, mosi);
 
     if (CheckChipVersion() != ERR_NONE) {
         return -1;
@@ -161,6 +161,8 @@ void SX127xDriver::End(void)
     StopContRX();
     if (gpio_in_valid(_DIO1))
         gpio_in_isr_remove(_DIO1);
+    if (gpio_out_valid(CS))
+        gpio_out_write(CS, 1);
 }
 
 void SX127xDriver::SetSyncWord(uint8_t syncWord)

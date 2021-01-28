@@ -43,11 +43,11 @@ SX1280Driver::SX1280Driver(uint8_t payload_len):
 #endif
 }
 
-int8_t SX1280Driver::Begin(int sck, int miso, int mosi, int ss)
+int8_t SX1280Driver::Begin(int sck, int miso, int mosi)
 {
     TxRxDisable();
     // initialize low-level drivers
-    RadioHalSpi::Begin(SX128X_SPI_SPEED, sck, miso, mosi, ss);
+    RadioHalSpi::Begin(SX128X_SPI_SPEED, sck, miso, mosi);
 
     if (!gpio_in_valid(_BUSY)) {
         // Error handler!
@@ -85,6 +85,8 @@ void SX1280Driver::End(void)
     StopContRX();
     if (gpio_in_valid(_DIO1))
         gpio_in_isr_remove(_DIO1);
+    if (gpio_out_valid(CS))
+        gpio_out_write(CS, 1);
 }
 
 int16_t SX1280Driver::MeasureNoiseFloor(uint32_t num_meas, uint32_t freq)

@@ -1,10 +1,12 @@
 #include "RadioHalSpi.h"
 #include "platform.h"
 
-void RadioHalSpi::Begin(uint32_t speed, int sck, int miso, int mosi, int cs)
+void RadioHalSpi::Begin(uint32_t speed, int sck, int miso, int mosi)
 {
-    CS = gpio_out_setup(cs, 1);
-    spi_bus = spi_setup(speed, sck, miso, mosi, 0);
+    if (!spi_is_valid(spi_bus)) {
+        spi_bus = spi_setup(speed, sck, miso, mosi, 0);
+    }
+    gpio_out_write(CS, 1);
     spi_prepare(spi_bus);
 }
 
