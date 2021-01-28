@@ -11,6 +11,7 @@
 #include <WebSocketsServer.h>
 #include <WebServer.h>
 #include <HTTPUpdate.h>
+#include <esp_wifi.h>
 
 #include "msp.h"
 #include "platform.h"
