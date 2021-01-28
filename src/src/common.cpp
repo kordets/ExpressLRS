@@ -83,9 +83,10 @@ static expresslrs_mod_settings_t* ICACHE_RAM_ATTR get_air_rate_config(uint8_t ty
 #if RADIO_SX128x
         case RADIO_TYPE_128x:
             return ExpressLRS_AirRateConfig_128x;
-    }
 #endif
-    return NULL;
+        default:
+            return NULL;
+    }
 }
 
 const expresslrs_mod_settings_t *get_elrs_airRateConfig(uint8_t rate)
