@@ -191,7 +191,7 @@ static uint8_t SetRadioType(uint8_t type)
     if ((type < RADIO_TYPE_MAX) && (type != pl_config.rf_mode || !Radio)) {
         /* Stop radio processing if chaning RF type */
         if (Radio)
-            stop_processing();
+            platform_radio_force_stop();
         RadioInterface *new_radio = common_config_radio(type);
         if (!new_radio) {
             if (!Radio) {
