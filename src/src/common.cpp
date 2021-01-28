@@ -72,14 +72,21 @@ static expresslrs_mod_settings_t DRAM_FORCE_ATTR ExpressLRS_AirRateConfig_127x[]
 };
 #endif /* RADIO_SX127x */
 
-static expresslrs_mod_settings_t* DRAM_FORCE_ATTR ExpressLRS_AirRateConfig[] = {
+
+static expresslrs_mod_settings_t* ICACHE_RAM_ATTR get_air_rate_config(uint8_t type)
+{
+    switch (type) {
 #if RADIO_SX127x
-    ExpressLRS_AirRateConfig_127x,
+        case RADIO_TYPE_127x:
+            return ExpressLRS_AirRateConfig_127x;
 #endif
 #if RADIO_SX128x
-    ExpressLRS_AirRateConfig_128x,
+        case RADIO_TYPE_128x:
+            return ExpressLRS_AirRateConfig_128x;
+    }
 #endif
-};
+    return NULL;
+}
 
 const expresslrs_mod_settings_t *get_elrs_airRateConfig(uint8_t rate)
 {
@@ -153,6 +160,19 @@ static RadioParameters_t DRAM_FORCE_ATTR RadioType[] = {
 
 static_assert(0 < ARRAY_SIZE(RadioType), "INVALID CONFIG");
 
+static RadioParameters_t* ICACHE_RAM_ATTR get_radio_type_cfg(uint8_t type)
+{
+#if RADIO_SX127x && RADIO_SX128x
+    switch (type) {
+        case RADIO_TYPE_127x:
+            return &RadioType[RADIO_TYPE_127x];
+        case RADIO_TYPE_128x:
+            return &RadioType[RADIO_TYPE_128x];
+    }
+#endif
+    return &RadioType[0];
+}
+
 uint8_t common_config_get_radio_type(uint8_t mode)
 {
     switch (mode) {
@@ -169,23 +189,34 @@ uint8_t common_config_get_radio_type(uint8_t mode)
 
 RadioInterface* common_config_radio(uint8_t type)
 {
-    type %= ARRAY_SIZE(RadioType);
+    RadioParameters_t * config;
+    RadioInterface* radio;
+    uint8_t iter;
 
-    RadioParameters_t * config = &RadioType[type];
-    RadioInterface* radio = config->radio_if;
+    if (!current_settings) {
+        /* Init both radio first */
+        for (iter = 0; iter < ARRAY_SIZE(RadioType); iter++) {
+            config = &RadioType[iter];
+            radio = config->radio_if;
+            radio->SetPins(config->rst, config->dio0, config->dio1, config->dio2,
+                           config->busy, config->txen, config->rxen, config->nss);
+            radio->SetSyncWord(getSyncWord());
+            //radio->End();
+        }
+    }
 
-    DEBUG_PRINTF("Using radio type: %s\n", config->str);
+    config = get_radio_type_cfg(type);
+    radio = config->radio_if;
 
-    FHSS_init(type);
-
-    radio->SetPins(config->rst, config->dio0, config->dio1, config->dio2,
-                   config->busy, config->txen, config->rxen);
-    radio->SetSyncWord(getSyncWord());
-    if (0 > radio->Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI, config->nss)) {
+    if (0 > radio->Begin(GPIO_PIN_SCK, GPIO_PIN_MISO, GPIO_PIN_MOSI)) {
         DEBUG_PRINTF("[ERROR] Radio config failed!\n");
         return NULL;
     }
-    current_settings = ExpressLRS_AirRateConfig[type];
+
+    DEBUG_PRINTF("Using radio type: %s\n", config->str);
+    FHSS_init(type);
+
+    current_settings = get_air_rate_config(type);
     DEBUG_PRINTF("Radio configured\n");
     return radio;
 }
