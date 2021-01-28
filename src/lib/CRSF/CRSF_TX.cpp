@@ -7,9 +7,8 @@
 struct gpio_out crsf_byte_in;
 #endif
 
-void rcNullCb(uint8_t const *const) {}
-void nullCallback(void){};
-void paramNullCallback(uint8_t const *, uint16_t){};
+static void rcNullCb(uint8_t const *const) {}
+static void nullCallback(void){};
 
 enum {
     SEND_NA = 0,
@@ -29,17 +28,21 @@ crsfLinkStatisticsMsg_t DMA_ATTR link_stat_packet;
 crsf_sensor_battery_s DMA_ATTR TLMbattSensor;
 crsf_sensor_gps_s DMA_ATTR TLMGPSsensor;
 
+CRSF_TX::CRSF_TX(HwSerial &dev) : CRSF(&dev)
+{
+    setRcPacketRate(5000); // default to 200hz as per 'normal'
+    /* Init callback funcs */
+    connected = nullCallback;
+    disconnected = nullCallback;
+    RCdataCallback1 = rcNullCb;
+    ParamWriteCallback = NULL;
+}
+
 void CRSF_TX::Begin(void)
 {
 #ifdef DBF_PIN_CRSF_BYTES_IN
     crsf_byte_in = gpio_out_setup(DBF_PIN_CRSF_BYTES_IN, 0);
 #endif
-
-    /* Init callback funcs */
-    connected = nullCallback;
-    disconnected = nullCallback;
-    RCdataCallback1 = rcNullCb;
-    ParamWriteCallback = paramNullCallback;
 
     /* Initialize used messages */
 
@@ -226,7 +229,8 @@ void CRSF_TX::processPacket(uint8_t const *input)
             if (input[1] == CRSF_ADDRESS_CRSF_TRANSMITTER &&
                 input[2] == CRSF_ADDRESS_RADIO_TRANSMITTER)
             {
-                ParamWriteCallback(&input[3], 2);
+                if (ParamWriteCallback)
+                    ParamWriteCallback(&input[3], 2);
             }
         }
         case CRSF_FRAMETYPE_MSP_REQ:

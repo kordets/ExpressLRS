@@ -25,9 +25,7 @@ typedef struct elrs_lua_packet_s
 class CRSF_TX : public CRSF
 {
 public:
-    CRSF_TX(HwSerial &dev) : CRSF(&dev) {
-        setRcPacketRate(5000); // default to 200hz as per 'normal'
-    }
+    CRSF_TX(HwSerial &dev);
 
     void Begin(void);
 
