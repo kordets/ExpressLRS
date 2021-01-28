@@ -18,7 +18,7 @@
 uint8_t current_rate_config;
 const expresslrs_mod_settings_t *ExpressLRS_currAirRate;
 
-static uint8_t current_radio_index = 0;
+static expresslrs_mod_settings_t * current_settings;
 
 //
 // https://semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R000000HUhK/6T9Vdb3_ldnElA8drIbPYjs1wBbhlWUXej8ZMXtZXOM
@@ -83,28 +83,28 @@ static expresslrs_mod_settings_t* DRAM_FORCE_ATTR ExpressLRS_AirRateConfig[] = {
 
 const expresslrs_mod_settings_t *get_elrs_airRateConfig(uint8_t rate)
 {
-    if (get_elrs_airRateMax() <= rate)
+    if (get_elrs_airRateMax() <= rate || !current_settings)
         return NULL;
-    return &ExpressLRS_AirRateConfig[current_radio_index][rate];
+    return &current_settings[rate];
 }
 
 uint8_t get_elrs_airRateIndex(void * current)
 {
-    return ((uintptr_t)current - (uintptr_t)(ExpressLRS_AirRateConfig[current_radio_index])) / sizeof(expresslrs_mod_settings_t);
+    if (!current_settings)
+        return 0;
+    return ((uintptr_t)current - (uintptr_t)current_settings) / sizeof(expresslrs_mod_settings_t);
 }
 
 uint8_t get_elrs_airRateMax(void)
 {
-    switch (current_radio_index) {
 #if RADIO_SX127x
-        case RADIO_TYPE_127x:
-            return ARRAY_SIZE(ExpressLRS_AirRateConfig_127x);
+    if (current_settings == ExpressLRS_AirRateConfig_127x)
+        return ARRAY_SIZE(ExpressLRS_AirRateConfig_127x);
 #endif
 #if RADIO_SX128x
-        case RADIO_TYPE_128x:
-            return ARRAY_SIZE(ExpressLRS_AirRateConfig_128x);
+    if (current_settings == ExpressLRS_AirRateConfig_128x)
+        return ARRAY_SIZE(ExpressLRS_AirRateConfig_128x);
 #endif
-    }
     return 0;
 }
 
@@ -185,7 +185,7 @@ RadioInterface* common_config_radio(uint8_t type)
         DEBUG_PRINTF("[ERROR] Radio config failed!\n");
         return NULL;
     }
-    current_radio_index = type;
+    current_settings = ExpressLRS_AirRateConfig[type];
     DEBUG_PRINTF("Radio configured\n");
     return radio;
 }

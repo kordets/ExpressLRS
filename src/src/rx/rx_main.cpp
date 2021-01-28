@@ -599,7 +599,7 @@ static void SetRFLinkRate(uint8_t rate) // Set speed of RF link (hz)
                   config->PreambleLen, (OTA_PACKET_CRC == 0));
 
     // Measure RF noise
-#ifdef DEBUG_SERIAL // TODO: Enable this when noize floor is used!
+#if 0 && defined(DEBUG_SERIAL) // TODO: Enable this when noize floor is used!
     int RFnoiseFloor = Radio->MeasureNoiseFloor(10, GetInitialFreq());
     DEBUG_PRINTF("RF noise floor: %d dBm\n", RFnoiseFloor);
     (void)RFnoiseFloor;
