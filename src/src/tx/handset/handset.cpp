@@ -10,7 +10,10 @@
 #include "switches.h"
 #include <stdlib.h>
 
+//#define DBG_PIN SWITCH_4_2
+#ifdef DBG_PIN
 static struct gpio_out debug;
+#endif
 
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static rc_channels_t DRAM_ATTR rc_data;
@@ -19,7 +22,9 @@ static rc_channels_t DRAM_ATTR rc_data;
 static void ICACHE_RAM_ATTR
 rc_data_collect(uint32_t const current_us)
 {
+#ifdef DBG_PIN
     gpio_out_write(debug, 1);
+#endif
     uint16_t gimbals[NUM_ANALOGS];
     uint16_t aux[NUM_SWITCHES] = {0};
     uint8_t iter, index;
@@ -67,7 +72,9 @@ rc_data_collect(uint32_t const current_us)
 #endif
 #endif
     RcChannels_processChannels(&rc_data);
+#ifdef DBG_PIN
     gpio_out_write(debug, 0);
+#endif
 }
 
 void send_config_mixer(void)
@@ -144,11 +151,11 @@ void setup()
      * CH4..CH15 = AUX0...AUX11
     */
     pl_config.mixer[0].index = GIMBAL_IDX_R1;
-    pl_config.mixer[0].inv = 0;
+    pl_config.mixer[0].inv = 1;
     pl_config.mixer[1].index = GIMBAL_IDX_L2;
     pl_config.mixer[1].inv = 1;
     pl_config.mixer[2].index = GIMBAL_IDX_L1;
-    pl_config.mixer[2].inv = 1;
+    pl_config.mixer[2].inv = 0;
     pl_config.mixer[3].index = GIMBAL_IDX_R2;
     pl_config.mixer[3].inv = 0;
     for (iter = 4; iter < ARRAY_SIZE(pl_config.mixer); iter++) {
@@ -170,7 +177,9 @@ void setup()
     platform_setup();
     DEBUG_PRINTF("ExpressLRS HANDSET\n");
 
-    debug = gpio_out_setup(PB13, 0);
+#ifdef DBG_PIN
+    debug = gpio_out_setup(DBG_PIN, 0);
+#endif
 
     switches_init();
     gimbals_init();

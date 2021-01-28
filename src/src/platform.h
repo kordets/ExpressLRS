@@ -48,7 +48,7 @@ static inline uint8_t read_u8(const void *addr) {
 * v1 - tlm added
 * v2 - power range changed (dynamic added)
 */
-#define ELRS_EEPROM_KEY 0x454c5205 // ELR + version nbr
+#define ELRS_EEPROM_KEY 0x454c5206 // ELR + version nbr
 
 struct platform_config
 {

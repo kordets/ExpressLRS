@@ -462,6 +462,7 @@ https://github.com/jaxxzer
 #define SWITCH_CH_1     SWITCH_3
 #define SWITCH_CH_2     SWITCH_1
 #define SWITCH_CH_3     SWITCH_2
+#define SWITCH_CH_4     SWITCH_6
 
 #endif
 

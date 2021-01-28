@@ -66,7 +66,10 @@
 #endif
 
 #if TIMx_ISR_EN
+#define DBG_PIN SWITCH_4_1
+#ifdef DBG_PIN
 static struct gpio_out debug_pin;
+#endif
 #endif
 
 /* Contains:
@@ -199,7 +202,7 @@ void DMA2_Stream0_IRQHandler(void)
     if (READ_BIT(DMA2->LISR, DMA_LISR_TCIF0)) {
         WRITE_REG(DMA2->LIFCR , DMA_LIFCR_CTCIF0);
         handle_dma_isr();
-#if TIMx_ISR_EN
+#ifdef DBG_PIN
         gpio_out_write(debug_pin, 0);
 #endif
     }
@@ -216,7 +219,7 @@ void TIMx_IRQx_FUNC(void)
     uint16_t SR = TIMx->SR;
     if (SR & TIM_SR_UIF) {
         TIMx->SR = SR & ~(TIM_SR_UIF);
-#if TIMx_ISR_EN
+#ifdef DBG_PIN
         gpio_out_write(debug_pin, 1);
 #endif
     }
@@ -395,8 +398,8 @@ static void configure_adc(void)
 
 void gimbals_init(void)
 {
-#if TIMx_ISR_EN
-    debug_pin = gpio_out_setup(PB12, 0);
+#ifdef DBG_PIN
+    debug_pin = gpio_out_setup(DBG_PIN, 0);
 #endif
     configure_adc();
 
