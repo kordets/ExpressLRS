@@ -41,5 +41,8 @@ struct spi_config
 struct spi_config spi_setup(uint32_t speed, int sck, int miso, int mosi, uint8_t mode);
 void spi_prepare(struct spi_config config);
 void spi_transfer(struct spi_config config, uint8_t receive_data, uint8_t len, uint8_t *data);
+static inline uint8_t spi_is_valid(struct spi_config spi) {
+    return !!spi.spi;
+}
 
 #endif /*_GPIO_H__*/
