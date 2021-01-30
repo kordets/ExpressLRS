@@ -10,6 +10,8 @@
 #include "switches.h"
 #include <stdlib.h>
 
+#define RC_CH_PRINT_INTERVAL    2000
+
 //#define DBG_PIN SWITCH_4_2
 #ifdef DBG_PIN
 static struct gpio_out debug;
@@ -17,6 +19,10 @@ static struct gpio_out debug;
 
 static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static rc_channels_t DRAM_ATTR rc_data;
+#if RC_CH_PRINT_INTERVAL
+static uint32_t last_rc_info;
+#endif
+
 ///////////////////////////////////////
 
 static void ICACHE_RAM_ATTR
@@ -207,19 +213,15 @@ void setup()
     hw_timer_init();
 }
 
-
-static uint32_t last_rc_info;
 void loop()
 {
     tx_common_handle_rx_buffer();
 
-    if (0 <= tx_common_has_telemetry())
-    {
+    if (0 <= tx_common_has_telemetry()) {
         uint32_t current_ms = millis();
         if (0 <= tx_common_check_connection() &&
             connectionState == STATE_connected &&
-            TLM_REPORT_INTERVAL <= (uint32_t)(current_ms - TlmSentToRadioTime))
-        {
+            TLM_REPORT_INTERVAL <= (uint32_t)(current_ms - TlmSentToRadioTime)) {
             TlmSentToRadioTime = current_ms;
             tx_common_update_link_stats();
 
@@ -227,18 +229,17 @@ void loop()
         }
     }
 
-    if (1000 <= (millis() - last_rc_info)) {
+#if RC_CH_PRINT_INTERVAL
+    if (RC_CH_PRINT_INTERVAL <= (millis() - last_rc_info)) {
         last_rc_info = millis();
-#if 1
-        DEBUG_PRINTF("RC: %u, %u, %u, %u -- %u, %u, %u\n",
+        DEBUG_PRINTF("RC: %u|%u|%u|%u -- %u|%u|%u|%u|%u\n",
             rc_data.ch0, rc_data.ch1, rc_data.ch2, rc_data.ch3,
-            rc_data.ch4, rc_data.ch5, rc_data.ch6);
-#endif
+            rc_data.ch4, rc_data.ch5, rc_data.ch6, rc_data.ch7, rc_data.ch8);
     }
+#endif // RC_CH_PRINT_INTERVAL
 
     // Send MSP resp if allowed and packet ready
-    if (tlm_msp_rcvd)
-    {
+    if (tlm_msp_rcvd) {
         DEBUG_PRINTF("DL MSP rcvd. func: %x, size: %u\n",
             msp_packet_rx.function, msp_packet_rx.payloadSize);
 
