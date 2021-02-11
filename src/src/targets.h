@@ -440,10 +440,10 @@ https://github.com/jaxxzer
 #define RADIO_SX127x 1
 
 // Gimbal pins
-#define GIMBAL_L1       PC3 // G_L_1
-#define GIMBAL_L2       PC2 // G_L_2
-#define GIMBAL_R1       PC1 // G_R_1
-#define GIMBAL_R2       PC0 // G_R_2
+#define GIMBAL_L1       PC1 // G_R_1
+#define GIMBAL_L2       PC0 // G_R_2
+#define GIMBAL_R1       PC3 // G_L_1
+#define GIMBAL_R2       PC2 // G_L_2
 
 #define SWITCH_1_1  PB3     // S1_1
 //#define SWITCH_1_2  PB4     // S1_2

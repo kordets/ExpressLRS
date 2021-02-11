@@ -13,7 +13,9 @@ static uint8_t current_rgb[3];
 #define BRIGHTNESS 10 // 1...256
 #endif
 
+#ifndef __NOP
 #define __NOP() asm ("nop")
+#endif
 
 #define WS2812_DELAY_LONG() \
     __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \

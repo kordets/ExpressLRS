@@ -26,8 +26,11 @@ var log_history = [];
 function start() {
     var test = "";
     //test = "0:1:1,1:0:1,2:3:0,3:2:0,4:0:0,5:2:0";
-    //test = "5;3;0:2:1,1:1:1,2:0:0,3:3:0,4:0:0,5:16:0,6:16:0,7:16:0,8:16:0,9:16:0,10:16:0,11:16:0,12:16:0,13:16:0,14:16:0,15:16:0";
+    //test = "5;3;0:2:1:95,1:1:1,2:0:0,3:3:0,4:0:0,5:16:0,6:16:0,7:16:0,8:16:0,9:16:0,10:16:0,11:16:0,12:16:0,13:16:0,14:16:0,15:16:0";
+    //test= "4;2;0:2:1:1,1:1:2:0,2:3:3:0,3:0:0:5,4:0:6:2,5:7:3:0,6:16:0:9,7:0:0:0,8:11:16:0,9:16:0:13,10:0:0:0,11:15:16:0,12:5:85:0,13:0:0:0,14:0:0:0,15:0:0:0";
     handset_mix_reset(test);
+    //test = "900:2196:3536;194:2023:3796;183:1860:3628;490:2094:3738;"
+    //handle_calibrate_adjust(test);
     $id("logField").scrollTop = $id("logField").scrollHeight;
     websock = new WebSocket('ws://' + window.location.hostname + ':81/');
     websock.onopen = function (evt) { console.log('websock open'); };
@@ -204,17 +207,21 @@ function mixer_list_to_dict(value)
     dict['total'] = num_aux + 4;
     dict['switch'] = num_switches;
     for (i = 0; i < 16; i++) {
-        dict[i] = {'index': '-', 'inv': false};
+        dict[i] = {'index': '-', 'inv': false, 'scale': 1.0};
     }
     value = value.split(",");
     for (var item in value) {
         if (!value[item].length)
             continue
         var mix = value[item].split(":");
-        if (3 == mix.length) {
+        if (3 <= mix.length) {
             var idx = parseInt(mix[0]);
             dict[idx].index = mix[1];
             dict[idx].inv = mix[2] == '1' ? true : false;
+            if (4 <= mix.length) {
+                var scale = parseFloat(mix[3]);
+                dict[idx].scale = (scale) ? (scale / 100.) : 1.0;
+            }
         }
     }
     return dict;
@@ -251,8 +258,8 @@ function handset_mix_reset(value="")
     var mixes = mixer_list_to_dict(value);
 
     var gimbals = {
-        'Gimbal L V': 0, 'Gimbal L H': 1,
-        'Gimbal R V': 2, 'Gimbal R H': 3};
+        'Gimbal L1': 0, 'Gimbal L2': 1,
+        'Gimbal R1': 2, 'Gimbal R2': 3};
     var switches = {};
     for (iter = 0; iter < mixes['switch']; iter++) {
         switches['Switch ' + (iter+1)] = iter;
@@ -290,6 +297,27 @@ function handset_mix_reset(value="")
         // creating label for checkbox
         cell.appendChild(label);
         cell.appendChild(checkbox);
+
+        cell = row.insertCell(3);
+        cell.style.width = "110px";
+        if (iter < 4) {
+            var scale = document.createElement("input");
+            scale.type = "number";
+            scale.name = "scale";
+            scale.min = 0.1;
+            scale.max = 1.0;
+            scale.step = 0.05;
+            scale.value = mixes[iter].scale;
+            scale.id = "scale" + iter;
+            scale.style.width = "50px";
+            // creating label for checkbox
+            label = document.createElement('label');
+            label.htmlFor = scale.id;
+            label.style.width = "40px";
+            label.appendChild(document.createTextNode('Scale:'));
+            cell.appendChild(label);
+            cell.appendChild(scale);
+        }
     }
 }
 
@@ -299,7 +327,8 @@ function mixer_send()
     var output = "handset_mixer=";
     var index, value;
     for (index = 0; index < table.rows.length; index++) {
-        var selected = table.rows[index].cells[1].getElementsByTagName("select")[0];
+        var rows = table.rows[index];
+        var selected = rows.cells[1].getElementsByTagName("select")[0];
         if (selected.selectedIndex > -1) {
             /* Channel index */
             output += index.toString(16);
@@ -307,16 +336,35 @@ function mixer_send()
             selected = selected.options[selected.selectedIndex].value;
             output += selected.toString(16);
             /* Inverted */
-            var _in = table.rows[index].cells[2].getElementsByTagName("input")[0];
+            var _in = rows.cells[2].getElementsByTagName("input")[0];
             output += _in.checked ? '1' : '0';
+
+            if (index < 4) {
+                /* add scale */
+                _in = rows.cells[3].getElementsByTagName("input")[0];
+                _in = parseFloat(_in.value) * 100;
+                if (_in >= 100)
+                    output += "00";
+                else if (_in <= 10)
+                    output += "10";
+                else
+                    output += _in;
+            }
         }
     }
+    //console.log("output: %s", output);
     websock.send(output);
 }
 
 /********************* CALIBRATE *****************************/
-function handset_calibrate(type)
+var calibrate_btn = null;
+function handset_calibrate(btn, type)
 {
+    if (calibrate_btn != null) {
+        return;
+    }
+    btn.disabled = true;
+    calibrate_btn = btn;
     websock.send("handset_calibrate=" + type);
 }
 
@@ -335,6 +383,32 @@ function handset_calibrate_adjust(event)
         msg += '0'
     msg += value.toString(16);
     websock.send(msg);
+}
+
+function handle_calibrate_adjust(value)
+{
+    var iter, type, limits;
+    var map = {
+        0 : 'L1_', 1 : 'L2_',
+        2 : 'R1_', 3 : 'R2_',
+    };
+    value = value.split(";");
+    for (iter = 0; iter < value.length; iter++) {
+        if (value[iter] == "") {
+            continue;
+        }
+        limits = value[iter].split(":");
+        type = map[iter];
+        $id(type + 'min').value = limits[0];
+        $id(type + 'mid').value = limits[1];
+        $id(type + 'max').value = limits[2];
+    }
+
+    if (calibrate_btn != null) {
+        calibrate_btn.disabled = false;
+        calibrate_btn = null;
+        $id("handset_calibrate_stat").innerHTML = 'Calibration ready!';
+    }
 }
 
 /********************* TELEMETRY *****************************/
@@ -371,14 +445,13 @@ function handset_parse(type, value)
     console.log("HANDSET: %o = (%o)", type, value);
     /* Find correct element */
     if (type.includes("_calibrate")) {
-        var stat = $id("handset_calibrate_stat");
-        stat.innerHTML = 'Calibration state: "' + value + '"';
-    } else if (type.includes("_adjust_")) {
-        type = type.split("_adjust_")[1];
-        value = value.split(":");
-        $id(type + '_min').value = value[0];
-        $id(type + '_mid').value = value[1];
-        $id(type + '_max').value = value[2];
+        if (calibrate_btn != null) {
+            calibrate_btn.disabled = false;
+            calibrate_btn = null;
+            $id("handset_calibrate_stat").innerHTML = 'Calibration status: "' + value + '"';
+        }
+    } else if (type.includes("_adjust")) {
+        handle_calibrate_adjust(value);
     } else if (type.includes("_mixer")) {
         handset_mix_reset(value);
     }

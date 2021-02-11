@@ -14,10 +14,15 @@ enum {
 };
 
 enum {
-    GIMBAL_CALIB_THR = 0x10,
-    GIMBAL_CALIB_YAW,
-    GIMBAL_CALIB_PITCH,
-    GIMBAL_CALIB_ROLL,
+    GIMBAL_CALIB_L_V = 0,
+    GIMBAL_CALIB_L_H,
+    GIMBAL_CALIB_R_V,
+    GIMBAL_CALIB_R_H,
+    GIMBAL_CALIB_MAX = 0x0F,
+
+    GIMBAL_CALIB_LOW  = 0x10,
+    GIMBAL_CALIB_MID  = 0x20,
+    GIMBAL_CALIB_HIGH = 0x40,
 };
 
 struct gimbal_limit {
@@ -29,4 +34,5 @@ struct gimbal_limit {
 struct mixer {
     uint8_t index;
     uint8_t inv;
+    uint8_t scale;
 };

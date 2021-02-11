@@ -329,16 +329,22 @@ void MspVtxWrite(const char * input, int num = -1)
 }
 
 #if CONFIG_HANDSET
-uint8_t char_to_hex(uint8_t chr)
+uint8_t char_to_dec(uint8_t const chr)
 {
-  if ('A' <= chr)
-    chr = 10 + (chr - 'A');
-  else
-    chr = chr - '0';
-  return chr;
+  if ('0' <= chr && chr <= '9') {
+    return chr - '0';
+  }
+  return 0;
 }
 
-uint8_t u8_to_hex(uint8_t * chr)
+uint8_t char_to_hex(uint8_t chr)
+{
+  if ('A' <= chr && chr <= 'F')
+    return (10 + (chr - 'A'));
+  return char_to_dec(chr);
+}
+
+uint8_t char_u8_to_hex(const char * chr)
 {
   uint8_t val = char_to_hex(*chr++);
   val <<= 4;
@@ -346,7 +352,14 @@ uint8_t u8_to_hex(uint8_t * chr)
   return val;
 }
 
-uint16_t u12_to_hex(uint8_t * chr)
+uint8_t char_u8_to_dec(const char * chr)
+{
+  uint8_t val = char_to_dec(*chr++) * 10;
+  val += char_to_dec(*chr++);
+  return val;
+}
+
+uint16_t char_u12_to_hex(const uint8_t * chr)
 {
   uint16_t val = char_to_hex(*chr++);
   val <<= 4;
@@ -358,34 +371,44 @@ uint16_t u12_to_hex(uint8_t * chr)
 
 void handleHandsetCalibrate(const char * input)
 {
+  uint8_t value = 0;
   // Fill MSP packet
   msp_out.reset();
+
+  value = char_to_hex(input[3]);
+  if (value == 1)
+    value = GIMBAL_CALIB_LOW;
+  else if (value == 2)
+    value = GIMBAL_CALIB_MID;
+  else if (value == 3)
+    value = GIMBAL_CALIB_HIGH;
+
+  if (!strncmp(input, "L1_", 3)) {
+    value |= (GIMBAL_CALIB_L_V);
+  } else if (!strncmp(input, "L2_", 3)) {
+    value |= (GIMBAL_CALIB_L_H);
+  } else if (!strncmp(input, "R1_", 3)) {
+    value |= (GIMBAL_CALIB_R_V);
+  } else if (!strncmp(input, "R2_", 3)) {
+    value |= (GIMBAL_CALIB_R_H);
+  }
+
+  if (!value)
+    return;
+
   msp_out.type = MSP_PACKET_V1_ELRS;
   msp_out.flags = MSP_ELRS_INT;
   msp_out.function = ELRS_HANDSET_CALIBRATE;
-  msp_out.payloadSize = 2;
-  if (!strncmp(input, "thr", 3)) {
-    msp_out.payload[0] = GIMBAL_CALIB_THR;
-  } else if (!strncmp(input, "yaw", 3)) {
-    msp_out.payload[0] = GIMBAL_CALIB_YAW;
-  } else if (!strncmp(input, "pit", 3)) {
-    msp_out.payload[0] = GIMBAL_CALIB_PITCH;
-  } else if (!strncmp(input, "rol", 3)) {
-    msp_out.payload[0] = GIMBAL_CALIB_ROLL;
-  }
-  msp_out.payload[1] = 1; // Start
+  msp_out.addByte(value);
+  msp_out.addByte(1); // Start
+  msp_out.setIteratorToSize();
   // Send packet
   MSP::sendPacket(&msp_out, &my_ctrl_serial);
 }
 
 void handleHandsetCalibrateResp(uint8_t * data, int num = -1)
 {
-  String out = "ELRS_handset_calibrate=";
-  if (data && data[0] == 1)
-    out += "SUCCESS";
-  else
-    out += "ERROR!";
-
+  String out = "ELRS_handset_calibrate=ERROR!";
   if (0 <= num)
     webSocket.sendTXT(num, out);
   else
@@ -395,22 +418,37 @@ void handleHandsetCalibrateResp(uint8_t * data, int num = -1)
 
 void handleHandsetMixer(const char * input, size_t length)
 {
-  webSocket.broadcastTXT(input, length);
-  uint32_t iter;
+  //webSocket.broadcastTXT(input, length);
+  uint32_t iter, index, scale;
+  const char * read = input;
   // Fill MSP packet
   msp_out.reset();
   msp_out.type = MSP_PACKET_V1_ELRS;
   msp_out.flags = MSP_ELRS_INT;
   msp_out.function = ELRS_HANDSET_MIXER;
-  for (iter = 0; iter < (3 * TX_NUM_MIXER) && (iter < length); iter+=3) {
+  for (iter = 0; iter < ARRAY_SIZE(mixer) && ((size_t)(read - input) < length); iter++) {
     // channel index
-    msp_out.payload[iter] = char_to_hex(input[iter]);
+    index = char_to_hex(*read++);
+    msp_out.addByte(index);
     // channel out
-    msp_out.payload[iter+1] = char_to_hex(input[iter+1]);
+    msp_out.addByte(char_to_hex(*read++));
     // inverted
-    msp_out.payload[iter+2] = char_to_hex(input[iter+2]);
+    msp_out.addByte(char_to_hex(*read++));
+    // Scale
+    if (index < 4) {
+      scale = char_u8_to_dec(read);
+      msp_out.addByte(scale);
+
+      String temp = "Gimbal: ";
+      temp += index;
+      temp += " Scale: ";
+      temp += scale;
+      webSocket.broadcastTXT(temp);
+
+      read += 2;
+    }
   }
-  msp_out.payloadSize = iter;
+  msp_out.setIteratorToSize();
   // Send packet
   MSP::sendPacket(&msp_out, &my_ctrl_serial);
 }
@@ -422,17 +460,13 @@ void handleHandsetMixerResp(uint8_t * data, int num = -1)
   if (data) {
     for (iter = 0; iter < ARRAY_SIZE(mixer); iter++) {
       if (data[0] < ARRAY_SIZE(mixer)) {
-        mixer[iter] = (struct mixer){.index=data[1], .inv=data[2]};
+        mixer[data[0]] = (struct mixer){
+          .index=data[1], .inv=data[2], .scale=data[3]};
       }
-      data += 3;
+      data += 4;
     }
     handset_num_switches = *data++;
     handset_num_aux = *data++;
-    String temp = "Num switches: ";
-    temp += handset_num_switches;
-    temp += " , num aux: ";
-    temp += handset_num_aux;
-    webSocket.broadcastTXT(temp);
   }
 
   out += handset_num_aux;
@@ -448,6 +482,8 @@ void handleHandsetMixerResp(uint8_t * data, int num = -1)
     out += mixer[iter].index;
     out += ":";
     out += mixer[iter].inv;
+    out += ":";
+    out += mixer[iter].scale;
   }
 
   if (0 <= num)
@@ -471,73 +507,45 @@ void handleHandsetAdjust(const char * input)
         ELRS_HANDSET_ADJUST_MAX :
         ELRS_HANDSET_ADJUST_MID);
   msp_out.payloadSize = 3;
-  if (!strncmp(input, "thr", 3)) {
-    msp_out.payload[0] = GIMBAL_IDX_R1;
-  } else if (!strncmp(input, "yaw", 3)) {
-    msp_out.payload[0] = GIMBAL_IDX_R2;
-  } else if (!strncmp(input, "pit", 3)) {
+  if (!strncmp(input, "L1_", 3)) {
     msp_out.payload[0] = GIMBAL_IDX_L1;
-  } else if (!strncmp(input, "rol", 3)) {
+  } else if (!strncmp(input, "L2_", 3)) {
     msp_out.payload[0] = GIMBAL_IDX_L2;
+  } else if (!strncmp(input, "R1_", 3)) {
+    msp_out.payload[0] = GIMBAL_IDX_R1;
+  } else if (!strncmp(input, "R2_", 3)) {
+    msp_out.payload[0] = GIMBAL_IDX_R2;
   }
   uint8_t * temp = (uint8_t*)strstr((char*)input, "=");
-  value = u12_to_hex(temp);
+  value = char_u12_to_hex(temp);
   msp_out.payload[1] = (uint8_t)(value >> 8);
   msp_out.payload[2] = (uint8_t)value;
   // Send packet
   MSP::sendPacket(&msp_out, &my_ctrl_serial);
 }
 
-void handleHandsetAdjustChannelResp(uint8_t type, struct gimbal_limit * limits, int num)
+void handleHandsetAdjustResp(uint8_t * data, int num = -1)
 {
-  String out = "ELRS_handset_adjust_";
-  switch (type)
-  {
-  case GIMBAL_IDX_L1:
-    out += "pit=";
-    break;
-  case GIMBAL_IDX_L2:
-    out += "rol=";
-    break;
-  case GIMBAL_IDX_R1:
-    out += "thr=";
-    break;
-  case GIMBAL_IDX_R2:
-    out += "yaw=";
-    break;
-  default:
-    return;
+  String out = "ELRS_handset_adjust=";
+  uint8_t iter;
+  if (data) {
+    memcpy(gimbals, data, sizeof(gimbals));
   }
-  out += limits->low;
-  out += ":";
-  out += limits->mid;
-  out += ":";
-  out += limits->high;
+
+  for (iter = 0; iter < ARRAY_SIZE(gimbals); iter++) {
+    struct gimbal_limit * limits = &gimbals[iter];
+    out += limits->low;
+    out += ":";
+    out += limits->mid;
+    out += ":";
+    out += limits->high;
+    out += ";";
+  }
+
   if (0 <= num)
     webSocket.sendTXT(num, out);
   else
     webSocket.broadcastTXT(out);
-}
-
-void handleHandsetAdjustResp(uint8_t * data, int num = -1)
-{
-  uint16_t min, mid, max;
-  uint8_t iter;
-  if (data) {
-    for (iter = 0; iter < ARRAY_SIZE(gimbals); iter++) {
-      if (data[0] < ARRAY_SIZE(gimbals)) {
-        min = ((uint16_t)data[1] << 8) + data[2];
-        mid = ((uint16_t)data[3] << 8) + data[4];
-        max = ((uint16_t)data[5] << 8) + data[6];
-        gimbals[data[0]] = (struct gimbal_limit){.low=min, .mid=mid, .high=max};
-      }
-      data += 7;
-    }
-  }
-
-  for (iter = 0; iter < ARRAY_SIZE(gimbals); iter++) {
-    handleHandsetAdjustChannelResp(iter, &gimbals[iter], num);
-  }
 }
 
 void HandsetConfigGet(uint8_t wsnum, uint8_t force=0)
@@ -1213,24 +1221,23 @@ void setup()
 
 int serialEvent()
 {
-  int temp;
+  int temp, limit = 8;
   uint8_t inChar;
-  while (Serial.available())
-  {
+  while (Serial.available() && limit--) {
     temp = Serial.read();
     if (temp < 0)
       break;
 
     inChar = (uint8_t)temp;
     if (msp_handler.processReceivedByte(inChar)) {
-      webSocket.broadcastTXT("MSP received");
+      String info = "MSP received: ";
       // msp fully received
       mspPacket_t &msp_in = msp_handler.getPacket();
       if (msp_in.type == MSP_PACKET_V1_ELRS) {
         uint8_t * payload = (uint8_t*)msp_in.payload;
         switch (msp_in.function) {
           case ELRS_INT_MSP_PARAMS: {
-            webSocket.broadcastTXT("ELRS params resp");
+            info += "ELRS params";
             settings_rate = payload[0];
             settings_tlm = payload[1];
             settings_power = payload[2];
@@ -1245,29 +1252,32 @@ int serialEvent()
           }
 #if CONFIG_HANDSET
           case ELRS_HANDSET_CALIBRATE: {
-            webSocket.broadcastTXT("CALIBRATE config");
+            info += "CALIBRATE error";
             handleHandsetCalibrateResp(payload);
             break;
           }
           case ELRS_HANDSET_MIXER: {
-            webSocket.broadcastTXT("MIXER config");
+            info += "MIXER config";
             handleHandsetMixerResp(payload);
             handset_mixer_ok = 1;
             break;
           }
           case ELRS_HANDSET_ADJUST: {
-            webSocket.broadcastTXT("ADJUST config");
+            info += "ADJUST config";
             handleHandsetAdjustResp(payload);
             handset_adjust_ok = 1;
             break;
           }
 #endif /* CONFIG_HANDSET */
           default:
+            info += "UNKNOWN";
             break;
         };
       }
 
-      yield();
+      webSocket.broadcastTXT(info);
+
+      //yield();
 #if ESP_NOW
       // Send received MSP packet to clients
       esp_now_sender.send_now(&msp_in);
@@ -1277,7 +1287,7 @@ int serialEvent()
     } else if (!msp_handler.mspOngoing()) {
       if (inChar == '\r') {
         continue;
-      } else if (inChar == '\n' || 128 <= inputString.length()) {
+      } else if (inChar == '\n' || 64 <= inputString.length()) {
         return 0;
       }
       if (isprint(inChar))
@@ -1287,15 +1297,14 @@ int serialEvent()
     //if (msp_handler.error())
     //  msp_handler.markPacketFree();
 
-    yield();
+    //yield();
   }
   return -1;
 }
 
 void loop()
 {
-  if (0 <= serialEvent())
-  {
+  if (0 <= serialEvent()) {
     webSocket.broadcastTXT(inputString);
     inputString = "";
   }

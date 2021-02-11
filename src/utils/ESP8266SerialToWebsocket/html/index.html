@@ -233,6 +233,7 @@
               </tr>
             </table>
           </form>
+          <div>Click <a href="/update">here</a> to update filesystem.</div>
         </fieldset>
         <fieldset>
           <legend>STM32 Firmware</legend>
@@ -300,7 +301,7 @@
     <div id="control_handset" class="tabcontent" style="display:none;">
       <fieldset>
         <legend>Channel Mixer</legend>
-        <table style="width: 60%;" id="handset_mixer">
+        <table style="width: 80%;" id="handset_mixer">
         </table>
         <div style="padding: 10px; text-align: right;">
           <br/>
@@ -309,35 +310,65 @@
       </fieldset>
 
       <fieldset>
-        <legend>Calibrate</legend>
-        <table id="calibrate" style="width: 50%;">
-          <tr>
-            <td style="padding: 10px;"><button onclick="handset_calibrate('thr')">LEFT<br>vertical</button></td>
-            <td><input type="number" min='0' max='4095' value="0" style="width: 50px;" id="thr_min" onchange="handset_calibrate_adjust(event);"></td>
-            <td><input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="thr_mid" onchange="handset_calibrate_adjust(event);"></td>
-            <td><input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="thr_max" onchange="handset_calibrate_adjust(event);"></td>
-            <td style="text-align: left;">(throttle)</td>
-          <tr>
+        <legend>Virtual Channels</legend>
+        ...are available at some point...
+      </fieldset>
+
+      <fieldset>
+        <legend>Calibrate Gimbals</legend>
+        <table id="calibrate" style="width: 90%; border-collapse: collapse;">
+          <th>
+            <td>low</td>
+            <td>mid</td>
+            <td>high</td>
+          </th>
+          <tr style="border-bottom: 1px solid #C5C5C5;">
+            <td style="text-align: left;">LEFT, 1</td>
+            <td>
+              <button onclick="handset_calibrate(this, 'L1_1')">auto</button>
+              <input type="number" min='0' max='4095' value="0" style="width: 50px;" id="L1_min" onchange="handset_calibrate_adjust(event);"></td>
+            <td>
+              <button onclick="handset_calibrate(this, 'L1_2')">auto</button>
+              <input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="L1_mid" onchange="handset_calibrate_adjust(event);"></td>
+            <td>
+              <button onclick="handset_calibrate(this, 'L1_3')">auto</button>
+              <input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="L1_max" onchange="handset_calibrate_adjust(event);"></td>
           </tr>
-            <td style="padding: 10px;"><button onclick="handset_calibrate('yaw')">LEFT<br>horizontal</button></td>
-            <td><input type="number" min='0' max='4095' value="0" style="width: 50px;" id="yaw_min" onchange="handset_calibrate_adjust(event);"></td>
-            <td><input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="yaw_mid" onchange="handset_calibrate_adjust(event);"></td>
-            <td><input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="yaw_max" onchange="handset_calibrate_adjust(event);"></td>
-            <td style="text-align: left;">(yaw)</td>
-          <tr>
+          <tr style="border-bottom: 1px solid #C5C5C5;">
+            <td style="text-align: left; width: 150px;">LEFT, 2</td>
+            <td>
+              <button onclick="handset_calibrate(this, 'L2_1')">auto</button>
+              <input type="number" min='0' max='4095' value="0" style="width: 50px;" id="L2_min" onchange="handset_calibrate_adjust(event);"></td>
+            <td>
+              <button onclick="handset_calibrate(this, 'L2_2')">auto</button>
+              <input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="L2_mid" onchange="handset_calibrate_adjust(event);"></td>
+            <td>
+              <button onclick="handset_calibrate(this, 'L2_3')">auto</button>
+              <input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="L2_max" onchange="handset_calibrate_adjust(event);"></td>
           </tr>
-            <td style="padding: 10px;"><button onclick="handset_calibrate('pit')">RIGHT<br>vertical</button></td>
-            <td><input type="number" min='0' max='4095' value="0" style="width: 50px;" id="pit_min" onchange="handset_calibrate_adjust(event);"></td>
-            <td><input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="pit_mid" onchange="handset_calibrate_adjust(event);"></td>
-            <td><input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="pit_max" onchange="handset_calibrate_adjust(event);"></td>
-            <td style="text-align: left;">(pitch)</td>
-          <tr>
+          <tr style="border-bottom: 1px solid #C5C5C5;">
+            <td style="text-align: left; width: 150px;">RIGHT, 1</td>
+            <td>
+              <button onclick="handset_calibrate(this, 'R1_1')">auto</button>
+              <input type="number" min='0' max='4095' value="0" style="width: 50px;" id="R1_min" onchange="handset_calibrate_adjust(event);"></td>
+            <td>
+              <button onclick="handset_calibrate(this, 'R1_2')">auto</button>
+              <input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="R1_mid" onchange="handset_calibrate_adjust(event);"></td>
+            <td>
+              <button onclick="handset_calibrate(this, 'R1_3')">auto</button>
+              <input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="R1_max" onchange="handset_calibrate_adjust(event);"></td>
           </tr>
-            <td style="padding: 10px;"><button onclick="handset_calibrate('rol')">RIGHT<br>horizontal</button></td>
-            <td><input type="number" min='0' max='4095' value="0" style="width: 50px;" id="rol_min" onchange="handset_calibrate_adjust(event);"></td>
-            <td><input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="rol_mid" onchange="handset_calibrate_adjust(event);"></td>
-            <td><input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="rol_max" onchange="handset_calibrate_adjust(event);"></td>
-            <td style="text-align: left;">(roll)</td>
+          <tr style="border-bottom: 1px solid #C5C5C5;">
+            <td style="text-align: left; width: 150px;">RIGHT, 2</td>
+            <td>
+              <button onclick="handset_calibrate(this, 'R2_1')">auto</button>
+              <input type="number" min='0' max='4095' value="0" style="width: 50px;" id="R2_min" onchange="handset_calibrate_adjust(event);"></td>
+            <td>
+              <button onclick="handset_calibrate(this, 'R2_2')">auto</button>
+              <input type="number" min='0' max='4095' value="2000" style="width: 50px;" id="R2_mid" onchange="handset_calibrate_adjust(event);"></td>
+            <td>
+              <button onclick="handset_calibrate(this, 'R2_3')">auto</button>
+              <input type="number" min='0' max='4095' value="4095" style="width: 50px;" id="R2_max" onchange="handset_calibrate_adjust(event);"></td>
           </tr>
           <tr>
             <td id="handset_calibrate_stat" colspan="4">&nbsp;</td>
@@ -360,7 +391,7 @@
       <fieldset>
         <legend>Radiolink, Uplink</legend>
         <table class="telem" id="tlm_ul">
-          <tr id="LQ"><td>LQ</td><td>N/A</td></tr>
+          <tr id="ULQ"><td>LQ</td><td>N/A</td></tr>
           <tr id="S1"><td>RSSI 1</td><td>N/A</td></tr>
           <tr id="S2"><td>RSSI 2</td><td>N/A</td></tr>
           <tr id="NS"><td>SNR</td><td>N/A</td></tr>
@@ -372,7 +403,7 @@
       <fieldset>
         <legend>Radiolink, Downlink</legend>
         <table class="telem" id="tlm_dl">
-          <tr id="LQ"><td>LQ</td><td>N/A</td></tr>
+          <tr id="DLQ"><td>LQ</td><td>N/A</td></tr>
           <tr id="RS"><td>RSSI</td><td>N/A</td></tr>
           <tr id="SN"><td>SNR</td><td>N/A</td></tr>
         </table>

@@ -6,7 +6,7 @@ import os, glob
 # Code is copied from:
 # https://gist.github.com/andrewwalters/d4e3539319e55fc980db1ba67254d7ed
 #
-def binary_compress(source_file, source_file_bak):
+def binary_compress(source_file, source_file_bak, gz=False):
     """ Compress ESP8266 firmware using gzip for 'compressed OTA upload' """
     do_compress = True
     if os.path.exists(source_file) and os.path.exists(source_file_bak):
@@ -19,6 +19,8 @@ def binary_compress(source_file, source_file_bak):
         print("Compressing firmware for upload...")
         shutil.move(source_file, source_file_bak)
         with open(source_file_bak, 'rb') as f_in:
+            if gz:
+                source_file = source_file + ".gz"
             with gzip.open(source_file, 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
         """ Set modification time on compressed file so incremental build works """

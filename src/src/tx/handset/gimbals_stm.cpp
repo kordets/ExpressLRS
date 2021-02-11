@@ -447,27 +447,70 @@ gimbals_get(uint16_t * const out)
     }
 }
 
+uint8_t gimbals_calibrate_mid_point(uint8_t idx)
+{
+    uint32_t value = 0, current;
+    uint32_t start;
+
+    start = 0;
+    while (start < 64) {
+        current = filters[idx].getCurrent();
+        if ((GIMBAL_MID - 500) < current && current < (GIMBAL_MID + 500)) {
+            value += current;
+            start++;
+        }
+        delay(10);
+    }
+    pl_config.gimbals[idx].mid = (value / start);
+    return 1;
+}
+
+uint8_t gimbals_calibrate_min_point(uint8_t idx)
+{
+    uint32_t value = 0, current;
+    uint32_t start = 0;
+    while (start < 64) {
+        current = filters[idx].getCurrent();
+        if (current < (GIMBAL_LOW + 1000)) {
+            value += current;
+            start++;
+        }
+        delay(10);
+    }
+    pl_config.gimbals[idx].low = (value / start);
+    return 1;
+}
+
+uint8_t gimbals_calibrate_max_point(uint8_t idx)
+{
+    uint32_t value = 0, current;
+    uint32_t start = 0;
+    while (start < 64) {
+        current = filters[idx].getCurrent();
+        if ((GIMBAL_HIGH - 100) < current) {
+            value += current;
+            start++;
+        }
+        delay(10);
+    }
+    pl_config.gimbals[idx].high = (value / start);
+    return 1;
+}
 
 uint8_t gimbals_calibrate(uint8_t * data)
 {
-    uint8_t success = 0;
+    uint8_t type = data[0], res = 0;
     if (data[1] == 0) {
         /* Stop if needed... */
         return 0;
     }
-    switch (data[0]) {
-    case GIMBAL_CALIB_THR:
-        break;
-    case GIMBAL_CALIB_YAW:
-        break;
-    case GIMBAL_CALIB_PITCH:
-        break;
-    case GIMBAL_CALIB_ROLL:
-        break;
-    default:
-        return 0;
-    }
-    data[0] = success;
+    if (type & GIMBAL_CALIB_LOW)
+        res = gimbals_calibrate_min_point(type & GIMBAL_CALIB_MAX);
+    else if (type & GIMBAL_CALIB_MID)
+        res = gimbals_calibrate_mid_point(type & GIMBAL_CALIB_MAX);
+    else if (type & GIMBAL_CALIB_HIGH)
+        res = gimbals_calibrate_max_point(type & GIMBAL_CALIB_MAX);
+    data[0] = res;
     return 1;
 }
 
