@@ -26,8 +26,8 @@ def binary_compress(source_file, source_file_bak, gz=False):
         """ Set modification time on compressed file so incremental build works """
         shutil.copystat(source_file_bak, source_file)
 
-    if os.path.exists(source_file+'.bak'):
-        size_orig = os.stat(source_file + '.bak').st_size
+    if os.path.exists(source_file_bak):
+        size_orig = os.stat(source_file_bak).st_size
         size_gz = os.stat(source_file).st_size
 
         print("Compression reduced firmware size to {:.0f}% (was {} bytes, now {} bytes)".format(
@@ -36,8 +36,11 @@ def binary_compress(source_file, source_file_bak, gz=False):
 
 def compressFirmware(source, target, env):
     """ Compress ESP8266 firmware using gzip for 'compressed OTA upload' """
-    source_file = env.subst("$BUILD_DIR") + os.sep + env.subst("$PROGNAME") + ".bin"
+    build_dir = env.subst("$BUILD_DIR")
+    image_name = env.subst("$PROGNAME")
+    source_file = os.path.join(build_dir, image_name + ".bin")
     source_file_bak = source_file + '.bak'
+    #source_file_bak = os.path.join(build_dir, image_name + '_orig.bin')
     binary_compress(source_file, source_file_bak)
 
 
@@ -96,5 +99,6 @@ def compress_fs_bin(source, target, env):
     build_dir = env.subst("$BUILD_DIR")
     image_name = env.get('ESP8266_FS_IMAGE_NAME')
     src_file = os.path.join(build_dir, image_name + ".bin")
-    src_file_bak = src_file + '.bak'
-    #binary_compress(src_file, src_file_bak)
+    #src_file_bak = src_file + '.bak'
+    src_file_bak = os.path.join(build_dir, image_name + '_orig.bin')
+    binary_compress(src_file, src_file_bak, gz=True)
