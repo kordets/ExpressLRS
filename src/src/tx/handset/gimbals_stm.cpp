@@ -436,7 +436,7 @@ gimbals_get(uint16_t * const out)
     for (iter = 0; iter < ARRAY_SIZE(pl_config.gimbals); iter++) {
         limit = &pl_config.gimbals[iter];
         curr = filters[iter].getCurrent();
-        if (curr <= GIMBAL_MID)
+        if (curr <= limit->mid)
             out[iter] = MAP_U16((uint16_t)curr, limit->low, limit->mid,
                                 CRSF_CHANNEL_IN_VALUE_MIN,
                                 CRSF_CHANNEL_IN_VALUE_MID);
