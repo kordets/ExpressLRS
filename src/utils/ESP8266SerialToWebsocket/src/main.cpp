@@ -139,6 +139,7 @@ static uint8_t settings_rate;
 static uint8_t settings_power, settings_power_max;
 static uint8_t settings_tlm;
 static uint8_t settings_region;
+static uint8_t settings_valid;
 String settings_out;
 
 MSP msp_handler;
@@ -284,15 +285,19 @@ void handleSettingDomain(const char * input, int num = -1)
 
 void SettingsGet(uint8_t wsnum)
 {
-  if (settings_region == 255) {
+  if (!settings_valid) {
     /* Unknown... reguest update */
     uint8_t buff[] = {0, 0};
     SettingsWrite(buff, sizeof(buff));
   } else {
     /* Valid, just send those to client */
+    delay(5);
     handleSettingDomain(NULL, wsnum);
+    delay(5);
     handleSettingRate(NULL, wsnum);
+    delay(5);
     handleSettingPower(NULL, wsnum);
+    delay(5);
     handleSettingTlm(NULL, wsnum);
   }
 }
@@ -341,6 +346,8 @@ uint8_t char_to_hex(uint8_t chr)
 {
   if ('A' <= chr && chr <= 'F')
     return (10 + (chr - 'A'));
+  if ('a' <= chr && chr <= 'f')
+    return (10 + (chr - 'a'));
   return char_to_dec(chr);
 }
 
@@ -359,7 +366,7 @@ uint8_t char_u8_to_dec(const char * chr)
   return val;
 }
 
-uint16_t char_u12_to_hex(const uint8_t * chr)
+uint16_t char_u12_to_hex(const char * chr)
 {
   uint16_t val = char_to_hex(*chr++);
   val <<= 4;
@@ -495,32 +502,41 @@ void handleHandsetMixerResp(uint8_t * data, int num = -1)
 
 void handleHandsetAdjust(const char * input)
 {
+  const char * temp;
   uint16_t value;
   // Fill MSP packet
   msp_out.reset();
   msp_out.type = MSP_PACKET_V1_ELRS;
   msp_out.flags = MSP_ELRS_INT;
-  msp_out.function =
-    !strncmp(input, "_min", 4) ?
-      ELRS_HANDSET_ADJUST_MIN :
-      (!strncmp(input, "_max", 4) ?
-        ELRS_HANDSET_ADJUST_MAX :
-        ELRS_HANDSET_ADJUST_MID);
-  msp_out.payloadSize = 3;
-  if (!strncmp(input, "L1_", 3)) {
+
+  if (strncmp(&input[3], "min", 3) == 0)
+    msp_out.function = ELRS_HANDSET_ADJUST_MIN;
+  else if (strncmp(&input[3], "mid", 3) == 0)
+    msp_out.function = ELRS_HANDSET_ADJUST_MID;
+  else if (strncmp(&input[3], "max", 3) == 0)
+    msp_out.function = ELRS_HANDSET_ADJUST_MAX;
+  else
+    /* not valid cmd */
+    return;
+
+  if (!strncmp(input, "L1_", 3))
     msp_out.payload[0] = GIMBAL_IDX_L1;
-  } else if (!strncmp(input, "L2_", 3)) {
+  else if (!strncmp(input, "L2_", 3))
     msp_out.payload[0] = GIMBAL_IDX_L2;
-  } else if (!strncmp(input, "R1_", 3)) {
+  else if (!strncmp(input, "R1_", 3))
     msp_out.payload[0] = GIMBAL_IDX_R1;
-  } else if (!strncmp(input, "R2_", 3)) {
+  else if (!strncmp(input, "R2_", 3))
     msp_out.payload[0] = GIMBAL_IDX_R2;
-  }
-  uint8_t * temp = (uint8_t*)strstr((char*)input, "=");
-  value = char_u12_to_hex(temp);
+  else
+    /* not valid cmd */
+    return;
+
+  temp = strstr((char*)input, "=");
+  value = char_u12_to_hex(&temp[1]);
   msp_out.payload[1] = (uint8_t)(value >> 8);
   msp_out.payload[2] = (uint8_t)value;
   // Send packet
+  msp_out.payloadSize = 3;
   MSP::sendPacket(&msp_out, &my_ctrl_serial);
 }
 
@@ -564,7 +580,9 @@ void HandsetConfigGet(uint8_t wsnum, uint8_t force=0)
     return;
   }
 
+  delay(5);
   handleHandsetMixerResp(NULL, wsnum);
+  delay(5);
   handleHandsetAdjustResp(NULL, wsnum);
 }
 
@@ -1111,6 +1129,7 @@ void setup()
   settings_power_max = 8;
   settings_tlm = 7;
   settings_region = 255;
+  settings_valid = 0;
 #if CONFIG_HANDSET
   handset_num_switches = 6;
   handset_num_aux = 5;
@@ -1243,6 +1262,7 @@ int serialEvent()
             settings_power = payload[2];
             settings_power_max = payload[3];
             settings_region = payload[4];
+            settings_valid = 1;
 
             handleSettingDomain(NULL);
             handleSettingRate(NULL);
