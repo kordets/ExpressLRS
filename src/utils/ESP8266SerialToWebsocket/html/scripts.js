@@ -31,6 +31,9 @@ function start() {
     handset_mix_reset(test);
     //test = "900:2196:3536;194:2023:3796;183:1860:3628;490:2094:3738;"
     //handle_calibrate_adjust(test);
+    test = "6609,95,50";
+    handset_battery_value(test);
+
     $id("logField").scrollTop = $id("logField").scrollHeight;
     websock = new WebSocket('ws://' + window.location.hostname + ':81/');
     websock.onopen = function (evt) { console.log('websock open'); };
@@ -411,6 +414,34 @@ function handle_calibrate_adjust(value)
     }
 }
 
+/******************** MONITORING ****************************/
+function handset_battery_value(value)
+{
+    var batt = $id("battery_voltage");
+    value = value.split(",");
+    if (0 < value.length) {
+        batt.innerHTML = (parseInt(value[0], 10) / 1000.).toFixed(1) + "V";
+        if (1 < value.length) {
+            $id("battery_scale").value = parseInt(value[1], 10);
+            if (2 < value.length) {
+                $id("battery_warning").value = parseInt(value[2], 10);
+            }
+        }
+    }
+}
+
+function handset_battery_adjust()
+{
+    var msg = "handset_battery_config=";
+    var scale = parseInt($id("battery_scale").value, 10);
+    var warn = parseInt($id("battery_warning").value, 10);
+
+    msg += scale.toString(16);
+    msg += ",";
+    msg += warn.toString(16);
+    websock.send(msg);
+}
+
 /********************* TELEMETRY *****************************/
 
 function telmetry_set(type, value)
@@ -454,5 +485,7 @@ function handset_parse(type, value)
         handle_calibrate_adjust(value);
     } else if (type.includes("_mixer")) {
         handset_mix_reset(value);
+    } else if (type.includes("_battery")) {
+        handset_battery_value(value);
     }
 }

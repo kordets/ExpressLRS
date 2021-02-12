@@ -300,6 +300,29 @@
     <!-- HANDSET -->
     <div id="control_handset" class="tabcontent" style="display:none;">
       <fieldset>
+        <legend>Monitoring</legend>
+        <div>
+          <table id="battery" style="width: 70%; border-collapse: collapse;">
+            <tr>
+              <td id="battery_voltage" style="width: 150px; text-align: center;">0.00V</td>
+              <td>
+                Scale
+                <input type="number" id="battery_scale"
+                  min='50' max='150' value="100" style="width: 40px;"
+                  onchange="handset_battery_adjust();">
+              </td>
+              <td>
+                Warning (%)
+                <input type="number" id="battery_warning"
+                  min='10' max='100' value="70" step="5" style="width: 45px;"
+                  onchange="handset_battery_adjust();">
+              </td>
+            </tr>
+          </table>
+        </div>
+      </fieldset>
+
+      <fieldset>
         <legend>Channel Mixer</legend>
         <table style="width: 80%;" id="handset_mixer">
         </table>

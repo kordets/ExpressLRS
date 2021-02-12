@@ -602,6 +602,96 @@ void HandsetConfigSave(uint8_t wsnum)
 
 #endif // CONFIG_HANDSET
 
+#ifdef BUZZER_PIN
+void beep(int note, int duration, int wait=1)
+{
+  tone(BUZZER_PIN, note, duration);
+  if (wait)
+    delay(duration);
+}
+#else
+#define beep(N, T, W)
+#endif
+
+#if CONFIG_HANDSET
+
+#define ADC_R1  100000U  //100k ohm
+#define ADC_R2  10000U   //10k ohm
+//#define ADC_VOLT(X) (((X) * ADC_R2) / (ADC_R1 + ADC_R2))
+#define ADC_SCALE (ADC_R1 / ADC_R2)
+
+#define ADC_REF_mV  (1075U * ADC_SCALE)
+#define ADC_MAX     1023U
+#define ADC_VOLT(X) (((uint32_t)(X) * ADC_REF_mV) / ADC_MAX)
+
+static uint32_t batt_voltage;
+static uint32_t batt_voltage_scale = 100;
+static uint32_t batt_voltage_interval = 5000;
+static uint32_t batt_voltage_warning = 75;
+static uint32_t batt_voltage_warning_limit = ((75 * 4200) / 100);
+
+static uint32_t last_batt_meas;
+
+void battery_voltage_report(int num = -1)
+{
+  String out = "ELRS_handset_battery=";
+  out += batt_voltage;
+  out += ",";
+  out += batt_voltage_scale;
+  out += ",";
+  out += batt_voltage_warning;
+
+  if (0 <= num)
+    webSocket.sendTXT(num, out);
+  else
+    webSocket.broadcastTXT(out);
+}
+
+void battery_voltage_parse(const char * input, int num = -1)
+{
+  const char * temp = strstr(input, ",");
+  uint32_t scale = char_u8_to_hex(input);
+  if (50 <= scale && scale <= 150) {
+    batt_voltage_scale = scale;
+  }
+  if (temp) {
+    scale = char_u8_to_hex(&temp[1]);
+    if (10 <= scale && scale <= 100) {
+      batt_voltage_warning = scale;
+      batt_voltage_warning_limit = ((scale * 4200) / 100);
+    }
+  }
+}
+
+void measure_batt_voltage(void)
+{
+  uint32_t ms = millis();
+  if (batt_voltage_interval <= (uint32_t)(ms - last_batt_meas)) {
+    int adc = analogRead(A0);
+    batt_voltage = ADC_VOLT(adc);
+    batt_voltage = (batt_voltage * batt_voltage_scale) / 100;
+
+    battery_voltage_report();
+
+    if (batt_voltage <= batt_voltage_warning_limit) {
+      // 400Hz, 100ms
+      beep(400, 100, 0);
+    }
+    last_batt_meas = ms;
+
+    /*
+    String temp = "Battery: ";
+    temp += adc;
+    temp += " >> ";
+    temp += batt_voltage;
+    webSocket.broadcastTXT(temp);
+    */
+  }
+}
+
+#else
+#define measure_batt_voltage()
+#endif
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
@@ -628,6 +718,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     SettingsGet(num);
 #if CONFIG_HANDSET
     HandsetConfigGet(num);
+    delay(5);
+    battery_voltage_report(num);
 #endif
   }
   break;
@@ -684,6 +776,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
           break;
         }
 
+        temp = strstr((char*)payload, "_battery_config=");
+        if (temp) {
+          battery_voltage_parse(&temp[16], num);
+          break;
+        }
       } else
 #endif // CONFIG_HANDSET
 
@@ -1137,6 +1234,11 @@ void setup()
   handset_adjust_ok = 0;
 #endif
 
+#ifdef BUZZER_PIN
+  pinMode(BUZZER_PIN, OUTPUT);
+  beep(440, 100);
+#endif
+
   //Serial.setRxBufferSize(256);
 #ifdef INVERTED_SERIAL
   // inverted serial
@@ -1332,4 +1434,6 @@ void loop()
   server.handleClient();
   webSocket.loop();
   mdns.update();
+
+  measure_batt_voltage();
 }
