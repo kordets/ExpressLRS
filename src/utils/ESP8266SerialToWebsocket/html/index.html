@@ -262,7 +262,7 @@
       <script type="text/javascript">
         const message = document.getElementById('validationMessage');
         document.getElementById('esp_fw').onchange = function (ev) {
-          const FIRMWARE_PATTERN = /backpack\.bin$/g;
+          const FIRMWARE_PATTERN = /backpack\.(bin|bin.gz)$/g;
           const uploadButton = document.getElementById('esp_submit');
           const value = ev.target.value;
           if (FIRMWARE_PATTERN.test(value)) {
