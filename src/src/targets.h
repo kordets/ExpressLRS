@@ -446,13 +446,14 @@ https://github.com/jaxxzer
 #define GIMBAL_R2       PC2 // G_L_2
 
 #define SWITCH_1_1  PB3     // S1_1
-//#define SWITCH_1_2  PB4     // S1_2
+#define SWITCH_1_2  PB4     // S1_2
 #define SWITCH_2_1  PB5     // S2_1
 //#define SWITCH_2_2  PB6     // S2_2
 #define SWITCH_3_1  PB14    // S3_1
 #define SWITCH_3_2  PB15    // S3_2
-#define SWITCH_4_1  PB12    // S4_1
-#define SWITCH_4_2  PB13    // S4_2
+//#define SWITCH_4_1  PB12    // S4_1
+//#define SWITCH_4_2  PB13    // S4_2
+#define SWITCH_4_1  PB13    // S4_2
 #define SWITCH_5_1  PC12    // S5_1
 #define SWITCH_5_2  PC11    // S5_2
 #define SWITCH_6_1  PB9     // S6_1
@@ -462,7 +463,7 @@ https://github.com/jaxxzer
 #define SWITCH_CH_1     SWITCH_3
 #define SWITCH_CH_2     SWITCH_1
 #define SWITCH_CH_3     SWITCH_2
-#define SWITCH_CH_4     SWITCH_6
+#define SWITCH_CH_4     SWITCH_4
 
 #endif
 

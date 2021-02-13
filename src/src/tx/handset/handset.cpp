@@ -12,7 +12,7 @@
 
 #define RC_CH_PRINT_INTERVAL    2000
 
-//#define DBG_PIN SWITCH_4_2
+//#define DBG_PIN SWITCH_6_2
 #ifdef DBG_PIN
 static struct gpio_out debug;
 #endif

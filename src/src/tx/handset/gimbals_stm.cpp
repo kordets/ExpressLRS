@@ -66,7 +66,7 @@
 #endif
 
 #if TIMx_ISR_EN
-#define DBG_PIN SWITCH_4_1
+#define DBG_PIN SWITCH_6_1
 #ifdef DBG_PIN
 static struct gpio_out debug_pin;
 #endif
