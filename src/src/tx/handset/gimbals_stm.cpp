@@ -438,12 +438,12 @@ gimbals_get(uint16_t * const out)
         curr = filters[iter].getCurrent();
         if (curr <= limit->mid)
             out[iter] = MAP_U16((uint16_t)curr, limit->low, limit->mid,
-                                CRSF_CHANNEL_IN_VALUE_MIN,
-                                CRSF_CHANNEL_IN_VALUE_MID);
+                                CRSF_CHANNEL_OUT_VALUE_MIN,
+                                CRSF_CHANNEL_OUT_VALUE_MID);
         else
-            out[iter] = MAP_U16((uint16_t)curr, limit->mid, limit->high,
-                                CRSF_CHANNEL_IN_VALUE_MID,
-                                CRSF_CHANNEL_IN_VALUE_MAX);
+            out[iter] = MAP_U16((uint16_t)curr, limit->mid+1, limit->high,
+                                CRSF_CHANNEL_OUT_VALUE_MID,
+                                CRSF_CHANNEL_OUT_VALUE_MAX);
     }
 }
 

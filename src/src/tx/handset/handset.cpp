@@ -40,15 +40,16 @@ rc_data_collect(uint32_t const current_us)
     for (iter = 0; iter < NUM_ANALOGS; iter++) {
         index = pl_config.mixer[iter].index;
         if (pl_config.mixer[iter].inv) {
-            gimbals[index] = CRSF_CHANNEL_IN_VALUE_MAX - gimbals[index];
+            gimbals[index] = CRSF_CHANNEL_OUT_VALUE_MIN +
+                (CRSF_CHANNEL_OUT_VALUE_MAX - gimbals[index]);
         }
         scale = pl_config.mixer[iter].scale;
         if (scale) {
-            scale = (((uint32_t)CRSF_CHANNEL_IN_VALUE_MAX * scale) / 100U);
+            scale = (((uint32_t)CRSF_CHANNEL_OUT_VALUE_MAX * scale) / 100U);
             gimbals[index] =
                 MAP_U16(gimbals[index],
-                CRSF_CHANNEL_IN_VALUE_MIN, CRSF_CHANNEL_IN_VALUE_MAX,
-                CRSF_CHANNEL_IN_VALUE_MIN, scale);
+                CRSF_CHANNEL_OUT_VALUE_MIN, CRSF_CHANNEL_OUT_VALUE_MAX,
+                CRSF_CHANNEL_OUT_VALUE_MIN, scale);
         }
     }
     rc_data.ch0 = gimbals[pl_config.mixer[0].index];
@@ -59,7 +60,7 @@ rc_data_collect(uint32_t const current_us)
     for (iter = 0; iter < NUM_SWITCHES; iter++) {
         if (pl_config.mixer[(iter + 4)].inv) {
             index = pl_config.mixer[(iter + 4)].index;
-            aux[index] = CRSF_CHANNEL_IN_VALUE_MAX - aux[index];
+            aux[index] = CRSF_CHANNEL_OUT_VALUE_MAX - aux[index];
         }
     }
     rc_data.ch4 = aux[pl_config.mixer[4].index];
