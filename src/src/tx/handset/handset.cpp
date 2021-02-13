@@ -123,10 +123,10 @@ void send_configs_gimbals(void)
 
 void send_configs(void)
 {
+    delay(10);
     send_config_mixer();
     delay(10);
     send_configs_gimbals();
-    delay(10);
 }
 
 void save_configs(void)
@@ -207,12 +207,10 @@ void setup()
         delay(100);
     }
 #endif
-
+    /* Initialize common TX procedures */
+    tx_common_init();
     /* Send config data to controller */
     send_configs();
-
-    tx_common_init();
-
     /* Start TX */
     hw_timer_init();
 }
