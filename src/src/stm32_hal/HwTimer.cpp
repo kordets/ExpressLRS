@@ -101,9 +101,9 @@ void HwTimer::init()
 
 void HwTimer::start()
 {
-    timer_set(HWtimerInterval);
-    timer_enable();
     running = 1;
+    reset(0);
+    timer_enable();
 }
 
 void HwTimer::stop()
