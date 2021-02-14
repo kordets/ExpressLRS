@@ -448,7 +448,9 @@ int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out,
             if (inlen != 2)
                 return -1;
             value = common_config_get_radio_type(value);
-            modified |= (SetRadioType(value) << 1);
+            if (SetRadioType(value)) {
+                modified |= (SetRFLinkRate(current_rate_config) << 1);
+            }
             break;
 
         case 5:
