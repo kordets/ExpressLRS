@@ -15,6 +15,14 @@
 #include "msp.h"
 #include "common_defs.h"
 
+#ifdef WS2812_PIN
+#include <Adafruit_NeoPixel.h>
+#define PIXEL_FORMAT    (NEO_GRB + NEO_KHZ800)
+
+static Adafruit_NeoPixel led_rgb;
+static uint32_t led_rgb_state;
+#endif
+
 #ifdef ESP_NOW
 #ifndef ESP_NOW_PEERS
 #undef ESP_NOW
@@ -89,6 +97,45 @@ struct mixer mixer[TX_NUM_MIXER];
 static uint8_t handset_num_switches, handset_num_aux;
 static uint8_t handset_mixer_ok = 0, handset_adjust_ok = 0;
 #endif
+
+/*************************************************************************/
+enum led_state_e {
+  LED_OFF       = 0x000000,
+  LED_INIT      = 0xffffff,
+  LED_WIFI_OK   = 0x00ff00,
+
+  LED_FREQ_900  = 0xfc00b5,
+  LED_FREQ_2400 = 0x1d00fc,
+
+  LED_WARNING   = 0xffff00,
+  LED_ERROR     = 0xff0000,
+};
+
+void led_init(void)
+{
+#ifdef WS2812_PIN
+  led_rgb.setPin(WS2812_PIN);
+  led_rgb.updateType(PIXEL_FORMAT);
+  led_rgb.begin();
+  led_rgb.updateLength(1);
+  led_rgb.setBrightness(255);
+  led_rgb.fill();
+  led_rgb.show();
+#endif
+}
+
+void led_set(uint32_t state)
+{
+#ifdef WS2812_PIN
+  uint32_t led_rgb_color = (state == LED_OFF) ? 0 : led_rgb.Color(
+    (uint8_t)(state >> 16), (uint8_t)(state >> 8), (uint8_t)state);
+  led_rgb.fill(led_rgb_color);
+  led_rgb.show();
+  led_rgb_state = state;
+#endif
+}
+
+/*************************************************************************/
 
 static const char PROGMEM GO_BACK[] = R"rawliteral(
 <!DOCTYPE html><html><head></head>
@@ -624,13 +671,25 @@ void beep(int note, int duration, int wait=1)
 #define ADC_MAX     1023U
 #define ADC_VOLT(X) (((uint32_t)(X) * ADC_REF_mV) / ADC_MAX)
 
+#define BATT_WARN_DEFAULT 79  // = ~3.3V / cell
+#define BATT_DEAD_DEFAULT 71  // = ~3V / cell
+#define BATT_NOMINAL_mV   8400
+
 static uint32_t batt_voltage;
 static uint32_t batt_voltage_scale = 100;
 static uint32_t batt_voltage_interval = 5000;
-static uint32_t batt_voltage_warning = 75;
-static uint32_t batt_voltage_warning_limit = ((75 * 4200) / 100);
+static uint32_t batt_voltage_warning = BATT_WARN_DEFAULT;
+static uint32_t batt_voltage_warning_limit =
+  ((BATT_WARN_DEFAULT * BATT_NOMINAL_mV) / 100);
+static uint32_t batt_voltage_dead_limit =
+  ((BATT_DEAD_DEFAULT * BATT_NOMINAL_mV) / 100);
 
-static uint32_t last_batt_meas;
+static uint32_t batt_voltage_meas_last_ms;
+static uint32_t batt_voltage_warning_last_ms;
+static uint32_t batt_voltage_warning_timeout = 5000;
+#ifdef WS2812_PIN
+static uint8_t batt_voltage_last_bright;
+#endif
 
 void battery_voltage_report(int num = -1)
 {
@@ -658,39 +717,67 @@ void battery_voltage_parse(const char * input, int num = -1)
     scale = char_u8_to_hex(&temp[1]);
     if (10 <= scale && scale <= 100) {
       batt_voltage_warning = scale;
-      batt_voltage_warning_limit = ((scale * 4200) / 100);
+      batt_voltage_warning_limit = ((scale * BATT_NOMINAL_mV) / 100);
     }
   }
 }
 
-void measure_batt_voltage(void)
+void batt_voltage_measure(void)
 {
   uint32_t ms = millis();
-  if (batt_voltage_interval <= (uint32_t)(ms - last_batt_meas)) {
+  if (batt_voltage_interval <= (uint32_t)(ms - batt_voltage_meas_last_ms)) {
     int adc = analogRead(A0);
     batt_voltage = ADC_VOLT(adc);
     batt_voltage = (batt_voltage * batt_voltage_scale) / 100;
 
     battery_voltage_report();
 
-    if (batt_voltage <= batt_voltage_warning_limit) {
-      // 400Hz, 100ms
-      beep(400, 100, 0);
+    uint32_t brightness = (batt_voltage * 255) / BATT_NOMINAL_mV;
+    if (255 < brightness) {
+      batt_voltage_warning_timeout = 5000;
+      brightness = 255;
+    } else if (batt_voltage <= batt_voltage_dead_limit) {
+      batt_voltage_warning_timeout = 500;
+      brightness = 0;
+    } else if (batt_voltage <= batt_voltage_warning_limit) {
+      batt_voltage_warning_timeout = 500 +
+        5 * (int32_t)(batt_voltage - batt_voltage_warning_limit);
+      if ((int32_t)batt_voltage_warning_timeout < 500) {
+        batt_voltage_warning_timeout = 500;
+      }
     }
-    last_batt_meas = ms;
 
-    /*
-    String temp = "Battery: ";
-    temp += adc;
-    temp += " >> ";
-    temp += batt_voltage;
-    webSocket.broadcastTXT(temp);
-    */
+#ifdef WS2812_PIN
+    led_rgb.setBrightness(brightness);
+#else
+    (void)brightness;
+#endif
+
+    batt_voltage_meas_last_ms = ms;
+  }
+
+  if ((batt_voltage <= batt_voltage_warning_limit) &&
+      (batt_voltage_warning_timeout <= (ms - batt_voltage_warning_last_ms))) {
+#ifdef WS2812_PIN
+    if (!batt_voltage_last_bright) {
+      batt_voltage_last_bright = led_rgb.getBrightness();
+      led_rgb.setBrightness(0);
+      led_rgb.show();
+    } else {
+      led_rgb.setBrightness(batt_voltage_last_bright);
+      led_set(led_rgb_state);
+      batt_voltage_last_bright = 0;
+    }
+#endif
+    // 400Hz, 50ms
+    beep(400, 50, 0);
+
+    batt_voltage_warning_last_ms = ms;
   }
 }
 
 #else
-#define measure_batt_voltage()
+#define batt_voltage_measure()
 #endif
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
@@ -1234,6 +1321,9 @@ void setup()
   handset_adjust_ok = 0;
 #endif
 
+  led_init();
+  led_set(LED_INIT);
+
 #ifdef BUZZER_PIN
   pinMode(BUZZER_PIN, OUTPUT);
   beep(440, 100);
@@ -1262,13 +1352,17 @@ void setup()
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PSK, WIFI_CHANNEL);
   }
-  uint32_t i = 0;
+  uint32_t i = 0, led = 0;
 #define TIMEOUT (WIFI_TIMEOUT * 10)
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(100);
     if (++i > TIMEOUT) {
       break;
+    }
+    if ((i % 10) == 0) {
+      led_set(led ? LED_INIT : LED_OFF);
+      led ^= 1;
     }
   }
   sta_up = (WiFi.status() == WL_CONNECTED);
@@ -1288,6 +1382,8 @@ void setup()
     WiFi.mode(WIFI_AP);
     WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
   }
+
+  led_set(LED_WIFI_OK);
 
 #if ESP_NOW
   init_esp_now();
@@ -1366,6 +1462,13 @@ int serialEvent()
             settings_region = payload[4];
             settings_valid = 1;
 
+            if (settings_region != 255) {
+              if (3 <= settings_region)
+                led_set(LED_FREQ_2400);
+              else
+                led_set(LED_FREQ_900);
+            }
+
             handleSettingDomain(NULL);
             handleSettingRate(NULL);
             handleSettingPower(NULL);
@@ -1435,5 +1538,5 @@ void loop()
   webSocket.loop();
   mdns.update();
 
-  measure_batt_voltage();
+  batt_voltage_measure();
 }
