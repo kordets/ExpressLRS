@@ -15,7 +15,7 @@ PowerArray_t power_array[MODULE_COUNT] = {
     // MODULE_LORA1280F27 ( these are not reliable! don't use this module )
     {  PWR_500mW,  -7,   -3,    0,     3,     8,    13,     13,     13},
     // MODULE_E28_2G4M12S
-    {  PWR_500mW, -17,  -13,  -10,    -7,    -3,     0,      0,      0},
+    {  PWR_100mW/*PWR_500mW*/, -17,  -13,  -10,    -7,    -3,     0,      0,      0},
     // MODULE_LORA1276F30. 0 = 40mW, 15 = 300mW
     {  PWR_250mW,   0,    0,    1,     4,    11,    15,     15,     15},
 };
