@@ -45,6 +45,10 @@ SX1280Driver::SX1280Driver(uint8_t payload_len):
 
 int8_t SX1280Driver::Begin(int sck, int miso, int mosi)
 {
+    current_freq = 0; //2400000000;
+    current_power = -100;
+    currOpmode = SX1280_MODE_UNKNOWN_MAX;
+
     TxRxDisable();
     // initialize low-level drivers
     RadioHalSpi::Begin(SX128X_SPI_SPEED, sck, miso, mosi);

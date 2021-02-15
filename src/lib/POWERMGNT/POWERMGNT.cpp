@@ -24,7 +24,7 @@ POWERMGNT::POWERMGNT()
 {
     p_radio = NULL;
     p_dac = NULL;
-    p_current_power = (PWR_UNKNOWN);
+    p_current_power = PWR_UNKNOWN;
     p_max_power = PWR_10mW;
     p_dyn_power = 0;
 }
@@ -34,6 +34,7 @@ void POWERMGNT::Begin(RadioInterface *radio, R9DAC *dac)
     p_dac = dac;
     p_radio = radio;
     p_max_power = PWR_10mW;
+    p_current_power = PWR_UNKNOWN;
     if (radio) {
         uint8_t type = radio->GetModuleType();
         if (type < MODULE_COUNT) {

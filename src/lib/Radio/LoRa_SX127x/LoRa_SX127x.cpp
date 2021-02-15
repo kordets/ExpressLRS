@@ -131,6 +131,10 @@ SX127xDriver::SX127xDriver(uint8_t payload_len):
 
 int8_t SX127xDriver::Begin(int sck, int miso, int mosi)
 {
+    p_bw_hz = 0;
+    current_freq = 0;
+    current_power = 0xF; // outside range to make sure the power is initialized
+
     TxRxDisable();
 
     Reset();
