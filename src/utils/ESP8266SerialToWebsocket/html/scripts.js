@@ -31,9 +31,10 @@ function start() {
     handset_mix_reset(test);
     //test = "900:2196:3536;194:2023:3796;183:1860:3628;490:2094:3738;"
     //handle_calibrate_adjust(test);
-    test = "6609,95,50";
-    handset_battery_value(test);
-
+    //test = "0,100,100";
+    //handset_battery_value(test);
+    //test = "ULQ:-1,S1:-3,S2:-2,NS:45,PWR:1,MO:7,DLQ:1,RS:2,SN:3";
+    //telmetry_set("tlm_uldl", test);
     $id("logField").scrollTop = $id("logField").scrollHeight;
     websock = new WebSocket('ws://' + window.location.hostname + ':81/');
     websock.onopen = function (evt) { console.log('websock open'); };
@@ -446,16 +447,28 @@ function handset_battery_adjust()
 
 function telmetry_set(type, value)
 {
+    var date = new Date();
+    var now = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toLocaleTimeString();
+    if (type.includes("_uldl")) {
+        $id("tlm_ul_updated").innerHTML = now;
+        $id("tlm_dl_updated").innerHTML = now;
+    } else if (type.includes("_batt")) {
+        $id("tlm_batt_updated").innerHTML = now;
+    } else if (type.includes("_gps")) {
+        $id("tlm_gps_updated").innerHTML = now;
+    }
+
     /* Find correct collection */
-    var table = $id(type);
+    //var table = $id(type);
     value = value.split(",");
     for (var item in value) {
         var data = value[item].split(":");
         /* Search row */
-        var row = table.rows.namedItem(data[0]);
+        //var row = table.rows.namedItem(data[0]);
+        var row = $id(data[0]);
         if (row) {
             /* update value */
-            row.cell[1].innerHTML = data[1];
+            row.cells[1].innerHTML = data[1];
         }
     }
 }

@@ -17,11 +17,16 @@
 static struct gpio_out debug;
 #endif
 
-static uint32_t DRAM_ATTR TlmSentToRadioTime;
 static rc_channels_t DRAM_ATTR rc_data;
 #if RC_CH_PRINT_INTERVAL
 static uint32_t last_rc_info;
 #endif
+
+///////////////////////////////////////
+
+void LinkStatisticsSend(void);
+void BatterySensorSend(void);
+void GpsSensorSend(void);
 
 ///////////////////////////////////////
 
@@ -218,18 +223,27 @@ void setup()
 
 void loop()
 {
+    uint8_t _tlm_updated = read_u8(&tlm_updated);
+
     tx_common_handle_rx_buffer();
 
-    if (0 <= tx_common_has_telemetry()) {
-        uint32_t current_ms = millis();
-        if (0 <= tx_common_check_connection() &&
-            connectionState == STATE_connected &&
-            TLM_REPORT_INTERVAL <= (uint32_t)(current_ms - TlmSentToRadioTime)) {
-            TlmSentToRadioTime = current_ms;
-            tx_common_update_link_stats();
+    if (0 <= tx_common_has_telemetry() && _tlm_updated) {
+        (void)tx_common_check_connection();
 
-            // TODO: Send TLM data to CTRL_SERIAL (MSP)
+        if (_tlm_updated & TLM_UPDATES_LNK_STATS) {
+            _tlm_updated &= ~TLM_UPDATES_LNK_STATS;
+            tx_common_update_link_stats();
+            LinkStatisticsSend();
         }
+        if (_tlm_updated & TLM_UPDATES_BATTERY) {
+            _tlm_updated &= ~TLM_UPDATES_BATTERY;
+            BatterySensorSend();
+        }
+        if (_tlm_updated & TLM_UPDATES_GPS) {
+            _tlm_updated &= ~TLM_UPDATES_GPS;
+            GpsSensorSend();
+        }
+        write_u8(&tlm_updated, _tlm_updated);
     }
 
 #if RC_CH_PRINT_INTERVAL
@@ -335,4 +349,32 @@ int8_t tx_handle_msp_input(mspPacket_t &packet)
         }
     }
     return ret;
+}
+
+/***********************/
+
+void LinkStatisticsSend(void)
+{
+    MSP::sendPacket(
+        &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_HANDSET_TLM_LINK_STATS,
+        MSP_ELRS_INT, sizeof(LinkStatistics.link),
+        (uint8_t*)&LinkStatistics.link);
+}
+
+void BatterySensorSend(void)
+{
+    MSP::sendPacket(
+        &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_HANDSET_TLM_BATTERY,
+        MSP_ELRS_INT, sizeof(LinkStatistics.batt),
+        (uint8_t*)&LinkStatistics.batt);
+}
+
+void GpsSensorSend(void)
+{
+    if (!GpsTlm.pkt_cnt)
+        return;
+    MSP::sendPacket(
+        &ctrl_serial, MSP_PACKET_V1_ELRS, ELRS_HANDSET_TLM_GPS,
+        MSP_ELRS_INT, sizeof(GpsTlm), (uint8_t*)&GpsTlm);
+    GpsTlm.pkt_cnt = 0;
 }

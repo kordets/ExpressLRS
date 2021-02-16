@@ -57,6 +57,7 @@ uint8_t DRAM_ATTR tlm_msp_send, tlm_msp_rcvd;
 
 LinkStats_t DRAM_ATTR LinkStatistics;
 GpsOta_t DRAM_ATTR GpsTlm;
+uint32_t tlm_updated;
 
 
 static uint8_t SetRadioType(uint8_t type);
@@ -91,6 +92,8 @@ void tx_common_init_globals(void) {
 
     msp_packet_tx.reset();
     msp_packet_rx.reset();
+
+    tlm_updated = TLM_UPDATES_NA;
 
     //debug_pin_tx = gpio_out_setup(PC12, 0);
 }
@@ -266,6 +269,7 @@ void process_rx_buffer(void)
             RcChannels_link_stas_extract((uint8_t*)rx_buffer, LinkStatistics,
                                          Radio->LastPacketSNR,
                                          Radio->LastPacketRSSI);
+            tlm_updated |= TLM_UPDATES_LNK_STATS | TLM_UPDATES_BATTERY;
 
             // Check RSSI and update TX power if needed
             int8_t rssi = LPF_dyn_tx_power.update((int8_t)LinkStatistics.link.uplink_RSSI_1);
@@ -282,6 +286,7 @@ void process_rx_buffer(void)
         case DL_PACKET_GPS:
         {
             RcChannels_gps_extract((uint8_t*)rx_buffer, GpsTlm);
+            tlm_updated |= TLM_UPDATES_GPS;
             break;
         }
         case DL_PACKET_FREE1:

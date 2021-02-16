@@ -14,6 +14,7 @@
 #include "stk500.h"
 #include "msp.h"
 #include "common_defs.h"
+#include "rc_channels.h"
 
 #ifdef WS2812_PIN
 #include <Adafruit_NeoPixel.h>
@@ -647,6 +648,47 @@ void HandsetConfigSave(uint8_t wsnum)
   MSP::sendPacket(&msp_out, &my_ctrl_serial);
 }
 
+void handleHandsetTlmLnkStats(uint8_t * data)
+{
+  String out = "ELRS_tlm_uldl=";
+  LinkStatsLink_t * stats = (LinkStatsLink_t*)data;
+  // Uplink
+  out += "ULQ:"; out += stats->uplink_Link_quality;
+  out += ",S1:"; out += stats->uplink_RSSI_1;
+  out += ",S2:"; out += stats->uplink_RSSI_2;
+  out += ",NS:"; out += stats->uplink_SNR;
+  out += ",PWR:"; out += stats->uplink_TX_Power;
+  out += ",MO:"; out += stats->rf_Mode;
+  // Downlink
+  out += ",DLQ:"; out += stats->downlink_Link_quality;
+  out += ",RS:"; out += stats->downlink_RSSI;
+  out += ",SN:"; out += stats->downlink_SNR;
+  webSocket.broadcastTXT(out);
+}
+
+void handleHandsetTlmBattery(uint8_t * data)
+{
+  String out = "ELRS_tlm_batt=";
+  LinkStatsBatt_t * stats = (LinkStatsBatt_t*)data;
+  out += "V:"; out += stats->voltage;
+  out += ",A:"; out += stats->current;
+  out += ",C:"; out += stats->capacity;
+  out += ",R:"; out += stats->remaining;
+  webSocket.broadcastTXT(out);
+}
+
+void handleHandsetTlmGps(uint8_t * data)
+{
+  String out = "ELRS_tlm_gps=";
+  GpsOta_t * stats = (GpsOta_t*)data;
+  out += "lat:"; out += stats->latitude;
+  out += ",lon:"; out += stats->longitude;
+  out += ",spe:"; out += stats->speed;
+  out += ",hea:"; out += stats->heading;
+  out += ",alt:"; out += stats->altitude;
+  out += ",sat:"; out += stats->satellites;
+  webSocket.broadcastTXT(out);
+}
 #endif // CONFIG_HANDSET
 
 #ifdef BUZZER_PIN
@@ -1491,6 +1533,21 @@ int serialEvent()
             info += "ADJUST config";
             handleHandsetAdjustResp(payload);
             handset_adjust_ok = 1;
+            break;
+          }
+          case ELRS_HANDSET_TLM_LINK_STATS: {
+            info += "LNK STAT telemetry";
+            handleHandsetTlmLnkStats(payload);
+            break;
+          }
+          case ELRS_HANDSET_TLM_BATTERY: {
+            info += "BATTERY telemetry";
+            handleHandsetTlmBattery(payload);
+            break;
+          }
+          case ELRS_HANDSET_TLM_GPS: {
+            info += "GPS telemetry";
+            handleHandsetTlmGps(payload);
             break;
           }
 #endif /* CONFIG_HANDSET */

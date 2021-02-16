@@ -11,6 +11,12 @@
 #define TLM_REPORT_INTERVAL               300u
 #endif
 
+enum {
+    TLM_UPDATES_NA = 0,
+    TLM_UPDATES_LNK_STATS = 1 << 0,
+    TLM_UPDATES_BATTERY = 1 << 1,
+    TLM_UPDATES_GPS = 1 << 2,
+};
 
 //////////// TELEMETRY /////////
 extern mspPacket_t msp_packet_tx;
@@ -19,6 +25,7 @@ extern uint8_t tlm_msp_send, tlm_msp_rcvd;
 
 extern LinkStats_t LinkStatistics;
 extern GpsOta_t GpsTlm;
+extern uint32_t tlm_updated;
 
 
 void tx_common_init_globals(void);
