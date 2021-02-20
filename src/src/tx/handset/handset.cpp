@@ -224,6 +224,7 @@ void setup()
 void loop()
 {
     uint8_t _tlm_updated = read_u8(&tlm_updated);
+    write_u8(&tlm_updated, 0);
 
     tx_common_handle_rx_buffer();
 
@@ -231,19 +232,18 @@ void loop()
         (void)tx_common_check_connection();
 
         if (_tlm_updated & TLM_UPDATES_LNK_STATS) {
-            _tlm_updated &= ~TLM_UPDATES_LNK_STATS;
             tx_common_update_link_stats();
             LinkStatisticsSend();
+            delay(2);
         }
         if (_tlm_updated & TLM_UPDATES_BATTERY) {
-            _tlm_updated &= ~TLM_UPDATES_BATTERY;
             BatterySensorSend();
+            delay(2);
         }
         if (_tlm_updated & TLM_UPDATES_GPS) {
-            _tlm_updated &= ~TLM_UPDATES_GPS;
             GpsSensorSend();
+            delay(2);
         }
-        write_u8(&tlm_updated, _tlm_updated);
     }
 
 #if RC_CH_PRINT_INTERVAL

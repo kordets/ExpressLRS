@@ -654,15 +654,15 @@ void handleHandsetTlmLnkStats(uint8_t * data)
   LinkStatsLink_t * stats = (LinkStatsLink_t*)data;
   // Uplink
   out += "ULQ:"; out += stats->uplink_Link_quality;
-  out += ",S1:"; out += stats->uplink_RSSI_1;
-  out += ",S2:"; out += stats->uplink_RSSI_2;
-  out += ",NS:"; out += stats->uplink_SNR;
-  out += ",PWR:"; out += stats->uplink_TX_Power;
-  out += ",MO:"; out += stats->rf_Mode;
+  out += ",UR1:"; out += (int8_t)stats->uplink_RSSI_1;
+  out += ",UR2:"; out += (int8_t)stats->uplink_RSSI_2;
+  out += ",USN:"; out += (int8_t)stats->uplink_SNR;
+  //out += ",PWR:"; out += stats->uplink_TX_Power;
+  //out += ",MO:"; out += stats->rf_Mode;
   // Downlink
   out += ",DLQ:"; out += stats->downlink_Link_quality;
-  out += ",RS:"; out += stats->downlink_RSSI;
-  out += ",SN:"; out += stats->downlink_SNR;
+  out += ",DR1:"; out += (int8_t)(stats->downlink_RSSI - 120);
+  out += ",DSN:"; out += (int8_t)stats->downlink_SNR;
   webSocket.broadcastTXT(out);
 }
 
@@ -684,8 +684,8 @@ void handleHandsetTlmGps(uint8_t * data)
   out += "lat:"; out += stats->latitude;
   out += ",lon:"; out += stats->longitude;
   out += ",spe:"; out += stats->speed;
-  out += ",hea:"; out += stats->heading;
-  out += ",alt:"; out += stats->altitude;
+  out += ",hea:"; out += stats->heading / 10; // convert to degrees
+  out += ",alt:"; out += (int)(stats->altitude - 1000); // 1000m offset
   out += ",sat:"; out += stats->satellites;
   webSocket.broadcastTXT(out);
 }

@@ -39,9 +39,9 @@
         <a href="javascript:void(0)" class="tablinks active"
             onclick="change_tab(event, 'control_main')">Log</a>
         <a href="javascript:void(0)" class="tablinks"
-            onclick="change_tab(event, 'control_settings')">Settings</a>
+            onclick="change_tab(event, 'control_settings')">Radio</a>
         <a href="javascript:void(0)" class="tablinks"
-            onclick="change_tab(event, 'control_flash')">Update</a>
+            onclick="change_tab(event, 'control_flash')">Firmware</a>
         <a href="javascript:void(0)" class="tablinks" name="handset"
             onclick="change_tab(event, 'control_handset')">Handset</a>
         <a href="javascript:void(0)" class="tablinks" name="handset"
@@ -415,11 +415,13 @@
         <legend>Radiolink, Uplink</legend>
         <table class="telem" id="tlm_ul">
           <tr id="ULQ"><td>LQ</td><td>N/A</td></tr>
-          <tr id="S1"><td>RSSI 1</td><td>N/A</td></tr>
-          <tr id="S2"><td>RSSI 2</td><td>N/A</td></tr>
-          <tr id="NS"><td>SNR</td><td>N/A</td></tr>
+          <tr id="UR1"><td>RSSI 1</td><td>N/A</td></tr>
+          <tr id="UR2"><td>RSSI 2</td><td>N/A</td></tr>
+          <tr id="USN"><td>SNR</td><td>N/A</td></tr>
+          <!--
           <tr id="PWR"><td>TX Power</td><td>N/A</td></tr>
           <tr id="MO"><td>Mode</td><td>N/A</td></tr>
+          -->
           <tr style="text-align: right;"><td id="tlm_ul_updated" colspan="2"></td</tr>
         </table>
       </fieldset>
@@ -428,8 +430,8 @@
         <legend>Radiolink, Downlink</legend>
         <table class="telem" id="tlm_dl">
           <tr id="DLQ"><td>LQ</td><td>N/A</td></tr>
-          <tr id="RS"><td>RSSI</td><td>N/A</td></tr>
-          <tr id="SN"><td>SNR</td><td>N/A</td></tr>
+          <tr id="DR1"><td>RSSI</td><td>N/A</td></tr>
+          <tr id="DSN"><td>SNR</td><td>N/A</td></tr>
           <tr style="text-align: right;"><td id="tlm_dl_updated" colspan="2"></td</tr>
         </table>
       </fieldset>
@@ -450,7 +452,7 @@
         <table class="telem" id="tlm_gps">
           <tr id="lat"><td>latitude</td><td>N/A</td></tr>
           <tr id="lon"><td>longitude</td><td>N/A</td></tr>
-          <tr id="spe"><td>speed</td><td>N/A</td></tr>
+          <tr id="spe"><td>ground speed</td><td>N/A</td></tr>
           <tr id="hea"><td>heading</td><td>N/A</td></tr>
           <tr id="alt"><td>altitude</td><td>N/A</td></tr>
           <tr id="sat"><td>satellites</td><td>N/A</td></tr>

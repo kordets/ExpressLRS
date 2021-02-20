@@ -416,9 +416,12 @@ RcChannels_link_stas_pack(uint8_t *const output,
 void ICACHE_RAM_ATTR
 RcChannels_link_stas_extract(uint8_t const *const input,
                              LinkStats_t &output,
-                             int8_t snr, uint8_t rssi)
+                             int8_t snr, int16_t rssi)
 {
     // NOTE: input is only 5 bytes + 6bits (MSB)!!
+    if (rssi < INT8_MIN) rssi = INT8_MIN;
+    if (12 < snr) snr = 12;
+    else if (snr < -12) snr = 12;
 
     output.link.downlink_SNR = snr * 10;
     output.link.downlink_RSSI = 120 + rssi;

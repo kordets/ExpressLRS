@@ -33,8 +33,13 @@ function start() {
     //handle_calibrate_adjust(test);
     //test = "0,100,100";
     //handset_battery_value(test);
-    //test = "ULQ:-1,S1:-3,S2:-2,NS:45,PWR:1,MO:7,DLQ:1,RS:2,SN:3";
-    //telmetry_set("tlm_uldl", test);
+    test = "ULQ:-1,UR1:-3,UR2:-2,USN:45,PWR:1,MO:7,DLQ:1,DR1:2,DSN:3";
+    telmetry_set("tlm_uldl", test);
+    test = "V:168,A:105,C:1200,R:70";
+    telmetry_set("tlm_batt", test);
+    test = "lon:1239248,lat:39879284,spe:23543,hea:234,alt:234,sat:10";
+    telmetry_set("tlm_gps", test);
+
     $id("logField").scrollTop = $id("logField").scrollHeight;
     websock = new WebSocket('ws://' + window.location.hostname + ':81/');
     websock.onopen = function (evt) { console.log('websock open'); };
@@ -444,9 +449,31 @@ function handset_battery_adjust()
 }
 
 /********************* TELEMETRY *****************************/
+var gps_mode = "kmh";
+function convert_gps_speed(speed)
+{
+    speed = parseInt(speed, 10);
+    if (gps_mode == "kmh") {
+        speed = ((speed) * 36 / 1000);
+        speed = speed.toString() + " km/h";
+    } else {
+        speed = ((speed) * 10000 / 5080 / 88);
+        speed = speed.toString() + " mp/h";
+    }
+    return speed;
+}
+
+function convert_gps_value(val)
+{
+    val = parseInt(val, 10);
+    var GPS_DEGREES_DIVIDER = 10000000;
+    var result = (val / GPS_DEGREES_DIVIDER).toString();
+    return result;
+}
 
 function telmetry_set(type, value)
 {
+    var name, updated_value, temp;
     var date = new Date();
     var now = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toLocaleTimeString();
     if (type.includes("_uldl")) {
@@ -465,10 +492,45 @@ function telmetry_set(type, value)
         var data = value[item].split(":");
         /* Search row */
         //var row = table.rows.namedItem(data[0]);
+        name = data[0];
+        updated_value = data[1];
+        if (type.includes("_uldl")) {
+            if (name.includes("R")) {
+                updated_value += " dBm";
+            } else if (name.includes("SN")) {
+                temp = parseFloat(updated_value) / 10;
+                updated_value = temp.toString() + " dB";
+            }
+        } else if (type.includes("_batt")) {
+            if (name == "V") {
+                temp = parseFloat(updated_value) / 10;
+                updated_value = temp.toString() + " V";
+            } else if (name == "A") {
+                temp = parseFloat(updated_value) / 10;
+                updated_value = temp.toString() + " A";
+            } else if (name == "C") {
+                temp = parseInt(updated_value);
+                updated_value = temp.toString() + " mAh";
+            } else if (name == "R") {
+                updated_value += " %";
+            }
+        } else if (type.includes("_gps")) {
+            if (name == "spe")
+                updated_value = convert_gps_speed(updated_value);
+            else if (name == "lat")
+                updated_value = convert_gps_value(updated_value);
+            else if (name == "lon")
+                updated_value = convert_gps_value(updated_value);
+            else if (name == "hea")
+                updated_value += " deg";
+            else if (name == "alt")
+                updated_value += " m";
+        }
+
         var row = $id(data[0]);
         if (row) {
             /* update value */
-            row.cells[1].innerHTML = data[1];
+            row.cells[1].innerHTML = updated_value;
         }
     }
 }

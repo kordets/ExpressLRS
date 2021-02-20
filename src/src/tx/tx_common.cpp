@@ -269,7 +269,7 @@ void process_rx_buffer(void)
             RcChannels_link_stas_extract((uint8_t*)rx_buffer, LinkStatistics,
                                          Radio->LastPacketSNR,
                                          Radio->LastPacketRSSI);
-            tlm_updated |= TLM_UPDATES_LNK_STATS | TLM_UPDATES_BATTERY;
+            tlm_updated |= (TLM_UPDATES_LNK_STATS | TLM_UPDATES_BATTERY);
 
             // Check RSSI and update TX power if needed
             int8_t rssi = LPF_dyn_tx_power.update((int8_t)LinkStatistics.link.uplink_RSSI_1);
