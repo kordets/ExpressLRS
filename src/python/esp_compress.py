@@ -6,29 +6,32 @@ import os, glob
 # Code is copied from:
 # https://gist.github.com/andrewwalters/d4e3539319e55fc980db1ba67254d7ed
 #
-def binary_compress(source_file, source_file_bak, gz=False):
+def binary_compress(target_file, source_file):
     """ Compress ESP8266 firmware using gzip for 'compressed OTA upload' """
     do_compress = True
-    if os.path.exists(source_file) and os.path.exists(source_file_bak):
-        src_mtime = os.stat(source_file).st_mtime
+    source_file_bak = source_file
+    if target_file == source_file:
+        source_file_bak = source_file + ".bak"
+
+    if os.path.exists(target_file) and os.path.exists(source_file_bak):
+        src_mtime = os.stat(target_file).st_mtime
         bak_mtime = os.stat(source_file_bak).st_mtime
-        """ Recompress if .bin file is newer than .bak file """
+        """ Recompress if source file is newer than target file """
         do_compress = (src_mtime > bak_mtime)
 
     if do_compress:
         print("Compressing firmware for upload...")
-        shutil.move(source_file, source_file_bak)
+        if source_file != source_file_bak:
+            shutil.move(source_file, source_file_bak)
         with open(source_file_bak, 'rb') as f_in:
-            if gz:
-                source_file = source_file + ".gz"
-            with gzip.open(source_file, 'wb') as f_out:
+            with gzip.open(target_file, 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
         """ Set modification time on compressed file so incremental build works """
-        shutil.copystat(source_file_bak, source_file)
+        shutil.copystat(source_file_bak, target_file)
 
     if os.path.exists(source_file_bak):
         size_orig = os.stat(source_file_bak).st_size
-        size_gz = os.stat(source_file).st_size
+        size_gz = os.stat(target_file).st_size
 
         print("Compression reduced firmware size to {:.0f}% (was {} bytes, now {} bytes)".format(
               (size_gz / size_orig) * 100, size_orig, size_gz))
@@ -39,9 +42,8 @@ def compressFirmware(source, target, env):
     build_dir = env.subst("$BUILD_DIR")
     image_name = env.subst("$PROGNAME")
     source_file = os.path.join(build_dir, image_name + ".bin")
-    source_file_bak = source_file + '.bak'
-    #source_file_bak = os.path.join(build_dir, image_name + '_orig.bin')
-    binary_compress(source_file, source_file_bak)
+    target_file = source_file
+    binary_compress(target_file, source_file)
 
 
 def compress_files(source, target, env):
@@ -99,6 +101,5 @@ def compress_fs_bin(source, target, env):
     build_dir = env.subst("$BUILD_DIR")
     image_name = env.get('ESP8266_FS_IMAGE_NAME')
     src_file = os.path.join(build_dir, image_name + ".bin")
-    #src_file_bak = src_file + '.bak'
-    src_file_bak = os.path.join(build_dir, image_name + '_orig.bin')
-    binary_compress(src_file, src_file_bak, gz=True)
+    target_file = src_file + ".gz"
+    binary_compress(target_file, src_file)
