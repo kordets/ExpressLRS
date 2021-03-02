@@ -1341,6 +1341,8 @@ void init_esp_now(void)
 
 void setup()
 {
+  ESP.wdtDisable();
+
   IPAddress my_ip;
   uint8_t sta_up = 0;
   rst_info *resetInfo;
@@ -1363,14 +1365,6 @@ void setup()
   handset_adjust_ok = 0;
 #endif
 
-  led_init();
-  led_set(LED_INIT);
-
-#ifdef BUZZER_PIN
-  pinMode(BUZZER_PIN, OUTPUT);
-  beep(440, 100);
-#endif
-
   //Serial.setRxBufferSize(256);
 #ifdef INVERTED_SERIAL
   // inverted serial
@@ -1378,6 +1372,14 @@ void setup()
 #else
   // non-inverted serial
   Serial.begin(SERIAL_BAUD);
+#endif
+
+  led_init();
+  led_set(LED_INIT);
+
+#ifdef BUZZER_PIN
+  pinMode(BUZZER_PIN, OUTPUT);
+  beep(440, 100);
 #endif
 
 #if (BOOT0_PIN == 2 || BOOT0_PIN == 0)
@@ -1406,6 +1408,7 @@ void setup()
       led_set(led ? LED_INIT : LED_OFF);
       led ^= 1;
     }
+    ESP.wdtFeed();
   }
   sta_up = (WiFi.status() == WL_CONNECTED);
 
