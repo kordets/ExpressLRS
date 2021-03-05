@@ -697,16 +697,22 @@ void handleHandsetTlmGps(uint8_t * data)
 }
 #endif // CONFIG_HANDSET
 
-#ifdef BUZZER_PIN
 void beep(int note, int duration, int wait=1)
 {
+#ifdef BUZZER_PIN
+#if BUZZER_PASSIVE
   tone(BUZZER_PIN, note, duration);
   if (wait)
     delay(duration);
+#else // BUZZER_ACTIVE
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(duration);
+  digitalWrite(BUZZER_PIN, LOW);
+#endif /* BUZZER_PASSIVE */
+#else /* !BUZZER_PIN */
+  (void)note, (void)duration, (void)wait;
+#endif /* BUZZER_PIN */
 }
-#else
-#define beep(N, T, W)
-#endif
 
 #if CONFIG_HANDSET
 
@@ -817,8 +823,8 @@ void batt_voltage_measure(void)
       batt_voltage_last_bright = 0;
     }
 #endif
-    // 400Hz, 50ms
-    beep(400, 50, 0);
+    // 400Hz, 20ms
+    beep(400, 20, 0);
 
     batt_voltage_warning_last_ms = ms;
   }
@@ -1371,6 +1377,11 @@ void setup()
   handset_adjust_ok = 0;
 #endif
 
+#ifdef BUZZER_PIN
+  pinMode(BUZZER_PIN, OUTPUT);
+#endif
+  beep(440, 30);
+
   //Serial.setRxBufferSize(256);
 #ifdef INVERTED_SERIAL
   // inverted serial
@@ -1382,11 +1393,6 @@ void setup()
 
   led_init();
   led_set(LED_INIT);
-
-#ifdef BUZZER_PIN
-  pinMode(BUZZER_PIN, OUTPUT);
-  beep(440, 100);
-#endif
 
 #if (BOOT0_PIN == 2 || BOOT0_PIN == 0)
   reset_stm32_to_app_mode();
@@ -1485,6 +1491,10 @@ void setup()
 
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
+
+  beep(440, 30);
+  delay(100);
+  beep(440, 30);
 }
 
 int serialEvent()
