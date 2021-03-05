@@ -50,6 +50,12 @@ static uint32_t led_rgb_state;
 #define WIFI_AP_PSK "expresslrs"
 #endif
 
+#if CONFIG_HANDSET
+#define WIFI_AP_SUFFIX " HANDSET"
+#else
+#define WIFI_AP_SUFFIX " MODULE"
+#endif
+
 #ifndef WIFI_TIMEOUT
 #define WIFI_TIMEOUT 60 // default to 1min
 #endif
@@ -1415,7 +1421,7 @@ void setup()
 #elif WIFI_MANAGER
   WiFiManager wifiManager;
   wifiManager.setConfigPortalTimeout(WIFI_TIMEOUT);
-  if (wifiManager.autoConnect(WIFI_AP_SSID " R9M")) {
+  if (wifiManager.autoConnect(WIFI_AP_SSID WIFI_AP_SUFFIX)) {
     // AP found, connected
     sta_up = 1;
   }
@@ -1425,7 +1431,7 @@ void setup()
   {
     // WiFi not connected, Start access point
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(WIFI_AP_SSID " R9M", WIFI_AP_PSK, ESP_NOW_CHANNEL);
+    WiFi.softAP(WIFI_AP_SSID WIFI_AP_SUFFIX, WIFI_AP_PSK, ESP_NOW_CHANNEL);
   }
 
   led_set(LED_WIFI_OK);
@@ -1561,8 +1567,6 @@ int serialEvent()
       }
 
       webSocket.broadcastTXT(info);
-
-      //yield();
 #if ESP_NOW
       // Send received MSP packet to clients
       esp_now_sender.send_now(&msp_in);
@@ -1581,14 +1585,13 @@ int serialEvent()
 
     //if (msp_handler.error())
     //  msp_handler.markPacketFree();
-
-    //yield();
   }
   return -1;
 }
 
 void loop()
 {
+  ESP.wdtFeed();
   if (0 <= serialEvent()) {
     webSocket.broadcastTXT(inputString);
     inputString = "";
