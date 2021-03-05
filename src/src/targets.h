@@ -377,22 +377,24 @@ https://github.com/jaxxzer
 
 // Radio GPIOs (SX1280)
 #define GPIO_PIN_NSS_128x  PB0
-#define GPIO_PIN_DIO0_128x PB10
-#define GPIO_PIN_DIO1      PB11
-#define GPIO_PIN_RST       PB1
-#define GPIO_PIN_BUSY      PB2
-#define GPIO_PIN_TX_ENABLE PB13
-#define GPIO_PIN_RX_ENABLE PB12
+#define GPIO_PIN_DIO0_128x PB15
+#define GPIO_PIN_DIO1_128x PA8
+#define GPIO_PIN_BUSY      PB14
+#define GPIO_PIN_TXEN_128x PB12
+#define GPIO_PIN_RXEN_128x PB1
 // Radio GPIOs (SX1276)
-#define GPIO_PIN_NSS_127x  PA4
-#define GPIO_PIN_DIO0_127x PB4 //PA3
+#define GPIO_PIN_NSS_127x  PA12
+#define GPIO_PIN_DIO0_127x PA11
+// Radio GPIOs common
+#define GPIO_PIN_RST       PB13
 
-#define GPIO_PIN_LED_RGB   PB15 // WS2812 RGB
+#define GPIO_PIN_LED_RGB   PC13 // WS2812 RGB
 
 // S.Port (USART2)
-#define GPIO_PIN_RCSIGNAL_RX PA3 //PB4
-#define GPIO_PIN_RCSIGNAL_TX PA2 //PB3
-#define BUFFER_OE            PB9 // Just dummy pin
+#define GPIO_PIN_RCSIGNAL_RX PA3
+#define GPIO_PIN_RCSIGNAL_TX PA2
+#define BUFFER_OE            PA1
+#define BUFFER_OE_INVERTED   1
 #define RCSIGNAL_USE_DMA     0
 
 // ESPbackpack logger (USART1)
@@ -514,6 +516,9 @@ https://github.com/jaxxzer
 #endif
 #ifndef BUFFER_OE
 #define BUFFER_OE           UNDEF_PIN
+#endif
+#ifndef BUFFER_OE_INVERTED
+#define BUFFER_OE_INVERTED  0
 #endif
 #ifndef RCSIGNAL_USE_DMA
 #define RCSIGNAL_USE_DMA 1

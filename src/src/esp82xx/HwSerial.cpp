@@ -7,11 +7,13 @@
 #error "Not supported serial!"
 #endif
 
-HwSerial CrsfSerial(CRSF_SERIAL_NBR, -1);
+HwSerial CrsfSerial(CRSF_SERIAL_NBR);
 
-HwSerial::HwSerial(int uart_nr, int32_t pin) : HardwareSerial(uart_nr)
+HwSerial::HwSerial(int uart_nr, int32_t pin, uint8_t inv) :
+    HardwareSerial(uart_nr)
 {
     (void)pin;
+    (void)inv;
 }
 
 void HwSerial::Begin(uint32_t baud, uint32_t config)

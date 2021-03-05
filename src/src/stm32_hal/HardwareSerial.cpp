@@ -656,7 +656,7 @@ void HardwareSerial::hw_enable_receiver(void)
         while (!(uart_tx->StatReg & USART_SR_TC));
     }
     if (duplex) {
-        gpio_out_write(p_duplex_pin, 0);
+        gpio_out_write(p_duplex_pin, 0 ^ p_duplex_pin_inv);
     }
     uart->CR1 = DR_RX;
 }
@@ -666,7 +666,7 @@ void HardwareSerial::hw_enable_transmitter(void)
     USART_TypeDef * uart = (USART_TypeDef *)p_usart_tx;
     uart->CR1 = DR_TX;
     if (gpio_out_valid(p_duplex_pin)) {
-        gpio_out_write(p_duplex_pin, 1);
+        gpio_out_write(p_duplex_pin, 1 ^ p_duplex_pin_inv);
     }
 }
 

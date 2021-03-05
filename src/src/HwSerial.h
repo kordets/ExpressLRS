@@ -9,8 +9,8 @@
 class HwSerial : public HardwareSerial
 {
 public:
-    HwSerial(int uart_nr, int32_t duplex_pin = UNDEF_PIN);
-    HwSerial(uint32_t _rx, uint32_t _tx, int32_t duplex_pin = UNDEF_PIN);
+    HwSerial(int uart_nr, int32_t duplex_pin = UNDEF_PIN, uint8_t inv = 0);
+    HwSerial(uint32_t _rx, uint32_t _tx, int32_t duplex_pin = UNDEF_PIN, uint8_t inv = 0);
 
     void Begin(uint32_t baud, uint32_t config = SERIAL_8N1);
 
@@ -34,6 +34,7 @@ public:
 
 private:
     struct gpio_out duplex_pin;
+    uint8_t duplex_pin_inv;
 };
 
 extern HwSerial CrsfSerial;

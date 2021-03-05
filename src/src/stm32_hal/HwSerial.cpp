@@ -4,13 +4,15 @@
 #include "gpio.h"
 
 #if (GPIO_PIN_RCSIGNAL_RX != UNDEF_PIN) || (GPIO_PIN_RCSIGNAL_TX != UNDEF_PIN)
-HwSerial CrsfSerial(GPIO_PIN_RCSIGNAL_RX, GPIO_PIN_RCSIGNAL_TX, BUFFER_OE);
+HwSerial CrsfSerial(GPIO_PIN_RCSIGNAL_RX, GPIO_PIN_RCSIGNAL_TX,
+                    BUFFER_OE, BUFFER_OE_INVERTED);
 #endif
 
-HwSerial::HwSerial(uint32_t _rx, uint32_t _tx, int32_t pin)
+HwSerial::HwSerial(uint32_t _rx, uint32_t _tx, int32_t pin, uint8_t inv)
     : HardwareSerial(_rx, _tx, RCSIGNAL_USE_DMA)
 {
-    p_duplex_pin = gpio_out_setup(pin, 0);
+    p_duplex_pin = gpio_out_setup(pin, 0 ^ inv);
+    p_duplex_pin_inv = inv;
 }
 
 void HwSerial::Begin(uint32_t baud, uint32_t config)

@@ -88,6 +88,7 @@ protected:
     uint32_t rx_pin;
     uint32_t tx_pin;
     struct gpio_out p_duplex_pin;
+    uint8_t p_duplex_pin_inv;
 
 private:
     uint8_t usart_irq_rx;
