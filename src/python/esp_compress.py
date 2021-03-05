@@ -14,27 +14,30 @@ def binary_compress(target_file, source_file):
         source_file_bak = source_file + ".bak"
 
     if os.path.exists(target_file) and os.path.exists(source_file_bak):
-        src_mtime = os.stat(target_file).st_mtime
-        bak_mtime = os.stat(source_file_bak).st_mtime
         """ Recompress if source file is newer than target file """
-        do_compress = (src_mtime > bak_mtime)
+        tgt_mtime = os.stat(target_file).st_mtime
+        src_mtime = os.stat(source_file_bak).st_mtime
+        if target_file == source_file:
+            """ bak file is older than source file """
+            do_compress = (src_mtime < tgt_mtime)
+        else:
+            """ target file is older than source file """
+            do_compress = (src_mtime > tgt_mtime)
 
     if do_compress:
         print("Compressing firmware for upload...")
-        if source_file != source_file_bak:
+        if target_file == source_file:
             shutil.move(source_file, source_file_bak)
         with open(source_file_bak, 'rb') as f_in:
             with gzip.open(target_file, 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
         """ Set modification time on compressed file so incremental build works """
         shutil.copystat(source_file_bak, target_file)
-
-    if os.path.exists(source_file_bak):
+        """ print compression info """
         size_orig = os.stat(source_file_bak).st_size
         size_gz = os.stat(target_file).st_size
-
         print("Compression reduced firmware size to {:.0f}% (was {} bytes, now {} bytes)".format(
-              (size_gz / size_orig) * 100, size_orig, size_gz))
+            (size_gz / size_orig) * 100, size_orig, size_gz))
 
 
 def compressFirmware(source, target, env):
