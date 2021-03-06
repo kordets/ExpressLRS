@@ -9,26 +9,19 @@
 #endif /* WIFI_MANAGER */
 #include <ESP8266HTTPUpdateServer.h>
 
+#include "storage.h"
+#include "handset.h"
 #include "main.h"
+#include "stm32_ota.h"
 #include "stm32Updater.h"
 #include "stk500.h"
 #include "msp.h"
 #include "common_defs.h"
 #include "rc_channels.h"
+#include "html_default.h"
+#include "led.h"
+#include "comm_espnow.h"
 
-#ifdef WS2812_PIN
-#include <Adafruit_NeoPixel.h>
-#define PIXEL_FORMAT    (NEO_GRB + NEO_KHZ800)
-
-static Adafruit_NeoPixel led_rgb;
-static uint32_t led_rgb_state;
-#endif
-
-#ifdef ESP_NOW
-#ifndef ESP_NOW_PEERS
-#undef ESP_NOW
-#endif // ESP_NOW_PEERS
-#endif // ESP_NOW
 
 #ifndef SERIAL_BAUD
 #define SERIAL_BAUD 460800
@@ -38,10 +31,7 @@ static uint32_t led_rgb_state;
 #define STRINGIFY_TMP(A) STRINGIFY(A)
 #define CONCAT(A, B) A##B
 
-//reference for spiffs upload https://taillieu.info/index.php/internet-of-things/esp8266/335-esp8266-uploading-files-to-the-server
-
 //#define INVERTED_SERIAL // Comment this out for non-inverted serial
-
 
 #ifndef WIFI_AP_SSID
 #define WIFI_AP_SSID "ExpressLRS AP"
@@ -60,22 +50,6 @@ static uint32_t led_rgb_state;
 #define WIFI_TIMEOUT 60 // default to 1min
 #endif
 
-#if !ESP_NOW
-#define WIFI_CHANNEL 0 // Not defined
-#if defined(ESP_NOW_CHANNEL)
-#undef ESP_NOW_CHANNEL
-#endif
-#define ESP_NOW_CHANNEL 1
-
-#else // ESP_NOW
-#define WIFI_CHANNEL 2
-#ifndef ESP_NOW_CHANNEL
-#define ESP_NOW_CHANNEL 1
-#endif
-#if (ESP_NOW_CHANNEL == WIFI_CHANNEL)
-#error "WiFi Channel config error! ESPNOW and WiFi must be on different channels"
-#endif
-#endif // ESP_NOW
 
 MDNSResponder mdns;
 
@@ -84,18 +58,8 @@ ESP8266WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
 ESP8266HTTPUpdateServer httpUpdater;
 
-File fsUploadFile; // a File object to temporarily store the received file
-String uploadedfilename; // filename of uploaded file
-
-//uint8_t socketNumber;
-
 String inputString = "";
 String my_ipaddress_info_str = "NA";
-
-#if ESP_NOW
-String espnow_init_info = "";
-#endif
-String bootlog = "";
 
 #if CONFIG_HANDSET
 /* Handset specific data */
@@ -106,68 +70,23 @@ static uint8_t handset_mixer_ok = 0, handset_adjust_ok = 0;
 #endif
 
 /*************************************************************************/
-enum led_state_e {
-  LED_OFF       = 0x000000,
-  LED_INIT      = 0xffffff,
-  LED_WIFI_OK   = 0x00ff00,
 
-  LED_FREQ_900  = 0xfc00b5,
-  LED_FREQ_2400 = 0x1d00fc,
-
-  LED_WARNING   = 0xffff00,
-  LED_ERROR     = 0xff0000,
-};
-
-void led_init(void)
+void beep(int note, int duration, int wait=1)
 {
-#ifdef WS2812_PIN
-  led_rgb.setPin(WS2812_PIN);
-  led_rgb.updateType(PIXEL_FORMAT);
-  led_rgb.begin();
-  led_rgb.updateLength(1);
-  led_rgb.setBrightness(255);
-  led_rgb.fill();
-  led_rgb.show();
-#endif
+#ifdef BUZZER_PIN
+#if BUZZER_PASSIVE
+  tone(BUZZER_PIN, note, duration);
+  if (wait)
+    delay(duration);
+#else // BUZZER_ACTIVE
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(duration);
+  digitalWrite(BUZZER_PIN, LOW);
+#endif /* BUZZER_PASSIVE */
+#else /* !BUZZER_PIN */
+  (void)note, (void)duration, (void)wait;
+#endif /* BUZZER_PIN */
 }
-
-void led_set(uint32_t state)
-{
-#ifdef WS2812_PIN
-  uint32_t led_rgb_color = (state == LED_OFF) ? 0 : led_rgb.Color(
-    (uint8_t)(state >> 16), (uint8_t)(state >> 8), (uint8_t)state);
-  led_rgb.fill(led_rgb_color);
-  led_rgb.show();
-  led_rgb_state = state;
-#endif
-}
-
-/*************************************************************************/
-
-static const char PROGMEM GO_BACK[] = R"rawliteral(
-<!DOCTYPE html><html><head></head>
-<body><script>javascript:history.back();</script></body>
-</html>
-)rawliteral";
-
-static const char PROGMEM INDEX_HTML[] = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0">
-<title>ExpressLRS</title>
-<style>
-body {
-background-color: #1E1E1E;
-font-family: Arial, Helvetica, Sans-Serif;
-Color: #69cbf7;
-}
-</style>
-</head><body onload="javascript:start();">
-This is a backup page<br/>
-Open <a href="/update">/update</a> and update filesystem also...<br/>
-</body></html>
-)rawliteral";
 
 /*************************************************************************/
 
@@ -194,7 +113,6 @@ static uint8_t settings_power, settings_power_max;
 static uint8_t settings_tlm;
 static uint8_t settings_region;
 static uint8_t settings_valid;
-String settings_out;
 
 MSP msp_handler;
 mspPacket_t msp_out;
@@ -213,7 +131,7 @@ void SettingsWrite(uint8_t * buff, uint8_t len)
 
 void handleSettingRate(const char * input, int num = -1)
 {
-  settings_out = "[INTERNAL ERROR] something went wrong";
+  String settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_rates_input=";
     settings_out += settings_rate;
@@ -226,15 +144,12 @@ void handleSettingRate(const char * input, int num = -1)
     uint8_t buff[] = {1, (uint8_t)(val == 'R' ? 0xff : (val - '0'))};
     SettingsWrite(buff, sizeof(buff));
   }
-  if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
-  else
-    webSocket.broadcastTXT(settings_out);
+  websocket_send(settings_out, num);
 }
 
 void handleSettingPower(const char * input, int num = -1)
 {
-  settings_out = "[INTERNAL ERROR] something went wrong";
+  String settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_power_input=";
     settings_out += settings_power;
@@ -249,15 +164,12 @@ void handleSettingPower(const char * input, int num = -1)
     uint8_t buff[] = {3, (uint8_t)(val == 'R' ? 0xff : (val - '0'))};
     SettingsWrite(buff, sizeof(buff));
   }
-  if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
-  else
-    webSocket.broadcastTXT(settings_out);
+  websocket_send(settings_out, num);
 }
 
 void handleSettingTlm(const char * input, int num = -1)
 {
-  settings_out = "[INTERNAL ERROR] something went wrong";
+  String settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_tlm_input=";
     settings_out += settings_tlm;
@@ -270,15 +182,12 @@ void handleSettingTlm(const char * input, int num = -1)
     uint8_t buff[] = {2, (uint8_t)(val == 'R' ? 0xff : (val - '0'))};
     SettingsWrite(buff, sizeof(buff));
   }
-  if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
-  else
-    webSocket.broadcastTXT(settings_out);
+  websocket_send(settings_out, num);
 }
 
 void handleSettingRfPwr(const char * input, int num = -1)
 {
-  settings_out = "[INTERNAL ERROR] something went wrong";
+  String settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     return;
   } else if (*input == '=') {
@@ -294,15 +203,12 @@ void handleSettingRfPwr(const char * input, int num = -1)
     uint8_t buff[] = {6, (uint8_t)val};
     SettingsWrite(buff, sizeof(buff));
   }
-  if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
-  else
-    webSocket.broadcastTXT(settings_out);
+  websocket_send(settings_out, num);
 }
 
 void handleSettingRfModule(const char * input, int num = -1)
 {
-  settings_out = "[INTERNAL ERROR] something went wrong";
+  String settings_out = "[INTERNAL ERROR] something went wrong";
   if (input == NULL || *input == '?') {
     return;
   } else if (*input == '=') {
@@ -318,23 +224,17 @@ void handleSettingRfModule(const char * input, int num = -1)
     uint8_t buff[] = {4, (uint8_t)val};
     SettingsWrite(buff, sizeof(buff));
   }
-  if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
-  else
-    webSocket.broadcastTXT(settings_out);
+  websocket_send(settings_out, num);
 }
 
 void handleSettingDomain(const char * input, int num = -1)
 {
-  settings_out = "[ERROR] Domain set is not supported!";
+  String settings_out = "[ERROR] Domain set is not supported!";
   if (input == NULL || *input == '?') {
     settings_out = "ELRS_setting_region_domain=";
     settings_out += settings_region;
   }
-  if (0 <= num)
-    webSocket.sendTXT(num, settings_out);
-  else
-    webSocket.broadcastTXT(settings_out);
+  websocket_send(settings_out, num);
 }
 
 void SettingsGet(uint8_t wsnum)
@@ -470,16 +370,12 @@ void handleHandsetCalibrate(const char * input)
 void handleHandsetCalibrateResp(uint8_t * data, int num = -1)
 {
   String out = "ELRS_handset_calibrate=ERROR!";
-  if (0 <= num)
-    webSocket.sendTXT(num, out);
-  else
-    webSocket.broadcastTXT(out);
+  websocket_send(out, num);
 }
 
 
 void handleHandsetMixer(const char * input, size_t length)
 {
-  //webSocket.broadcastTXT(input, length);
   uint32_t iter, index, scale;
   const char * read = input;
   // Fill MSP packet
@@ -504,7 +400,7 @@ void handleHandsetMixer(const char * input, size_t length)
       temp += index;
       temp += " Scale: ";
       temp += scale;
-      webSocket.broadcastTXT(temp);
+      websocket_send(temp);
 
       read += 2;
     }
@@ -547,10 +443,7 @@ void handleHandsetMixerResp(uint8_t * data, int num = -1)
     out += mixer[iter].scale;
   }
 
-  if (0 <= num)
-    webSocket.sendTXT(num, out);
-  else
-    webSocket.broadcastTXT(out);
+  websocket_send(out, num);
 }
 
 
@@ -612,10 +505,7 @@ void handleHandsetAdjustResp(uint8_t * data, int num = -1)
     out += ";";
   }
 
-  if (0 <= num)
-    webSocket.sendTXT(num, out);
-  else
-    webSocket.broadcastTXT(out);
+  websocket_send(out, num);
 }
 
 void HandsetConfigGet(uint8_t wsnum, uint8_t force=0)
@@ -669,7 +559,7 @@ void handleHandsetTlmLnkStats(uint8_t * data)
   out += ",DLQ:"; out += stats->downlink_Link_quality;
   out += ",DR1:"; out += (int8_t)(stats->downlink_RSSI - 120);
   out += ",DSN:"; out += (int8_t)stats->downlink_SNR;
-  webSocket.broadcastTXT(out);
+  websocket_send(out);
 }
 
 void handleHandsetTlmBattery(uint8_t * data)
@@ -680,7 +570,7 @@ void handleHandsetTlmBattery(uint8_t * data)
   out += ",A:"; out += stats->current;
   out += ",C:"; out += stats->capacity;
   out += ",R:"; out += stats->remaining;
-  webSocket.broadcastTXT(out);
+  websocket_send(out);
 }
 
 void handleHandsetTlmGps(uint8_t * data)
@@ -693,31 +583,10 @@ void handleHandsetTlmGps(uint8_t * data)
   out += ",hea:"; out += stats->heading / 10; // convert to degrees
   out += ",alt:"; out += (int)(stats->altitude - 1000); // 1000m offset
   out += ",sat:"; out += stats->satellites;
-  webSocket.broadcastTXT(out);
-}
-#endif // CONFIG_HANDSET
-
-void beep(int note, int duration, int wait=1)
-{
-#ifdef BUZZER_PIN
-#if BUZZER_PASSIVE
-  tone(BUZZER_PIN, note, duration);
-  if (wait)
-    delay(duration);
-#else // BUZZER_ACTIVE
-  digitalWrite(BUZZER_PIN, HIGH);
-  delay(duration);
-  digitalWrite(BUZZER_PIN, LOW);
-#endif /* BUZZER_PASSIVE */
-#else /* !BUZZER_PIN */
-  (void)note, (void)duration, (void)wait;
-#endif /* BUZZER_PIN */
+  websocket_send(out);
 }
 
-#if CONFIG_HANDSET
 
-#define ADC_R1  100000U  //100k ohm
-#define ADC_R2  10000U   //10k ohm
 //#define ADC_VOLT(X) (((X) * ADC_R2) / (ADC_R1 + ADC_R2))
 #define ADC_SCALE (ADC_R1 / ADC_R2)
 
@@ -725,18 +594,9 @@ void beep(int note, int duration, int wait=1)
 #define ADC_MAX     1023U
 #define ADC_VOLT(X) (((uint32_t)(X) * ADC_REF_mV) / ADC_MAX)
 
-#define BATT_WARN_DEFAULT 79  // = ~3.3V / cell
-#define BATT_DEAD_DEFAULT 71  // = ~3V / cell
-#define BATT_NOMINAL_mV   8400
-
 static uint32_t batt_voltage;
-static uint32_t batt_voltage_scale = 100;
-static uint32_t batt_voltage_interval = 5000;
-static uint32_t batt_voltage_warning = BATT_WARN_DEFAULT;
-static uint32_t batt_voltage_warning_limit =
-  ((BATT_WARN_DEFAULT * BATT_NOMINAL_mV) / 100);
-static uint32_t batt_voltage_dead_limit =
-  ((BATT_DEAD_DEFAULT * BATT_NOMINAL_mV) / 100);
+static uint32_t batt_voltage_warning_limit;
+static uint32_t batt_voltage_dead_limit;
 
 static uint32_t batt_voltage_meas_last_ms;
 static uint32_t batt_voltage_warning_last_ms;
@@ -750,14 +610,11 @@ void battery_voltage_report(int num = -1)
   String out = "ELRS_handset_battery=";
   out += batt_voltage;
   out += ",";
-  out += batt_voltage_scale;
+  out += eeprom_storage.batt_voltage_scale;
   out += ",";
-  out += batt_voltage_warning;
+  out += eeprom_storage.batt_voltage_warning;
 
-  if (0 <= num)
-    webSocket.sendTXT(num, out);
-  else
-    webSocket.broadcastTXT(out);
+  websocket_send(out, num);
 }
 
 void battery_voltage_parse(const char * input, int num = -1)
@@ -765,24 +622,35 @@ void battery_voltage_parse(const char * input, int num = -1)
   const char * temp = strstr(input, ",");
   uint32_t scale = char_u8_to_hex(input);
   if (50 <= scale && scale <= 150) {
-    batt_voltage_scale = scale;
+    eeprom_storage.batt_voltage_scale = scale;
+    eeprom_storage.markDirty();
   }
   if (temp) {
     scale = char_u8_to_hex(&temp[1]);
     if (10 <= scale && scale <= 100) {
-      batt_voltage_warning = scale;
+      eeprom_storage.batt_voltage_warning = scale;
+      eeprom_storage.markDirty();
+
       batt_voltage_warning_limit = ((scale * BATT_NOMINAL_mV) / 100);
     }
   }
 }
 
+void batt_voltage_init(void)
+{
+  batt_voltage_warning_limit =
+    ((eeprom_storage.batt_voltage_warning * BATT_NOMINAL_mV) / 100);
+  batt_voltage_dead_limit =
+    ((BATT_DEAD_DEFAULT * BATT_NOMINAL_mV) / 100);
+}
+
 void batt_voltage_measure(void)
 {
   uint32_t ms = millis();
-  if (batt_voltage_interval <= (uint32_t)(ms - batt_voltage_meas_last_ms)) {
+  if (eeprom_storage.batt_voltage_interval <= (uint32_t)(ms - batt_voltage_meas_last_ms)) {
     int adc = analogRead(A0);
     batt_voltage = ADC_VOLT(adc);
-    batt_voltage = (batt_voltage * batt_voltage_scale) / 100;
+    batt_voltage = (batt_voltage * eeprom_storage.batt_voltage_scale) / 100;
 
     battery_voltage_report();
 
@@ -801,11 +669,7 @@ void batt_voltage_measure(void)
       }
     }
 
-#ifdef WS2812_PIN
-    led_rgb.setBrightness(brightness);
-#else
-    (void)brightness;
-#endif
+    led_brightness_set(brightness);
 
     batt_voltage_meas_last_ms = ms;
   }
@@ -814,12 +678,11 @@ void batt_voltage_measure(void)
       (batt_voltage_warning_timeout <= (ms - batt_voltage_warning_last_ms))) {
 #ifdef WS2812_PIN
     if (!batt_voltage_last_bright) {
-      batt_voltage_last_bright = led_rgb.getBrightness();
-      led_rgb.setBrightness(0);
-      led_rgb.show();
+      batt_voltage_last_bright = led_brightness_get();
+      led_brightness_set(0, 1);
     } else {
-      led_rgb.setBrightness(batt_voltage_last_bright);
-      led_set(led_rgb_state);
+      led_brightness_set(batt_voltage_last_bright);
+      led_set();
       batt_voltage_last_bright = 0;
     }
 #endif
@@ -831,18 +694,32 @@ void batt_voltage_measure(void)
 }
 
 #else
+#define batt_voltage_init()
 #define batt_voltage_measure()
 #endif
+
+void websocket_send(char const * data, int num)
+{
+  if (0 <= num)
+    webSocket.sendTXT(num, data);
+  else
+    webSocket.broadcastTXT(data);
+}
+
+void websocket_send(String & data, int num)
+{
+  if (!data.length())
+    return;
+  websocket_send(data.c_str(), num);
+}
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
   char * temp;
-  //Serial.printf("webSocketEvent(%d, %d, ...)\r\n", num, type);
 
   switch (type)
   {
   case WStype_DISCONNECTED:
-    //Serial.printf("[%u] Disconnected!\r\n", num);
     break;
   case WStype_CONNECTED:
   {
@@ -850,10 +727,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     //Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", num, ip[0], ip[1], ip[2], ip[3], payload);
     //socketNumber = num;
 
-    webSocket.sendTXT(num, my_ipaddress_info_str);
-#if ESP_NOW
-    webSocket.sendTXT(num, espnow_init_info);
-#endif
+    websocket_send(my_ipaddress_info_str, num);
+    websocket_send(espnow_get_info(), num);
 
     // Send settings
     SettingsGet(num);
@@ -862,12 +737,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     delay(5);
     battery_voltage_report(num);
 #endif
+    break;
   }
-  break;
   case WStype_TEXT:
-    //Serial.printf("[%u] get Text: %s\r\n", num, payload);
-    // send data to all connected clients
-    //webSocket.broadcastTXT(payload, length);
 
     temp = strstr((char*)payload, "stm32_cmd=");
     if (temp) {
@@ -968,135 +840,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     webSocket.sendBIN(num, payload, length);
     break;
   default:
-    //Serial.printf("Invalid WStype [%d]\r\n", type);
-    //webSocket.broadcastTXT("Invalid WStype: " + type);
     break;
   }
 }
 
-/***********************************************************************************/
-/*************                   STM32 OTA UPGRADE                     *************/
-
-int8_t flash_stm32(uint32_t flash_addr)
-{
-  int8_t result = -1;
-  webSocket.broadcastTXT("STM32 Firmware Flash Requested!");
-  webSocket.broadcastTXT("  the firmware file: '" + uploadedfilename + "'");
-  if (uploadedfilename.endsWith("firmware.elrs")) {
-    result = stk500_write_file(uploadedfilename.c_str());
-  } else if (uploadedfilename.endsWith("firmware.bin")) {
-    result = esp8266_spifs_write_file(uploadedfilename.c_str(), flash_addr);
-    if (result == 0)
-      reset_stm32_to_app_mode(); // boot into app
-  } else {
-    webSocket.broadcastTXT("Invalid file!");
-  }
-  Serial.begin(SERIAL_BAUD);
-  return result;
-}
-
-void handleFileUploadEnd()
-{
-  uint32_t flash_base = BEGIN_ADDRESS;
-  //String message = "\nRequest params:\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    String name = server.argName(i);
-    String value = server.arg(i);
-      //message += " " + name + ": " + value + "\n";
-      if (name == "flash_address") {
-        flash_base = strtol(&value.c_str()[2], NULL, 16);
-        break;
-      }
-  }
-  //webSocket.broadcastTXT(message);
-
-  int8_t success = flash_stm32(flash_base);
-
-  if (uploadedfilename.length() && FILESYSTEM.exists(uploadedfilename))
-    FILESYSTEM.remove(uploadedfilename);
-
-  server.sendHeader("Location", "/return");          // Redirect the client to the success page
-  server.send(303);
-  webSocket.broadcastTXT(
-    (success) ? "Update Successful!": "Update Failure!");
-  server.send((success < 0) ? 400 : 200);
-}
-
-void handleFileUpload()
-{ // upload a new file to the SPIFFS
-  HTTPUpload &upload = server.upload();
-  if (upload.status == UPLOAD_FILE_START)
-  {
-    /* Remove old file */
-    if (uploadedfilename.length() && FILESYSTEM.exists(uploadedfilename))
-      FILESYSTEM.remove(uploadedfilename);
-
-    FSInfo fs_info;
-    if (FILESYSTEM.info(fs_info))
-    {
-      Dir dir = FILESYSTEM.openDir("/");
-      while (dir.next()) {
-        String file = dir.fileName();
-        if (file.endsWith(".bin")) {
-          FILESYSTEM.remove(file);
-        }
-      }
-
-      String output = "Filesystem: used: ";
-      output += fs_info.usedBytes;
-      output += " / free: ";
-      output += fs_info.totalBytes;
-      webSocket.broadcastTXT(output);
-
-      if (fs_info.usedBytes > 0) {
-        //webSocket.broadcastTXT("formatting filesystem");
-        //FILESYSTEM.format();
-      }
-    }
-    else
-    {
-      webSocket.broadcastTXT("SPIFFs Failed to init!");
-      return;
-    }
-    uploadedfilename = upload.filename;
-
-    webSocket.broadcastTXT("Uploading file: " + uploadedfilename);
-
-    if (!uploadedfilename.startsWith("/"))
-    {
-      uploadedfilename = "/" + uploadedfilename;
-    }
-    fsUploadFile = FILESYSTEM.open(uploadedfilename, "w"); // Open the file for writing in SPIFFS (create if it doesn't exist)
-  }
-  else if (upload.status == UPLOAD_FILE_WRITE)
-  {
-    if (fsUploadFile)
-    {
-      fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
-      String output = "Uploaded: ";
-      output += fsUploadFile.position();
-      output += " bytes";
-      webSocket.broadcastTXT(output);
-    }
-  }
-  else if (upload.status == UPLOAD_FILE_END)
-  {
-    if (fsUploadFile)
-    {                       // If the file was successfully created
-      String totsize = "Total uploaded size ";
-      totsize += fsUploadFile.position();
-      totsize += " of ";
-      totsize += upload.totalSize;
-      webSocket.broadcastTXT(totsize);
-      server.send(100);
-      fsUploadFile.close(); // Close the file again
-    }
-    else
-    {
-      server.send(500, "text/plain", "500: couldn't create file");
-    }
-  }
-}
 
 /***********************************************************************************/
 /*************                    ESP OTA UPGRADE                      *************/
@@ -1106,8 +853,8 @@ void handle_upgrade_error(void)
 {
   server.sendHeader("Location", "/return");          // Redirect the client to the success page
   server.send(303);
-  webSocket.broadcastTXT(
-    (Update.hasError()) ? "Update Failure!" : "Update Successful!");
+    websocket_send(
+      (Update.hasError()) ? "Update Failure!" : "Update Successful!");
   server.send(Update.hasError() ? 200 : 400);
 }
 
@@ -1118,13 +865,13 @@ void handleEspUpgrade(void)
     //Serial.setDebugOutput(true);
     WiFiUDP::stopAll();
     //Serial.printf("Update: %s\n", upload.filename.c_str());
-    webSocket.broadcastTXT("*** ESP OTA ***\n  file: " + upload.filename);
+    websocket_send("*** ESP OTA ***\n  file: " + upload.filename);
 
     /*if (upload.name != "backpack_fw") {
-      webSocket.broadcastTXT("Invalid upload type!");
+      websocket_send("Invalid upload type!");
       return;
     } else*/ if (!upload.filename.startsWith("backpack.bin")) {
-      webSocket.broadcastTXT("Invalid file! Update aborted...");
+      websocket_send("Invalid file! Update aborted...");
       handle_upgrade_error();
       return;
     }
@@ -1132,22 +879,22 @@ void handleEspUpgrade(void)
     uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
     if (!Update.begin(maxSketchSpace, U_FLASH)) { //start with max available size
       //Update.printError(Serial);
-      webSocket.broadcastTXT("File is too big!");
+      websocket_send("File is too big!");
       handle_upgrade_error();
     }
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
       //Update.printError(Serial);
-      webSocket.broadcastTXT("Junk write failed!");
+      websocket_send("Junk write failed!");
       handle_upgrade_error();
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (Update.end(true)) { //true to set the size to the current progress
       //Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-      webSocket.broadcastTXT("Update Success! Rebooting...");
+      websocket_send("Update Success! Rebooting...");
     } else {
       //Update.printError(Serial);
-      webSocket.broadcastTXT("Update failed!");
+      websocket_send("Update failed!");
     }
     //Serial.setDebugOutput(false);
   } else if (upload.status == UPLOAD_FILE_ABORTED) {
@@ -1160,7 +907,7 @@ void handleEspUpgradeFinalize(void)
 {
   server.sendHeader("Location", "/return");          // Redirect the client to the success page
   server.send(303);
-  webSocket.broadcastTXT(
+  websocket_send(
     (Update.hasError()) ? "Update Failure!" : "Update Successful!");
   server.send(Update.hasError() ? 200 : 400);
   //server.sendHeader("Connection", "close");
@@ -1256,99 +1003,6 @@ bool handleFileRead(String path)
   return false;
 }
 
-/******************* ESP-NOW *********************/
-#if ESP_NOW
-
-#include <espnow.h>
-
-class CtrlSerialEspNow: public CtrlSerial
-{
-public:
-  size_t available(void) {
-    return 0; // not used
-  }
-  uint8_t read(void) {
-    return 0; // not used
-  }
-
-  void write(uint8_t * buffer, size_t size) {
-    while (size-- && p_iterator < sizeof(p_buffer)) {
-      p_buffer[p_iterator++] = *buffer++;
-    }
-    if (p_iterator >= sizeof(p_buffer))
-      p_iterator = UINT8_MAX; // error, not enough space
-  }
-
-  void reset(void) {
-    p_iterator = 0;
-  }
-  void send_now(mspPacket_t *msp_in) {
-    reset();
-    if (MSP::sendPacket(msp_in, this) && p_iterator <= sizeof(p_buffer)) // check overflow
-    {
-      MSP::sendPacket(msp_in, this);
-      esp_now_send(NULL, (uint8_t*)p_buffer, p_iterator);
-      //webSocket.broadcastTXT("MSP sent!");
-    }
-  }
-
-private:
-  uint8_t p_buffer[128];
-  uint8_t p_iterator = 0;
-};
-
-CtrlSerialEspNow esp_now_sender;
-
-void esp_now_recv_cb(uint8_t *mac_addr, uint8_t *data, uint8_t data_len)
-{
-  /* No data or peer is unknown => ignore */
-  if (!data_len || !esp_now_is_peer_exist(mac_addr))
-    return;
-
-  webSocket.broadcastTXT("ESP NOW message received!");
-
-  // Pass data to ERLS
-  // Note: accepts only correctly formatted MSP packets
-  Serial.write((uint8_t*)data, data_len);
-}
-
-void esp_now_send_cb(uint8_t *mac_addr, u8 status) {
-#if 0
-  String temp = "ESPNOW Sent: ";
-  temp += (status ? "FAIL" : "SUCCESS");
-  webSocket.broadcastTXT(temp);
-#endif
-}
-
-void init_esp_now(void)
-{
-  espnow_init_info = "ESP NOW init... ";
-
-  if (esp_now_init() != 0) {
-    espnow_init_info += "ESP NOW init failed!";
-    return;
-  }
-  esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
-  esp_now_register_send_cb(esp_now_send_cb);
-  esp_now_register_recv_cb(esp_now_recv_cb);
-
-#ifdef ESP_NOW_PEERS
-#define ESP_NOW_ETH_ALEN 6
-  uint8_t peers[][ESP_NOW_ETH_ALEN] = ESP_NOW_PEERS;
-  uint8_t num_peers = sizeof(peers) / ESP_NOW_ETH_ALEN;
-  for (uint8_t iter = 0; iter < num_peers; iter++) {
-    //esp_now_del_peer(peers[iter]);
-    if (esp_now_add_peer(peers[iter], ESP_NOW_ROLE_COMBO, ESP_NOW_CHANNEL, NULL, 0) != 0) {
-      espnow_init_info += ", PEER ";
-      espnow_init_info += iter;
-      espnow_init_info += " FAIL";
-    }
-  }
-#endif // ESP_NOW_PEERS
-
-  espnow_init_info += " - Init DONE!";
-}
-#endif // ESP_NOW
 /*************************************************/
 
 void setup()
@@ -1362,6 +1016,8 @@ void setup()
   int reset_reason = resetInfo->reason;
 
   msp_handler.markPacketFree();
+
+  eeprom_storage.setup();
 
   /* Reset values */
   settings_rate = 1;
@@ -1393,6 +1049,7 @@ void setup()
 
   led_init();
   led_set(LED_INIT);
+  batt_voltage_init();
 
 #if (BOOT0_PIN == 2 || BOOT0_PIN == 0)
   reset_stm32_to_app_mode();
@@ -1433,8 +1090,7 @@ void setup()
   }
 #endif /* WIFI_MANAGER */
 
-  if (!sta_up)
-  {
+  if (!sta_up) {
     // WiFi not connected, Start access point
     WiFi.mode(WIFI_AP);
     WiFi.softAP(WIFI_AP_SSID WIFI_AP_SUFFIX, WIFI_AP_PSK, ESP_NOW_CHANNEL);
@@ -1442,14 +1098,11 @@ void setup()
 
   led_set(LED_WIFI_OK);
 
-#if ESP_NOW
-  init_esp_now();
-#endif // ESP_NOW
+  espnow_init(ESP_NOW_CHANNEL);
 
   my_ip = (sta_up) ? WiFi.localIP() : WiFi.softAPIP();
 
-  if (mdns.begin("elrs_tx", my_ip))
-  {
+  if (mdns.begin("elrs_tx", my_ip)) {
     mdns.addService("http", "tcp", 80);
     mdns.addService("ws", "tcp", 81);
   }
@@ -1459,11 +1112,12 @@ void setup()
   my_ipaddress_info_str += reset_reason;
   my_ipaddress_info_str += ")";
 
-#if 0 && defined(LATEST_COMMIT)
+#if defined(LATEST_COMMIT)
   my_ipaddress_info_str += "\nCurrent version (SHA): ";
   uint8_t commit_sha[] = {LATEST_COMMIT};
-  for (uint8_t iter = 0; iter < sizeof(commit_sha); iter++)
-
+  for (uint8_t iter = 0; iter < sizeof(commit_sha); iter++) {
+    my_ipaddress_info_str += String(commit_sha[iter], HEX);
+  }
 #endif // LATEST_COMMIT
 
   //Serial.print("Connect to http://elrs_tx.local or http://");
@@ -1477,7 +1131,7 @@ void setup()
     handleEspUpgradeFinalize, handleEspUpgrade);
 #endif // LOCAL_OTA
   server.on("/upload", HTTP_POST, // STM32 OTA upgrade
-    handleFileUploadEnd, handleFileUpload);
+    stm32_ota_handleFileUploadEnd, stm32_ota_handleFileUpload);
   server.onNotFound([]() {
     if (!handleFileRead(server.uri())) {
       // No matching file, respond with a 404 (Not Found) error
@@ -1496,6 +1150,7 @@ void setup()
   delay(100);
   beep(440, 30);
 }
+
 
 int serialEvent()
 {
@@ -1576,11 +1231,8 @@ int serialEvent()
         };
       }
 
-      webSocket.broadcastTXT(info);
-#if ESP_NOW
-      // Send received MSP packet to clients
-      esp_now_sender.send_now(&msp_in);
-#endif
+      websocket_send(info);
+      espnow_send_msp(msp_in);
 
       msp_handler.markPacketFree();
     } else if (!msp_handler.mspOngoing()) {
@@ -1599,11 +1251,12 @@ int serialEvent()
   return -1;
 }
 
+
 void loop()
 {
   ESP.wdtFeed();
   if (0 <= serialEvent()) {
-    webSocket.broadcastTXT(inputString);
+    websocket_send(inputString);
     inputString = "";
   }
 
@@ -1612,4 +1265,6 @@ void loop()
   mdns.update();
 
   batt_voltage_measure();
+
+  eeprom_storage.save();
 }
