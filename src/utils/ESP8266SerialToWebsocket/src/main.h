@@ -10,5 +10,9 @@
 #define FILESYSTEM SPIFFS
 #endif
 
+#ifndef SERIAL_BAUD
+#define SERIAL_BAUD 460800
+#endif
+
 void websocket_send(String & data, int num = -1);
 void websocket_send(char const * data, int num = -1);

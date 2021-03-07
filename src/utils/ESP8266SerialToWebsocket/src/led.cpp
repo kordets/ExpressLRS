@@ -23,9 +23,9 @@ void led_init(void)
 
 void led_set(uint32_t state)
 {
-    if (state == LED_UNKNOWN)
-        state = led_rgb_state;
 #ifdef WS2812_PIN
+  if (state == LED_UNKNOWN)
+      state = led_rgb_state;
   uint32_t led_rgb_color = (state == LED_OFF) ? 0 : led_rgb.Color(
     (uint8_t)(state >> 16), (uint8_t)(state >> 8), (uint8_t)state);
   led_rgb.fill(led_rgb_color);

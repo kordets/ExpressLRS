@@ -23,10 +23,6 @@
 #include "comm_espnow.h"
 
 
-#ifndef SERIAL_BAUD
-#define SERIAL_BAUD 460800
-#endif
-
 #define STRINGIFY(s) #s
 #define STRINGIFY_TMP(A) STRINGIFY(A)
 #define CONCAT(A, B) A##B
