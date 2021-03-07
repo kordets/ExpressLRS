@@ -102,7 +102,19 @@ void tx_common_init(void)
 {
     platform_config_load(pl_config);
     TxTimer.callbackTock = &SendRCdataToRF;
-    SetRadioType(pl_config.rf_mode);
+    if (!SetRadioType(pl_config.rf_mode)) {
+#if RADIO_SX127x && RADIO_SX128x
+        /* Roll back to other module if first failed */
+        pl_config.rf_mode = (pl_config.rf_mode + 1) % RADIO_TYPE_MAX;
+        if (!SetRadioType(pl_config.rf_mode))
+#endif
+            /* Infinite loop in case of failure */
+            while(1) {
+                /* TODO: blink led... */
+                DEBUG_PRINTF("RADIO CONFIG ERROR!\n");
+                delay(1000);
+            }
+    }
     SetRFLinkRate(current_rate_config, 1);
     //delay(10);
 
@@ -197,13 +209,6 @@ static uint8_t SetRadioType(uint8_t type)
             platform_radio_force_stop();
         RadioInterface *new_radio = common_config_radio(type);
         if (!new_radio) {
-            if (!Radio) {
-                /* TODO: blink led... */
-                while(1) {
-                    DEBUG_PRINTF("RADIO CONFIG ERROR!\n");
-                    delay(1000);
-                }
-            }
             return 0;
         }
         Radio = new_radio;
