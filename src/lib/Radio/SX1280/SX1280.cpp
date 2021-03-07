@@ -74,6 +74,7 @@ int8_t SX1280Driver::Begin(int sck, int miso, int mosi)
     firmwareRev <<= 8;
     firmwareRev += buffer[5];
     DEBUG_PRINTF("SX128x fw rev %u\n", firmwareRev); // 43445, 43447
+    // 65023 ???
     if (43440 != (firmwareRev & 0xfff0)) {
         DEBUG_PRINTF("[ERROR] Invalid revision!\n");
         return -1;
@@ -91,6 +92,8 @@ void SX1280Driver::End(void)
         gpio_in_isr_remove(_DIO1);
     if (gpio_out_valid(CS))
         gpio_out_write(CS, 1);
+    if (gpio_out_valid(_RST))
+        gpio_out_write(_RST, 0);
 }
 
 int16_t SX1280Driver::MeasureNoiseFloor(uint32_t num_meas, uint32_t freq)
