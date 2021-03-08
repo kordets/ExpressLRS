@@ -233,6 +233,59 @@ void handleSettingDomain(const char * input, int num = -1)
   websocket_send(settings_out, num);
 }
 
+void MspVtxWriteToElrs(uint16_t freq)
+{
+  uint8_t vtx_cmd[] = {
+    (uint8_t)freq, (uint8_t)(freq >> 8),
+    //power,
+    //(power == 0), // pit mode
+  };
+
+  if (freq == 0)
+    return;
+
+  eeprom_storage.vtx_freq = freq;
+  eeprom_storage.markDirty();
+
+  // Fill MSP packet
+  msp_out.reset();
+  msp_out.type = MSP_PACKET_V1_CMD;
+  msp_out.flags = MSP_VERSION | MSP_STARTFLAG;
+  msp_out.function = MSP_VTX_SET_CONFIG;
+  msp_out.payloadSize = sizeof(vtx_cmd);
+  memcpy((void*)msp_out.payload, vtx_cmd, sizeof(vtx_cmd));
+  // Send packet
+  MSP::sendPacket(&msp_out, &my_ctrl_serial);
+}
+
+void MspVtxWrite(const char * input, int num)
+{
+  String settings_out = "[ERROR] invalid command";
+  uint16_t freq;
+  //uint8_t power = 1;
+
+  if (input == NULL || *input == '?') {
+    settings_out = "ELRS_setting_vtx_freq=";
+    settings_out += eeprom_storage.vtx_freq;
+  } else if (input[0] == '=') {
+    settings_out = "Setting vtxfreq to: ";
+
+    freq = (input[1] - '0');
+    freq = freq*10 + (input[2] - '0');
+    freq = freq*10 + (input[3] - '0');
+    freq = freq*10 + (input[4] - '0');
+
+    if (freq == 0)
+      return;
+
+    settings_out += freq;
+    settings_out += "MHz";
+
+    MspVtxWriteToElrs(freq);
+  }
+  websocket_send(settings_out, num);
+}
+
 void SettingsGet(uint8_t wsnum)
 {
   if (!settings_valid) {
@@ -249,38 +302,9 @@ void SettingsGet(uint8_t wsnum)
     handleSettingPower(NULL, wsnum);
     delay(5);
     handleSettingTlm(NULL, wsnum);
+    delay(5);
   }
-}
-
-void MspVtxWrite(const char * input, int num = -1)
-{
-  (void)num;
-  (void)input;
-  //uint8_t power = 1;
-  uint16_t freq = 5840; //(uint16_t)msg[0] * 8 + msg[1]; // band * 8 + channel
-
-  if (input[0] == '=') {
-    freq = (input[1] - '0');
-    freq = freq*10 + (input[2] - '0');
-    freq = freq*10 + (input[3] - '0');
-    freq = freq*10 + (input[4] - '0');
-  }
-
-  uint8_t vtx_cmd[] = {
-    (uint8_t)freq, (uint8_t)(freq >> 8),
-    //power,
-    //(power == 0), // pit mode
-  };
-
-  // Fill MSP packet
-  msp_out.reset();
-  msp_out.type = MSP_PACKET_V1_CMD;
-  msp_out.flags = MSP_VERSION | MSP_STARTFLAG;
-  msp_out.function = MSP_VTX_SET_CONFIG;
-  msp_out.payloadSize = sizeof(vtx_cmd);
-  memcpy((void*)msp_out.payload, vtx_cmd, sizeof(vtx_cmd));
-  // Send packet
-  MSP::sendPacket(&msp_out, &my_ctrl_serial);
+  MspVtxWrite(NULL, wsnum);
 }
 
 #if CONFIG_HANDSET

@@ -16,3 +16,6 @@
 
 void websocket_send(String & data, int num = -1);
 void websocket_send(char const * data, int num = -1);
+
+void MspVtxWrite(const char * input, int num = -1);
+void MspVtxWriteToElrs(uint16_t freq);

@@ -1,5 +1,6 @@
 #include "comm_espnow.h"
 #include "main.h"
+#include "storage.h"
 #include <ESP8266WiFi.h>
 #include <espnow.h>
 
@@ -25,18 +26,52 @@ public:
 };
 
 CtrlSerialEspNow esp_now_sender;
+MSP esp_now_msp_rx;
 
 static void esp_now_recv_cb(uint8_t *mac_addr, uint8_t *data, uint8_t data_len)
 {
+  uint8_t iter, packet_ok = 0;
   /* No data or peer is unknown => ignore */
   if (!data_len || !esp_now_is_peer_exist(mac_addr))
     return;
 
-  websocket_send("ESP NOW message received!");
+  //websocket_send("ESP NOW message received!");
 
-  // Pass data to ERLS
-  // Note: accepts only correctly formatted MSP packets
-  Serial.write((uint8_t*)data, data_len);
+  esp_now_msp_rx.markPacketFree();
+
+  for (iter = 0; iter < data_len; iter++) {
+    if (esp_now_msp_rx.processReceivedByte(data[iter])) {
+      //  MSP received, check content
+      mspPacket_t &packet = esp_now_msp_rx.getPacket();
+
+      if (packet.type == MSP_PACKET_V2_COMMAND) {
+        if (packet.function == MSP_VTX_SET_CONFIG) {
+          uint16_t freq = packet.payload[1];
+          freq <<= 8;
+          freq += packet.payload[0];
+          if (3 <= packet.payloadSize) {
+            // power
+          }
+          if (4 <= packet.payloadSize) {
+            // pitmode
+          }
+
+          /* Infrom web clients */
+          eeprom_storage.vtx_freq = freq;
+          MspVtxWrite(NULL);
+        }
+      }
+
+      esp_now_msp_rx.markPacketFree();
+      packet_ok = 1;
+    }
+  }
+
+  // Pass data to ERLS if packet is ok
+  if (packet_ok) {
+    // Note: accepts only correctly formatted MSP packets
+    Serial.write((uint8_t*)data, data_len);
+  }
 }
 
 static void esp_now_send_cb(uint8_t *mac_addr, u8 status) {

@@ -92,6 +92,7 @@
             </td>
             <td>
               <select name="rf_module" onchange="setting_send('S_rf_module', this)" id="rf_module">
+                <option value="" selected disabled hidden></option>
                 <option value="0"> 900 (SX127x)</option>
                 <option value="3">2400 (SX128x)</option>
               </select>
@@ -106,6 +107,7 @@
             </td>
             <td colspan="2">
               <select name="rate" onchange="setting_send('S_rate', this)" id="rates_input">
+                <option value="" selected disabled hidden></option>
                 <option value="0">200Hz</option>
                 <option value="1">100Hz</option>
                 <option value="2">50Hz</option>
@@ -118,6 +120,7 @@
             </td>
             <td colspan="2">
               <select name="power" onchange="setting_send('S_power', this)" id="power_input">
+                <option value="" selected disabled hidden></option>
                 <option value="R">Reset</option>
                 <option value="0">Dynamic</option>
                 <option value="1">10mW</option>
@@ -137,6 +140,7 @@
             </td>
             <td colspan="2">
               <select name="telemetry" onchange="setting_send('S_telemetry', this)" id="tlm_input">
+                <option value="" selected disabled hidden></option>
                 <option value="R">Reset</option>
                 <option value="0">Off</option>
                 <option value="1">1/128</option>
@@ -184,20 +188,45 @@
         <div class="note">(will be sent to FC using MSP protocol)</div>
         <table style="width: 100%">
           <tr>
+            <!--
             <td style="width: 150px;">
               Frequency
             </td>
+            -->
             <td>
-              <select name="vtx_freq" onchange="setting_send('S_vtx_freq', this)" id="vtx_f_input">
-                <option value="5740">F1</option>
-                <option value="5760">F2</option>
-                <option value="5780">F3</option>
-                <option value="5800">F4</option>
-                <option value="5820">F5</option>
-                <option value="5840">F6</option>
-                <option value="5860">F7</option>
-                <option value="5880">F8</option>
+              BAND
+              <select id="vtx_band" onchange="vtx_show_freq()">
+                <option value="" selected disabled hidden></option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+                <option value="R">R</option>
+                <option value="L">L</option>
+                <option value="U">U</option>
+                <option value="O">O</option>
+                <option value="H">H</option>
               </select>
+            </td>
+            <td>
+              CHANNEL
+              <select id="vtx_channel" onchange="vtx_show_freq()">
+                <option value="" selected disabled hidden></option>
+                <option value="0">1</option>
+                <option value="1">2</option>
+                <option value="2">3</option>
+                <option value="3">4</option>
+                <option value="4">5</option>
+                <option value="5">6</option>
+                <option value="6">7</option>
+                <option value="7">8</option>
+              </select>
+            </td>
+            <td>
+              <div id="vtx_freq" style="width: 100px;"></div>
+            </td>
+            <td>
+              <button onclick="setting_send_vtx()">SET</button>
             </td>
           </tr>
           <tr>

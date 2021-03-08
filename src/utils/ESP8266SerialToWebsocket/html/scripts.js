@@ -112,7 +112,9 @@ function destroyClickedElement(event) {
 function setting_set(type, value) {
     var elem = $id(type);
     if (elem) {
-        if (type == "region_domain") {
+        if (type == "vtx_freq") {
+            vtx_parse_freq(value);
+        } else if (type == "region_domain") {
             value = parseInt(value);
             /* Check if handset */
             if (!(value & 0x80)) {
@@ -191,6 +193,70 @@ function setting_send(type, elem=null)
     } else {
         websock.send(type + "?");
     }
+}
+
+// Channels with their Mhz Values
+var channelFreqTable = {
+    "A": [5865, 5845, 5825, 5805, 5785, 5765, 5745, 5725], // A
+    "B": [5733, 5752, 5771, 5790, 5809, 5828, 5847, 5866], // B
+    "E": [5705, 5685, 5665, 5645, 5885, 5905, 5925, 5945], // E
+    "F": [5740, 5760, 5780, 5800, 5820, 5840, 5860, 5880], // F / Airwave
+    "R": [5658, 5695, 5732, 5769, 5806, 5843, 5880, 5917], // R / Immersion Raceband
+    "L": [5362, 5399, 5436, 5473, 5510, 5547, 5584, 5621], // L
+    "U": [5325, 5348, 5366, 5384, 5402, 5420, 5438, 5456], // U
+    "O": [5474, 5492, 5510, 5528, 5546, 5564, 5582, 5600], // O
+    "H": [5653, 5693, 5733, 5773, 5813, 5853, 5893, 5933]  // H
+};
+
+function vtx_show_freq()
+{
+    var band = $id("vtx_band").value;
+    var ch = $id("vtx_channel").value;
+    if (band == "" || ch == "")
+        return;
+    var freq = "";
+    freq += channelFreqTable[band][parseInt(ch, 10)];
+    freq += " MHz";
+    $id("vtx_freq").innerHTML = freq;
+}
+
+function vtx_parse_freq(freq)
+{
+    freq = parseInt(freq, 10);
+
+    if (freq == 0) {
+        // Clear selections
+        $id("vtx_band").value = "";
+        $id("vtx_channel").value = "";
+        $id("vtx_freq").innerHTML = "";
+        return;
+    }
+
+    for (var band in channelFreqTable) {
+        var channels = channelFreqTable[band];
+        for (var ch in channels) {
+            if (freq == channels[ch]) {
+                $id("vtx_band").value = band;
+                $id("vtx_channel").value = ch;
+                var _freq = "";
+                _freq += freq;
+                _freq += " MHz";
+                $id("vtx_freq").innerHTML = _freq;
+                return;
+            }
+        }
+    }
+}
+
+function setting_send_vtx()
+{
+    var band = $id("vtx_band").value;
+    var ch = $id("vtx_channel").value;
+    if (band == "" || ch == "")
+        return;
+    var freq = channelFreqTable[band][parseInt(ch, 10)];
+    if (websock)
+        websock.send("S_vtx_freq=" + freq);
 }
 
 function command_stm32(type)

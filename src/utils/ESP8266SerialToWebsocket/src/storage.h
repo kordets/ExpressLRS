@@ -11,6 +11,8 @@ struct storage {
     uint32_t batt_voltage_interval;
     uint32_t batt_voltage_warning;
 
+    uint16_t vtx_freq;
+
     void setup();
     void update();
 

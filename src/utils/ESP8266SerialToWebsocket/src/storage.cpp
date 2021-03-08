@@ -54,5 +54,7 @@ void storage::initDefaults()
     batt_voltage_interval = 5000;
     batt_voltage_warning = BATT_WARN_DEFAULT;
 
+    vtx_freq = 0;
+
     this->save();
 }
