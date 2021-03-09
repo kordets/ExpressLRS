@@ -33,11 +33,11 @@ function start() {
     //handle_calibrate_adjust(test);
     //test = "0,100,100";
     //handset_battery_value(test);
-    test = "ULQ:-1,UR1:-3,UR2:-2,USN:45,PWR:1,MO:7,DLQ:1,DR1:2,DSN:3";
+    //test = "ULQ:-1,UR1:-3,UR2:-2,USN:45,PWR:1,MO:7,DLQ:1,DR1:2,DSN:3";
     telmetry_set("tlm_uldl", test);
-    test = "V:168,A:105,C:1200,R:70";
+    //test = "V:168,A:105,C:1200,R:70";
     telmetry_set("tlm_batt", test);
-    test = "lon:1239248,lat:39879284,spe:23543,hea:234,alt:234,sat:10";
+    //test = "lon:1239248,lat:39879284,spe:23543,hea:234,alt:234,sat:10";
     telmetry_set("tlm_gps", test);
 
     $id("logField").scrollTop = $id("logField").scrollHeight;
@@ -541,7 +541,7 @@ function telmetry_set(type, value)
 {
     var name, updated_value, temp;
     var date = new Date();
-    var now = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toLocaleTimeString();
+    var now = new Date(date.getTime()).toLocaleTimeString([], {hour12: false});
     if (type.includes("_uldl")) {
         $id("tlm_ul_updated").innerHTML = now;
         $id("tlm_dl_updated").innerHTML = now;
