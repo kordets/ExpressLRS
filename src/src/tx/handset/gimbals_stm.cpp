@@ -33,6 +33,7 @@
 #define GIMBAL_HIGH     3622
 //#define GIMBAL_MID      (GIMBAL_LOW + (GIMBAL_HIGH - GIMBAL_LOW)/2) // 1906
 #define GIMBAL_MID      1858
+#define GIMBAL_CALIB_TOL 1000
 
 #define TIMx            TIM6
 #define TIMx_IRQn       TIM6_DAC_IRQn
@@ -471,7 +472,7 @@ uint8_t gimbals_calibrate_min_point(uint8_t idx)
     uint32_t start = 0;
     while (start < 64) {
         current = filters[idx].getCurrent();
-        if (current < (GIMBAL_LOW + 1000)) {
+        if (current < (GIMBAL_LOW + GIMBAL_CALIB_TOL)) {
             value += current;
             start++;
         }
@@ -487,7 +488,7 @@ uint8_t gimbals_calibrate_max_point(uint8_t idx)
     uint32_t start = 0;
     while (start < 64) {
         current = filters[idx].getCurrent();
-        if ((GIMBAL_HIGH - 100) < current) {
+        if ((GIMBAL_HIGH - GIMBAL_CALIB_TOL) < current) {
             value += current;
             start++;
         }
