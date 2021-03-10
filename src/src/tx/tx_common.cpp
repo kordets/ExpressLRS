@@ -333,9 +333,6 @@ GenerateSyncPacketData(uint8_t *const output, uint32_t rxtx_counter)
     ElrsSyncPacket_s * sync = (ElrsSyncPacket_s*)output;
     sync->fhssIndex = FHSSgetCurrIndex();
     sync->rxtx_counter = rxtx_counter;
-#if RX_UPDATE_AIR_RATE
-    sync->air_rate = current_rate_config;
-#endif
     sync->tlm_interval = TLMinterval;
     sync->CRCCaesarCipher = CRCCaesarCipher;
     sync->pkt_type = UL_PACKET_SYNC;

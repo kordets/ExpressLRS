@@ -87,12 +87,7 @@ typedef struct ElrsSyncPacket_s {
     uint16_t CRCCaesarCipher;
     uint8_t fhssIndex;
     uint8_t rxtx_counter;
-#if RX_UPDATE_AIR_RATE
-    uint8_t air_rate: 4;
-    uint8_t tlm_interval : 4;
-#else
     uint8_t tlm_interval;
-#endif
     uint8_t pkt_type;
 } ElrsSyncPacket_s;
 

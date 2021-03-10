@@ -90,9 +90,6 @@ static uint8_t DRAM_ATTR uplink_Link_quality;
 static uint32_t DRAM_ATTR RFmodeNextCycle; // set from isr
 static uint8_t DRAM_ATTR scanIndex;
 static uint8_t DRAM_ATTR tentative_cnt;
-#if RX_UPDATE_AIR_RATE
-static uint8_t DRAM_ATTR updatedAirRate = 0xff;
-#endif
 
 ///////////////////////////////////////
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
@@ -482,13 +479,6 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
                     }
                 }
 
-#if RX_UPDATE_AIR_RATE
-                if (current_rate_config != sync->air_rate)
-                {
-                    updatedAirRate = sync->air_rate;
-                }
-#endif
-
                 handle_tlm_ratio(sync->tlm_interval);
                 FHSSsetCurrIndex(sync->fhssIndex);
                 NonceRXlocal = sync->rxtx_counter;
@@ -738,18 +728,6 @@ void loop()
 {
     uint32_t now = millis();
     const connectionState_e _conn_state = (connectionState_e)read_u32(&connectionState);
-
-#if RX_UPDATE_AIR_RATE
-    uint8_t new_air_rate = read_u8(&updatedAirRate);
-    /* update air rate config, timed to FHSS index 0 */
-    if (new_air_rate < get_elrs_airRateMax() && new_air_rate != current_rate_config)
-    {
-        write_u32(&connectionState, (uint32_t)STATE_lost); // Mark to lost to stay on received rate and force resync.
-        SetRFLinkRate(new_air_rate); // configure air rate
-        RFmodeNextCycle = now;
-        return;
-    }
-#endif /* RX_UPDATE_AIR_RATE */
 
     if (STATE_lost < _conn_state)
     {
