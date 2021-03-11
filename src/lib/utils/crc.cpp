@@ -203,10 +203,10 @@ uint16_t ICACHE_RAM_ATTR CalcCRC16_XMODEM(uint8_t const *data, uint16_t length)
 
 uint8_t ICACHE_RAM_ATTR CalcParity(uint8_t const *data, uint16_t length)
 {
-    uint32_t sum = 0u;
+    uint8_t parity = 0u;
     while (length--)
-        sum += *data++;
-    return sum & 0x2;
+        parity ^= __builtin_parity(*data++);
+    return parity;
 }
 
 uint8_t crc8_dvb_s2(uint8_t crc, uint8_t a)

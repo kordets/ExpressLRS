@@ -68,7 +68,9 @@ uint32_t ICACHE_RAM_ATTR FHSSgetCurrIndex()
 
 void ICACHE_RAM_ATTR FHSSincCurrIndex()
 {
+#if !STAY_ON_INIT_CHANNEL
     FHSSptr = (FHSSptr + FHSSstep) % FHSSsequenceLen;
+#endif
 }
 
 uint8_t ICACHE_RAM_ATTR FHSSgetCurrSequenceIndex()
