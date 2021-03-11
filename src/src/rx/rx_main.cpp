@@ -489,6 +489,13 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
             //DEBUG_PRINTF(" R");
             if (STATE_lost < _conn_state)
             {
+#if CRC16_POLY_TESTING
+                if (memcmp(rx_buffer, CRC16_POLY_PKT, sizeof(CRC16_POLY_PKT))) {
+                    // Bad pkt content
+                    DEBUG_PRINTF(" #");
+                    return;
+                }
+#else // !CRC16_POLY_TESTING
                 RcChannels_channels_extract(rx_buffer, CrsfChannels);
 #if SERVO_OUTPUTS_ENABLED
 #if SERVO_WRITE_FROM_ISR
@@ -505,6 +512,7 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
                 gpio_out_write(dbg_pin_rx, 1);
 #endif
 #endif // SERVO_OUTPUTS_ENABLED
+#endif // CRC16_POLY_TESTING
             }
             break;
 

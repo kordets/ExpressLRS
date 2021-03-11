@@ -377,6 +377,9 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     else
     {
         RcChannels_get_packed_data(tx_buffer);
+#if CRC16_POLY_TESTING
+        memcpy(tx_buffer, CRC16_POLY_PKT, sizeof(CRC16_POLY_PKT));
+#endif
     }
 
 #if OTA_PACKET_10B

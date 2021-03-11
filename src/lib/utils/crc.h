@@ -24,4 +24,8 @@ uint32_t CalcCRC32(uint8_t const *data, uint16_t len);
 uint8_t ICACHE_RAM_ATTR CalcCRCcmd(uint8_t const *data, uint16_t length, uint8_t crc = 0);
 #endif
 
+#if CRC16_POLY_TESTING
+extern uint8_t CRC16_POLY_PKT[5];
+#endif
+
 #endif /* CRC_H_ */
