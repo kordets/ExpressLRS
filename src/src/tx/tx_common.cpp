@@ -387,9 +387,14 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     tx_buffer[index++] = rxtx_counter;
 #endif // OTA_PACKET_10B
 
+#if (CRC16_POLY_NEW == 14)
+    uint8_t parity = CalcParity(tx_buffer, index) << 6;
+#else
+    #define parity 0;
+#endif
     // Calculate the CRC
     crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
-    tx_buffer[index++] = (crc >> 8);
+    tx_buffer[index++] = (crc >> 8) | parity;
     tx_buffer[index++] = (crc & 0xFF);
     // Enable PA
     PowerMgmt.pa_on();
