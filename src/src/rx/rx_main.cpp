@@ -433,6 +433,8 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
     const connectionState_e _conn_state = connectionState;
 #if (CRC16_POLY_NEW == 14)
     const uint16_t parity = (uint16_t)CalcParity(rx_buffer, OTA_PACKET_PAYLOAD) << 14;
+#elif (CRC16_POLY_NEW == 15)
+    const uint16_t parity = (uint16_t)CalcParity(rx_buffer, OTA_PACKET_PAYLOAD);
 #else
     #define parity 0;
 #endif

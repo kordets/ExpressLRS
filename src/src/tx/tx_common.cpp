@@ -350,8 +350,8 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
     uint8_t * const tx_buffer = (uint8_t *)__tx_buffer;
     uint16_t crc;
     uint8_t index = OTA_PACKET_DATA, arm_state = RcChannels_get_arm_channel_state();
-#if (CRC16_POLY_NEW == 14)
-    uint8_t parity;
+#if (CRC16_POLY_NEW == 14) || (CRC16_POLY_NEW == 15)
+    uint16_t parity;
 #endif
 
     // Check if telemetry RX ongoing
@@ -391,13 +391,15 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
 #endif // OTA_PACKET_10B
 
 #if (CRC16_POLY_NEW == 14)
-    parity = CalcParity(tx_buffer, index) << 6;
+    parity = (uint16_t)CalcParity(tx_buffer, index) << 14;
+#elif (CRC16_POLY_NEW == 15)
+    parity = CalcParity(tx_buffer, index);
 #else
     #define parity 0;
 #endif
     // Calculate the CRC
-    crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
-    tx_buffer[index++] = (crc >> 8) | parity;
+    crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher) | parity;
+    tx_buffer[index++] = (crc >> 8);
     tx_buffer[index++] = (crc & 0xFF);
     // Enable PA
     PowerMgmt.pa_on();

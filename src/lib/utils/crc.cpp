@@ -95,7 +95,7 @@ const uint16_t DRAM_FORCE_ATTR crc_ccitt_table[256] = {
 	0xf78f, 0xe606, 0xd49d, 0xc514, 0xb1ab, 0xa022, 0x92b9, 0x8330,
 	0x7bc7, 0x6a4e, 0x58d5, 0x495c, 0x3de3, 0x2c6a, 0x1ef1, 0x0f78
 };
-#elif (CRC16_POLY_NEW == 16)
+#elif (CRC16_POLY_NEW == 16) || (CRC16_POLY_NEW == 15)
 // Poly is 0x9EB2 (HD=6 up to 135b)
 const uint16_t DRAM_FORCE_ATTR crc_ccitt_table[256] = {
     0x0000, 0x9EB2, 0xA3D6, 0x3D64, 0xD91E, 0x47AC, 0x7AC8, 0xE47A,
@@ -179,7 +179,13 @@ uint16_t ICACHE_RAM_ATTR CalcCRC16_CCITT(uint8_t const *data, uint16_t length, u
 {
     while (length--)
         crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ *data++) & 0xff];
+#if (CRC16_POLY_NEW == 14)
+    return crc & 0x3FFF;
+#elif (CRC16_POLY_NEW == 15)
+    return crc & 0xFFFE;
+#else
     return crc;
+#endif
 }
 
 
