@@ -103,10 +103,10 @@ public:
     GimbalNoFilter() {
         output = GIMBAL_MID;
     }
-    uint32_t getCurrent(void) {
+    uint32_t ICACHE_RAM_ATTR getCurrent(void) {
         return output;
     }
-    uint32_t update(uint32_t input) {
+    uint32_t ICACHE_RAM_ATTR update(uint32_t input) {
         output = input;
         return input;
     }
@@ -126,7 +126,7 @@ private:
 //filterSpec_s freestyleFilter = {100, 250, 0.01f};
 //filterSpec_s cinematicFilter = {10,   50, 0.01f};
 
-static OneAUDfilter DRAM_ATTR filters[NUM_ANALOGS] = {
+static OneAUDfilter DRAM_FORCE_ATTR filters[NUM_ANALOGS] = {
     OneAUDfilter(F_MIN, F_MAX, F_BETA, TIM_INVERVAL_US),
     OneAUDfilter(F_MIN, F_MAX, F_BETA, TIM_INVERVAL_US),
     OneAUDfilter(F_MIN, F_MAX, F_BETA, TIM_INVERVAL_US),
@@ -134,7 +134,7 @@ static OneAUDfilter DRAM_ATTR filters[NUM_ANALOGS] = {
 };
 
 #elif FILTER_ENABLE == FILTER_NO
-static GimbalNoFilter DRAM_ATTR filters[NUM_ANALOGS] = {
+static GimbalNoFilter DRAM_FORCE_ATTR filters[NUM_ANALOGS] = {
     GimbalNoFilter(),
     GimbalNoFilter(),
     GimbalNoFilter(),
@@ -145,13 +145,13 @@ static GimbalNoFilter DRAM_ATTR filters[NUM_ANALOGS] = {
 #error "invalid filter selected"
 #endif
 
-static inline void
+inline __attribute__((always_inline)) void
 timer_reset_period(void)
 {
     TIMx->ARR = TIM_INVERVAL_US - 1;
 }
 
-void handle_dma_isr(void)
+void ICACHE_RAM_ATTR handle_dma_isr(void)
 {
     uint32_t val;
     uint_fast8_t iter, index;
@@ -190,14 +190,14 @@ void handle_dma_isr(void)
 
 
 extern "C" {
-void ADC_IRQHandler(void)
+void ICACHE_RAM_ATTR ADC_IRQHandler(void)
 {
     if (READ_BIT(ADC1->SR, ADC_SR_OVR)) {
         WRITE_REG(ADC1->SR , ADC_SR_OVR);
     }
 }
 
-void DMA2_Stream0_IRQHandler(void)
+void ICACHE_RAM_ATTR DMA2_Stream0_IRQHandler(void)
 {
     // DMA transfer complete.
     if (READ_BIT(DMA2->LISR, DMA_LISR_TCIF0)) {
@@ -215,7 +215,7 @@ void DMA2_Stream0_IRQHandler(void)
     }
 }
 
-void TIMx_IRQx_FUNC(void)
+void ICACHE_RAM_ATTR TIMx_IRQx_FUNC(void)
 {
     uint16_t SR = TIMx->SR;
     if (SR & TIM_SR_UIF) {

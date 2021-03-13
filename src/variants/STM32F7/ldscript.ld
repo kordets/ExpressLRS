@@ -28,21 +28,22 @@
 *****************************************************************************
 */
 
+/* Specify the memory areas */
+MEMORY
+{
+  RAM_DATA (xrw)  : ORIGIN = 0x20000000, LENGTH = 128K
+  RAM_CODE (rx)   : ORIGIN = 0x20000000 + LENGTH(RAM_DATA), LENGTH = 128K
+  FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 512K
+}
+
 /* Entry Point */
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = 0x20040000;    /* end of RAM */
+_estack = ORIGIN(RAM_DATA) + LENGTH(RAM_DATA); /* end of RAM */
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
-_Min_Stack_Size = 0x400; /* required amount of stack */
-
-/* Specify the memory areas */
-MEMORY
-{
-RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 256K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 512K
-}
+_Min_Stack_Size = 0x1000; /* required amount of stack */
 
 /* Define output sections */
 SECTIONS
@@ -54,6 +55,18 @@ SECTIONS
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
   } >FLASH
+
+  /* Critical program code goes into RAM_CODE */
+  ram_code = LOADADDR(.ram_code);
+  .ram_code :
+  {
+    . = ALIGN(4);
+    ram_code_start = .;
+    *(.ram_code)
+    *(.ram_code*)
+    . = ALIGN(4);
+    ram_code_end = .;
+  } >RAM_CODE AT> FLASH
 
   /* The program code and other data goes into FLASH */
   .text :
@@ -113,7 +126,7 @@ SECTIONS
   _sidata = LOADADDR(.data);
 
   /* Initialized data sections goes into RAM, load LMA copy after code */
-  .data : 
+  .data :
   {
     . = ALIGN(4);
     _sdata = .;        /* create a global symbol at data start */
@@ -122,9 +135,9 @@ SECTIONS
 
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-  } >RAM AT> FLASH
+  } >RAM_DATA AT> FLASH
 
-  
+
   /* Uninitialized data section */
   . = ALIGN(4);
   .bss :
@@ -139,7 +152,7 @@ SECTIONS
     . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
-  } >RAM
+  } >RAM_DATA
 
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack :
@@ -150,9 +163,9 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(4);
-  } >RAM
+  } >RAM_DATA
 
-  
+
 
   /* Remove information from the standard libraries */
   /DISCARD/ :

@@ -94,3 +94,10 @@ fhss_random.check_env_and_parse(env['BUILD_FLAGS'])
 stm = env.get('PIOPLATFORM', '') in ['ststm32']
 if stm:
     env['UPLOAD_PROTOCOL'] = 'custom'
+
+    def replace_arm_startup_file(node):
+        if ".S" in str(node):
+            return os.path.join(env['PROJECT_DIR'], "variants/STM32F7/startup_stm32f722xx.S")
+        return os.path.join(env['PROJECT_DIR'], "variants/STM32F7/system_stm32f7xx.c")
+    env.AddBuildMiddleware(replace_arm_startup_file, "*/startup_stm32f722xx.S")
+    env.AddBuildMiddleware(replace_arm_startup_file, "*/system_stm32f7xx.c")
