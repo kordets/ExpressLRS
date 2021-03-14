@@ -385,11 +385,6 @@ static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
 #endif
     }
 
-#if OTA_PACKET_10B
-    tx_buffer[index++] = FHSSgetCurrIndex();
-    tx_buffer[index++] = rxtx_counter;
-#endif // OTA_PACKET_10B
-
 #if (CRC16_POLY_NEW == 14)
     parity = (uint16_t)CalcParity(tx_buffer, index) << 14;
 #elif (CRC16_POLY_NEW == 15)

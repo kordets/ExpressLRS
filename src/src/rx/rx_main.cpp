@@ -220,11 +220,6 @@ void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
         RcChannels_packetTypeSet(tx_buffer, DL_PACKET_TLM_LINK);
     }
 
-#if OTA_PACKET_10B
-    tx_buffer[index++] = 0;
-    tx_buffer[index++] = 0;
-#endif // OTA_PACKET_10B
-
     uint16_t crc = CalcCRC16(tx_buffer, index, CRCCaesarCipher);
     tx_buffer[index++] = (crc >> 8);
     tx_buffer[index++] = (crc & 0xFF);
@@ -541,14 +536,6 @@ void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t 
             return;
             //break;
     }
-
-#if OTA_PACKET_10B
-    if (STATE_lost < _conn_state) {
-        // Received in every packet to maintain sync all the time
-        FHSSsetCurrIndex(rx_buffer[OTA_PACKET_DATA]);
-        NonceRXlocal = rx_buffer[OTA_PACKET_DATA+1];
-    }
-#endif // OTA_PACKET_10B
 
     rx_freqerror = freq_err;
 
