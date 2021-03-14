@@ -81,7 +81,7 @@ void CRSF_TX::Begin(void)
     p_UartNextCheck = millis(); //  +UARTwdtInterval * 2;
 }
 
-void ICACHE_RAM_ATTR CRSF_TX::CrsfFramePushToFifo(uint8_t *buff, uint8_t size) const
+void FAST_CODE_1 CRSF_TX::CrsfFramePushToFifo(uint8_t *buff, uint8_t size) const
 {
     buff[size - 1] = CalcCRC(&buff[2], (buff[1] - 1));
     _dev->write(buff, size);

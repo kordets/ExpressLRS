@@ -6,7 +6,7 @@
 uint8_t linkQualityArray[100];
 uint8_t linkQualityArrayIndex;
 
-void ICACHE_RAM_ATTR LQ_nextPacket()
+void FAST_CODE_1 LQ_nextPacket()
 {
     uint_fast8_t index = linkQualityArrayIndex;
     index = (index + 1) % sizeof(linkQualityArray);
@@ -14,12 +14,12 @@ void ICACHE_RAM_ATTR LQ_nextPacket()
     linkQualityArrayIndex = index;
 }
 
-void ICACHE_RAM_ATTR LQ_packetAck(void)
+void FAST_CODE_1 LQ_packetAck(void)
 {
     linkQualityArray[linkQualityArrayIndex] = 1;
 }
 
-uint_fast8_t ICACHE_RAM_ATTR LQ_getlinkQuality()
+uint_fast8_t FAST_CODE_1 LQ_getlinkQuality()
 {
     uint_fast8_t LQ = 0;
     int_fast8_t size = sizeof(linkQualityArray);
@@ -29,7 +29,7 @@ uint_fast8_t ICACHE_RAM_ATTR LQ_getlinkQuality()
     return LQ;
 }
 
-void ICACHE_RAM_ATTR LQ_reset()
+void FAST_CODE_1 LQ_reset()
 {
     memset(linkQualityArray, 1, sizeof(linkQualityArray));
     linkQualityArrayIndex = 0;

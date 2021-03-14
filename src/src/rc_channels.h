@@ -128,13 +128,13 @@ typedef struct rc_channels_s
 
 void
 RcChannels_processChannels(rc_channels_t const *const channels);
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RcChannels_get_packed_data(uint8_t *const output);
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 RcChannels_get_arm_channel_state(void);
 
 // RX related
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RcChannels_channels_extract(uint8_t const *const input,
                             rc_channels_t &output);
 
@@ -144,11 +144,11 @@ RcChannels_channels_extract(uint8_t const *const input,
 
 typedef void (*MspCallback_t)(uint8_t const *const input);
 
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 RcChannels_tlm_ota_send(uint8_t *const output,
                         mspPacket_t &packet,
                         uint8_t tx=1);
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 RcChannels_tlm_ota_receive(uint8_t const *const input,
                            mspPacket_t &packet);
 
@@ -182,10 +182,10 @@ typedef struct LinkStats_s {
 
 typedef void (*BattInfoCallback_t)(LinkStatsBatt_t *);
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RcChannels_link_stas_pack(uint8_t *const output,
                           LinkStats_t &input, uint_fast8_t ul_lq);
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RcChannels_link_stas_extract(uint8_t const *const input,
                              LinkStats_t &output,
                              int8_t snr, int16_t rssi);
@@ -207,9 +207,9 @@ typedef struct GpsOta_s {
 /* Packet received callback */
 typedef void (*GpsCallback_t)(GpsOta_t * gps);
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RcChannels_gps_extract(uint8_t const *const input, GpsOta_t & output);
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 RcChannels_gps_pack(uint8_t *const output, GpsOta_t & input);
 
 #endif /* __RC_CHANNELS_H */

@@ -14,12 +14,12 @@ public:
         init(0);
     }
 
-    int32_t ICACHE_RAM_ATTR value(void)
+    int32_t FAST_CODE_1 value(void)
     {
         return SmoothDataINT;
     }
 
-    int32_t ICACHE_RAM_ATTR update(int32_t Indata)
+    int32_t FAST_CODE_1 update(int32_t Indata)
     {
         int RawData;
         RawData = Indata;
@@ -33,7 +33,7 @@ public:
         return SmoothDataINT;
     }
 
-    void ICACHE_RAM_ATTR init(int32_t Indata)
+    void FAST_CODE_1 init(int32_t Indata)
     {
         SmoothDataINT = Indata;
         SmoothDataFP = Indata << FP_Shift;

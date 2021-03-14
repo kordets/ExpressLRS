@@ -53,7 +53,7 @@ uint32_t rng0to2(void)
     return randomNumber;
 }
 
-unsigned int ICACHE_RAM_ATTR
+unsigned int FAST_CODE_1
 volatile_memcpy(volatile void *d, volatile void *s, unsigned int n)
 {
     volatile unsigned char *dst = (unsigned char *)d;

@@ -300,7 +300,7 @@ void process_rx_buffer(void)
     }
 }
 
-static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff, uint32_t rx_us)
+static void FAST_CODE_1 ProcessTLMpacket(uint8_t *buff, uint32_t rx_us)
 {
     if (buff) {
         (void)rx_us;
@@ -311,7 +311,7 @@ static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff, uint32_t rx_us)
     }
 }
 
-static void ICACHE_RAM_ATTR HandleTLM()
+static void FAST_CODE_1 HandleTLM()
 {
     //DEBUG_PRINTF("X ");
     uint32_t const tlm_ratio = tlm_check_ratio;
@@ -327,7 +327,7 @@ static void ICACHE_RAM_ATTR HandleTLM()
 
 ///////////////////////////////////////
 
-static void ICACHE_RAM_ATTR
+static void FAST_CODE_1
 GenerateSyncPacketData(uint8_t *const output, uint32_t rxtx_counter)
 {
     ElrsSyncPacket_s * sync = (ElrsSyncPacket_s*)output;
@@ -338,7 +338,7 @@ GenerateSyncPacketData(uint8_t *const output, uint32_t rxtx_counter)
     sync->pkt_type = UL_PACKET_SYNC;
 }
 
-static void ICACHE_RAM_ATTR SendRCdataToRF(uint32_t const current_us)
+static void FAST_CODE_1 SendRCdataToRF(uint32_t const current_us)
 {
     //gpio_out_write(debug_pin_tx, 1);
     // Called by HW timer

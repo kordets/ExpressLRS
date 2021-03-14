@@ -47,19 +47,19 @@ DoublePT1filter::DoublePT1filter()
     current2 = FASTZERO;
 }
 
-float ICACHE_RAM_ATTR DoublePT1filter::update(const float x)
+float FAST_CODE_1 DoublePT1filter::update(const float x)
 {
     current1 = current1 + k * (x - current1);
     current2 = current2 + k * (current1 - current2);
     return current2;
 }
 
-float ICACHE_RAM_ATTR DoublePT1filter::getCurrent()
+float FAST_CODE_1 DoublePT1filter::getCurrent()
 {
     return current2;
 }
 
-void ICACHE_RAM_ATTR DoublePT1filter::setK(const float newK)
+void FAST_CODE_1 DoublePT1filter::setK(const float newK)
 {
     k = newK;
 }
@@ -115,7 +115,7 @@ void OneAUDfilter::setSampleRate(const float newSampleRate)
     // The output PT1s get a new K at each update, so no need to set here
 }
 
-float ICACHE_RAM_ATTR OneAUDfilter::slewLimit(const float x)
+float FAST_CODE_1 OneAUDfilter::slewLimit(const float x)
 {
     if (slewDisabled) {
         return x;
@@ -133,7 +133,7 @@ float ICACHE_RAM_ATTR OneAUDfilter::slewLimit(const float x)
 }
 
 // update the filter with a new value
-float ICACHE_RAM_ATTR OneAUDfilter::update(const float newValue)
+float FAST_CODE_1 OneAUDfilter::update(const float newValue)
 {
     // slew limit the input
     const float limitedNew = slewLimit(newValue);
@@ -170,7 +170,7 @@ float ICACHE_RAM_ATTR OneAUDfilter::update(const float newValue)
 }
 
 // get the current filtered value
-float ICACHE_RAM_ATTR OneAUDfilter::getCurrent()
+float FAST_CODE_1 OneAUDfilter::getCurrent()
 {
     return oFilt.getCurrent();
 }

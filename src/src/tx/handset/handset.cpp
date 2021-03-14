@@ -30,7 +30,7 @@ void GpsSensorSend(void);
 
 ///////////////////////////////////////
 
-static void ICACHE_RAM_ATTR
+static void FAST_CODE_1
 rc_data_collect(uint32_t const current_us)
 {
 #ifdef DBG_PIN

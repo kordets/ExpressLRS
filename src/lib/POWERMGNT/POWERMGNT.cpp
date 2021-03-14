@@ -88,13 +88,13 @@ void POWERMGNT::setPower(PowerLevels_e power)
     p_set_power(power);
 }
 
-void ICACHE_RAM_ATTR POWERMGNT::pa_off(void) const
+void FAST_CODE_1 POWERMGNT::pa_off(void) const
 {
     if (p_dac && p_radio->GetModuleType() == MODULE_R9M_DAC)
         p_dac->standby();
 }
 
-void ICACHE_RAM_ATTR POWERMGNT::pa_on(void) const
+void FAST_CODE_1 POWERMGNT::pa_on(void) const
 {
     if (p_dac && p_radio->GetModuleType() == MODULE_R9M_DAC)
         p_dac->resume();

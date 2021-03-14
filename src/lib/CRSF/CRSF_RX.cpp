@@ -26,7 +26,7 @@ void CRSF_RX::Begin(void)
     CRSF::Begin();
 }
 
-void ICACHE_RAM_ATTR CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size) const
+void FAST_CODE_1 CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size) const
 {
     buff[size - 1] = CalcCRC(&buff[2], (buff[1] - 1));
 #if !NO_DATA_TO_FC
@@ -51,13 +51,13 @@ void CRSF_RX::LinkStatisticsSend(LinkStatsLink_t & stats) const
     sendFrameToFC((uint8_t*)&link_stat_packet, sizeof(link_stat_packet));
 }
 
-void ICACHE_RAM_ATTR CRSF_RX::sendRCFrameToFC(rc_channels_t * channels) const
+void FAST_CODE_1 CRSF_RX::sendRCFrameToFC(rc_channels_t * channels) const
 {
     memcpy(&p_crsf_channels.data, (void*)channels, sizeof(crsf_channels_t));
     sendFrameToFC((uint8_t*)&p_crsf_channels, sizeof(p_crsf_channels));
 }
 
-void ICACHE_RAM_ATTR CRSF_RX::sendMSPFrameToFC(mspPacket_t & msp) const
+void FAST_CODE_1 CRSF_RX::sendMSPFrameToFC(mspPacket_t & msp) const
 {
     uint8_t i;
     msp_packet.msp.flags = MSP_VERSION + msp.sequence_nbr;

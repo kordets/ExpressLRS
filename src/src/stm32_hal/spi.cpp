@@ -108,7 +108,7 @@ spi_setup(uint32_t speed, int sck, int miso, int mosi, uint8_t mode)
     return {.spi = NULL, .spi_cr1 = 0};
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 spi_prepare(struct spi_config config)
 {
     SPI_TypeDef *spi = (SPI_TypeDef *)config.spi;
@@ -118,7 +118,7 @@ spi_prepare(struct spi_config config)
 #endif
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 spi_transfer(struct spi_config config, uint8_t receive_data, uint8_t len, uint8_t *data)
 {
 #if !USE_HAL_VERSION

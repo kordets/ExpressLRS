@@ -20,12 +20,12 @@ const uint8_t DRAM_FORCE_ATTR crc8tab[256] = {
     0x84, 0x51, 0xFB, 0x2E, 0x7A, 0xAF, 0x05, 0xD0, 0xAD, 0x78, 0xD2, 0x07, 0x53, 0x86, 0x2C, 0xF9};
 
 // this is same as crc8_dvb_s2
-uint8_t ICACHE_RAM_ATTR CalcCRC(uint8_t data, uint8_t crc)
+uint8_t FAST_CODE_1 CalcCRC(uint8_t data, uint8_t crc)
 {
     return crc8tab[crc ^ data];
 }
 
-uint8_t ICACHE_RAM_ATTR CalcCRC(volatile uint8_t const *data, uint16_t length, uint8_t crc)
+uint8_t FAST_CODE_1 CalcCRC(volatile uint8_t const *data, uint16_t length, uint8_t crc)
 {
     while (length--) {
         crc = crc8tab[crc ^ *data++];
@@ -33,7 +33,7 @@ uint8_t ICACHE_RAM_ATTR CalcCRC(volatile uint8_t const *data, uint16_t length, u
     return crc;
 }
 
-uint8_t ICACHE_RAM_ATTR CalcCRC(uint8_t const *data, uint16_t length, uint8_t crc)
+uint8_t FAST_CODE_1 CalcCRC(uint8_t const *data, uint16_t length, uint8_t crc)
 {
     while (length--) {
         crc = crc8tab[crc ^ *data++];
@@ -41,7 +41,7 @@ uint8_t ICACHE_RAM_ATTR CalcCRC(uint8_t const *data, uint16_t length, uint8_t cr
     return crc;
 }
 
-uint8_t ICACHE_RAM_ATTR CalcCRCxor(uint8_t *data, uint16_t length, uint8_t crc)
+uint8_t FAST_CODE_1 CalcCRCxor(uint8_t *data, uint16_t length, uint8_t crc)
 {
     while (length--) {
         crc = crc ^ *data++;
@@ -49,7 +49,7 @@ uint8_t ICACHE_RAM_ATTR CalcCRCxor(uint8_t *data, uint16_t length, uint8_t crc)
     return crc;
 }
 
-uint8_t ICACHE_RAM_ATTR CalcCRCxor(uint8_t data, uint8_t crc)
+uint8_t FAST_CODE_1 CalcCRCxor(uint8_t data, uint8_t crc)
 {
     return crc ^ data;
 }
@@ -175,7 +175,7 @@ const uint16_t DRAM_FORCE_ATTR crc_ccitt_table[256] = {
 uint8_t CRC16_POLY_PKT[5] = {0x11, 0x22, 0x33, 0x44, 0x55};
 #endif
 
-uint16_t ICACHE_RAM_ATTR CalcCRC16_CCITT(uint8_t const *data, uint16_t length, uint16_t crc)
+uint16_t FAST_CODE_1 CalcCRC16_CCITT(uint8_t const *data, uint16_t length, uint16_t crc)
 {
     while (length--)
         crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ *data++) & 0xff];
@@ -190,7 +190,7 @@ uint16_t ICACHE_RAM_ATTR CalcCRC16_CCITT(uint8_t const *data, uint16_t length, u
 
 
 /* XMODEM CRC16 */
-uint16_t ICACHE_RAM_ATTR CalcCRC16_XMODEM(uint8_t const *data, uint16_t length)
+uint16_t FAST_CODE_1 CalcCRC16_XMODEM(uint8_t const *data, uint16_t length)
 {
     uint16_t crc = 0u;
 
@@ -207,7 +207,7 @@ uint16_t ICACHE_RAM_ATTR CalcCRC16_XMODEM(uint8_t const *data, uint16_t length)
     return crc;
 }
 
-uint8_t ICACHE_RAM_ATTR CalcParity(uint8_t const *data, uint16_t length)
+uint8_t FAST_CODE_1 CalcParity(uint8_t const *data, uint16_t length)
 {
     uint8_t parity = 0u;
     while (length--)
@@ -273,7 +273,7 @@ const uint8_t DRAM_FORCE_ATTR crc8tabcmd[256] =
      0xC2, 0x78, 0x0C, 0xB6, 0xE4, 0x5E, 0x2A, 0x90, 0x8E, 0x34, 0x40, 0xFA, 0xA8, 0x12, 0x66, 0xDC,
      0x5A, 0xE0, 0x94, 0x2E, 0x7C, 0xC6, 0xB2, 0x08, 0x16, 0xAC, 0xD8, 0x62, 0x30, 0x8A, 0xFE, 0x44};
 
-uint8_t ICACHE_RAM_ATTR CalcCRCcmd(uint8_t const *data, uint16_t length, uint8_t crc)
+uint8_t FAST_CODE_1 CalcCRCcmd(uint8_t const *data, uint16_t length, uint8_t crc)
 {
     while (length--)
     {

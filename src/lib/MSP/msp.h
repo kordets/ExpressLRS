@@ -119,13 +119,13 @@ typedef struct
         payload[payloadIterator++] = b;
     }
 
-    inline void ICACHE_RAM_ATTR setIteratorToSize()
+    inline void FAST_CODE_1 setIteratorToSize()
     {
         payloadSize = payloadIterator;
         payloadIterator = 0;
     }
 
-    uint8_t ICACHE_RAM_ATTR readByte()
+    uint8_t FAST_CODE_1 readByte()
     {
         if (iterated())
         {

@@ -40,7 +40,7 @@ public:
     void sendMspPacketToRadio(mspPacket_t &msp) const;
 
     // OpenTX Syncing
-    void ICACHE_RAM_ATTR setRcPacketRate(uint32_t const interval)
+    void FAST_CODE_1 setRcPacketRate(uint32_t const interval)
     {
 #if (FEATURE_OPENTX_SYNC)
         // Scale value to correct format
@@ -48,7 +48,7 @@ public:
 #endif
     }
 
-    void ICACHE_RAM_ATTR UpdateOpenTxSyncOffset(uint32_t const current_us)
+    void FAST_CODE_1 UpdateOpenTxSyncOffset(uint32_t const current_us)
     {
 #if (FEATURE_OPENTX_SYNC)
         OpenTXsyncOffset = (int32_t)(current_us - RCdataLastRecv);

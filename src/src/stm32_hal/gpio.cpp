@@ -92,14 +92,14 @@ void gpio_out_reset(struct gpio_out g, uint32_t val)
     irq_restore(flag);
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 gpio_out_toggle_noirq(struct gpio_out g)
 {
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
     regs->ODR ^= g.bit;
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 gpio_out_toggle(struct gpio_out g)
 {
     irqstatus_t flag = irq_save();
@@ -107,7 +107,7 @@ gpio_out_toggle(struct gpio_out g)
     irq_restore(flag);
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 gpio_out_write(struct gpio_out g, uint32_t val)
 {
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
@@ -117,7 +117,7 @@ gpio_out_write(struct gpio_out g, uint32_t val)
         regs->BSRR = g.bit << 16;
 }
 
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 gpio_out_read(struct gpio_out g)
 {
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
@@ -148,7 +148,7 @@ void gpio_in_reset(struct gpio_in g, int32_t pull_up)
     irq_restore(flag);
 }
 
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 gpio_in_read(struct gpio_in g)
 {
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
@@ -289,7 +289,7 @@ void gpio_in_isr_remove(struct gpio_in g)
     irq_restore(irq);
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 gpio_in_isr_clear_pending(struct gpio_in g)
 {
     if (gpio_in_valid(g))
@@ -299,7 +299,7 @@ gpio_in_isr_clear_pending(struct gpio_in g)
 
 /*********************/
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 GPIO_EXTI_IRQHandler(uint16_t pin)
 {
     /* EXTI line interrupt detected */

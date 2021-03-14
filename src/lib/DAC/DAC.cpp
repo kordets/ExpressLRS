@@ -33,7 +33,7 @@ void R9DAC::init(uint8_t sda, uint8_t scl, uint8_t addr,
     ADDR = addr;
 }
 
-void ICACHE_RAM_ATTR R9DAC::standby()
+void FAST_CODE_1 R9DAC::standby()
 {
     if (gpio_out_valid(pin_RFswitch))
         gpio_out_write(pin_RFswitch, 1);
@@ -43,7 +43,7 @@ void ICACHE_RAM_ATTR R9DAC::standby()
         gpio_out_write(pin_RFamp2, 0);
 }
 
-void ICACHE_RAM_ATTR R9DAC::resume()
+void FAST_CODE_1 R9DAC::resume()
 {
     if (gpio_out_valid(pin_RFswitch))
         gpio_out_write(pin_RFswitch, 0);

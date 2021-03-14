@@ -46,49 +46,49 @@ void FHSS_init(uint8_t mode)
         FHSSsequenceLen, FHSSstep);
 }
 
-void ICACHE_RAM_ATTR FHSSfreqCorrectionReset(void)
+void FAST_CODE_1 FHSSfreqCorrectionReset(void)
 {
     FreqCorrection = 0;
 }
 
-void ICACHE_RAM_ATTR FHSSfreqCorrectionSet(int32_t error)
+void FAST_CODE_1 FHSSfreqCorrectionSet(int32_t error)
 {
     FreqCorrection += error;
 }
 
-void ICACHE_RAM_ATTR FHSSsetCurrIndex(uint32_t value)
+void FAST_CODE_1 FHSSsetCurrIndex(uint32_t value)
 { // set the current index of the FHSS pointer
     FHSSptr = value % FHSSsequenceLen;
 }
 
-uint32_t ICACHE_RAM_ATTR FHSSgetCurrIndex()
+uint32_t FAST_CODE_1 FHSSgetCurrIndex()
 { // get the current index of the FHSS pointer
     return FHSSptr;
 }
 
-void ICACHE_RAM_ATTR FHSSincCurrIndex()
+void FAST_CODE_1 FHSSincCurrIndex()
 {
 #if !STAY_ON_INIT_CHANNEL
     FHSSptr = (FHSSptr + FHSSstep) % FHSSsequenceLen;
 #endif
 }
 
-uint8_t ICACHE_RAM_ATTR FHSSgetCurrSequenceIndex()
+uint8_t FAST_CODE_1 FHSSgetCurrSequenceIndex()
 {
     return FHSSsequence[FHSSptr];
 }
 
-uint32_t ICACHE_RAM_ATTR GetInitialFreq()
+uint32_t FAST_CODE_1 GetInitialFreq()
 {
     return FHSSfreqs[0] - FreqCorrection;
 }
 
-uint32_t ICACHE_RAM_ATTR FHSSgetCurrFreq()
+uint32_t FAST_CODE_1 FHSSgetCurrFreq()
 {
     return FHSSfreqs[FHSSsequence[FHSSptr]] - FreqCorrection;
 }
 
-uint32_t ICACHE_RAM_ATTR FHSSgetNextFreq()
+uint32_t FAST_CODE_1 FHSSgetNextFreq()
 {
     FHSSincCurrIndex();
     return FHSSgetCurrFreq();

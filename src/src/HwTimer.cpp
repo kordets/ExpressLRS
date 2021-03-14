@@ -14,13 +14,13 @@ HwTimer::HwTimer()
     HWtimerInterval = TimerIntervalUSDefault;
 }
 
-void ICACHE_RAM_ATTR HwTimer::updateInterval(uint32_t newTimerInterval)
+void FAST_CODE_1 HwTimer::updateInterval(uint32_t newTimerInterval)
 {
     HWtimerInterval = newTimerInterval;
     //setTime(newTimerInterval);
 }
 
-void ICACHE_RAM_ATTR HwTimer::callback()
+void FAST_CODE_1 HwTimer::callback()
 {
     uint32_t us = micros();
     callbackTockPre(us);

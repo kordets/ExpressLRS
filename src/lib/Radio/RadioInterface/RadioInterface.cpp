@@ -27,12 +27,12 @@ void RadioInterface::Reset(void)
     }
 }
 
-void ICACHE_RAM_ATTR RadioInterface::WaitOnBusy() const
+void FAST_CODE_1 RadioInterface::WaitOnBusy() const
 {
     while (unlikely(gpio_in_read(_BUSY)));
 }
 
-void ICACHE_RAM_ATTR RadioInterface::TxEnable()
+void FAST_CODE_1 RadioInterface::TxEnable()
 {
     isr_state_set(TX_DONE);
     if (gpio_out_valid(_RXen))
@@ -41,7 +41,7 @@ void ICACHE_RAM_ATTR RadioInterface::TxEnable()
         gpio_out_write(_TXen, 1);
 }
 
-void ICACHE_RAM_ATTR RadioInterface::RxEnable()
+void FAST_CODE_1 RadioInterface::RxEnable()
 {
     isr_state_set(RX_DONE);
     if (gpio_out_valid(_TXen))
@@ -50,7 +50,7 @@ void ICACHE_RAM_ATTR RadioInterface::RxEnable()
         gpio_out_write(_RXen, 1);
 }
 
-void ICACHE_RAM_ATTR RadioInterface::TxRxDisable()
+void FAST_CODE_1 RadioInterface::TxRxDisable()
 {
     isr_state_set(NONE);
     if (gpio_out_valid(_RXen))

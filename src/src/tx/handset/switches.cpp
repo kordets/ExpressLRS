@@ -117,7 +117,7 @@ void switches_init(void)
     }
 }
 
-void ICACHE_RAM_ATTR switches_collect(uint16_t * const out)
+void FAST_CODE_1 switches_collect(uint16_t * const out)
 {
     uint16_t value;
     uint8_t iter;

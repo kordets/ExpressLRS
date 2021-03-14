@@ -22,7 +22,7 @@
 #include "rx_servo_out.h"
 
 static void SetRFLinkRate(uint8_t rate);
-void ICACHE_RAM_ATTR LostConnection();
+void FAST_CODE_1 LostConnection();
 
 //// CONSTANTS ////
 #define SEND_LINK_STATS_TO_FC_INTERVAL 100
@@ -113,7 +113,7 @@ inline void led_toggle(void)
     led_set_state(!ledState);
 }
 
-static void ICACHE_RAM_ATTR handle_tlm_ratio(uint8_t interval)
+static void FAST_CODE_1 handle_tlm_ratio(uint8_t interval)
 {
     if (TLMinterval == interval) return;
 
@@ -130,7 +130,7 @@ static void ICACHE_RAM_ATTR handle_tlm_ratio(uint8_t interval)
 }
 ///////////////////////////////////////
 
-void ICACHE_RAM_ATTR FillLinkStats()
+void FAST_CODE_1 FillLinkStats()
 {
     int32_t rssiDBM = Radio->LastPacketRSSI;
     rssiDBM = LPF_UplinkRSSI.update(rssiDBM);
@@ -144,7 +144,7 @@ void ICACHE_RAM_ATTR FillLinkStats()
     LinkStatistics.link.uplink_SNR = LPF_UplinkSNR.update(Radio->LastPacketSNR * 10);
 }
 
-uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
+uint8_t FAST_CODE_1 RadioFreqErrorCorr(void)
 {
     // Do freq correction before FHSS
     /* Freq tunin ~84us */
@@ -185,7 +185,7 @@ uint8_t ICACHE_RAM_ATTR RadioFreqErrorCorr(void)
     return retval;
 }
 
-uint8_t ICACHE_RAM_ATTR HandleFHSS(uint_fast8_t & nonce)
+uint8_t FAST_CODE_1 HandleFHSS(uint_fast8_t & nonce)
 {
     uint8_t fhss = ((nonce % ExpressLRS_currAirRate->FHSShopInterval) == 0);
     if (fhss) {
@@ -195,7 +195,7 @@ uint8_t ICACHE_RAM_ATTR HandleFHSS(uint_fast8_t & nonce)
     return fhss;
 }
 
-void ICACHE_RAM_ATTR HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
+void FAST_CODE_1 HandleSendTelemetryResponse(uint_fast8_t lq) // total ~79us
 {
     DEBUG_PRINTF(" X");
     // esp requires word aligned buffer
@@ -236,7 +236,7 @@ void tx_done_cb(void)
     //    Radio->RXnb(FHSSgetCurrFreq());
 }
 
-void ICACHE_RAM_ATTR HWtimerCallback(uint32_t const us)
+void FAST_CODE_1 HWtimerCallback(uint32_t const us)
 {
     //DEBUG_PRINTF("H");
 #if (DBG_PIN_TMR_ISR != UNDEF_PIN)
@@ -345,7 +345,7 @@ hw_tmr_isr_exit:
     return;
 }
 
-void ICACHE_RAM_ATTR LostConnection()
+void FAST_CODE_1 LostConnection()
 {
     if (connectionState <= STATE_lost)
     {
@@ -374,7 +374,7 @@ void ICACHE_RAM_ATTR LostConnection()
     platform_connection_state(connectionState);
 }
 
-void ICACHE_RAM_ATTR TentativeConnection(int32_t freqerror)
+void FAST_CODE_1 TentativeConnection(int32_t freqerror)
 {
     /* Do initial freq correction */
     FHSSfreqCorrectionSet(freqerror);
@@ -392,7 +392,7 @@ void ICACHE_RAM_ATTR TentativeConnection(int32_t freqerror)
     led_set_state(1); // turn on led
 }
 
-void ICACHE_RAM_ATTR GotConnection()
+void FAST_CODE_1 GotConnection()
 {
     connectionState = STATE_connected; //we got a packet, therefore no lost connection
 
@@ -402,7 +402,7 @@ void ICACHE_RAM_ATTR GotConnection()
     platform_connection_state(connectionState);
 }
 
-void ICACHE_RAM_ATTR ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t current_us)
+void FAST_CODE_1 ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t current_us)
 {
     /* Processing takes:
         R9MM: ~160us

@@ -9,7 +9,7 @@ HwTimer TxTimer;
 static hw_timer_t *timer = NULL;
 static portMUX_TYPE isrMutex = portMUX_INITIALIZER_UNLOCKED;
 
-void ICACHE_RAM_ATTR TimerTask_ISRhandler(void)
+void IRAM_ATTR TimerTask_ISRhandler(void)
 {
     portENTER_CRITICAL(&isrMutex);
     TxTimer.callback();
@@ -28,7 +28,7 @@ void HwTimer::init()
     timerAlarmEnable(timer);
 }
 
-void ICACHE_RAM_ATTR HwTimer::start()
+void IRAM_ATTR HwTimer::start()
 {
     if (running)
         return;
@@ -39,7 +39,7 @@ void ICACHE_RAM_ATTR HwTimer::start()
     timerStart(timer);
 }
 
-void ICACHE_RAM_ATTR HwTimer::stop()
+void IRAM_ATTR HwTimer::stop()
 {
     running = false;
 
@@ -47,14 +47,14 @@ void ICACHE_RAM_ATTR HwTimer::stop()
         timerStop(timer);
 }
 
-void ICACHE_RAM_ATTR HwTimer::pause()
+void IRAM_ATTR HwTimer::pause()
 {
     running = false;
     if (timer)
         timerAlarmDisable(timer);
 }
 
-void ICACHE_RAM_ATTR HwTimer::reset(int32_t offset)
+void IRAM_ATTR HwTimer::reset(int32_t offset)
 {
     if (timer && running)
     {
@@ -63,7 +63,7 @@ void ICACHE_RAM_ATTR HwTimer::reset(int32_t offset)
     }
 }
 
-void ICACHE_RAM_ATTR HwTimer::setTime(uint32_t time)
+void IRAM_ATTR HwTimer::setTime(uint32_t time)
 {
     if (timer)
     {
@@ -73,7 +73,7 @@ void ICACHE_RAM_ATTR HwTimer::setTime(uint32_t time)
     }
 }
 
-void ICACHE_RAM_ATTR HwTimer::triggerSoon(void)
+void IRAM_ATTR HwTimer::triggerSoon(void)
 {
     uint32_t interval = timerAlarmRead(timer);
     interval -= TIMER_SOON;

@@ -25,24 +25,24 @@ class HwTimer
 public:
     HwTimer();
     void init();
-    void ICACHE_RAM_ATTR start();
-    void ICACHE_RAM_ATTR reset(int32_t offset = 0);
-    void ICACHE_RAM_ATTR pause();
-    void ICACHE_RAM_ATTR stop();
-    void ICACHE_RAM_ATTR updateInterval(uint32_t newTimerInterval);
-    bool ICACHE_RAM_ATTR isRunning(void)
+    void FAST_CODE_1 start();
+    void FAST_CODE_1 reset(int32_t offset = 0);
+    void FAST_CODE_1 pause();
+    void FAST_CODE_1 stop();
+    void FAST_CODE_1 updateInterval(uint32_t newTimerInterval);
+    bool FAST_CODE_1 isRunning(void)
     {
         return running;
     }
 
-    void ICACHE_RAM_ATTR callback();
+    void FAST_CODE_1 callback();
 
     void (*callbackTockPre)(uint32_t us);
     void (*callbackTock)(uint32_t us);
 
-    void ICACHE_RAM_ATTR setTime(uint32_t time = 0);
+    void FAST_CODE_1 setTime(uint32_t time = 0);
 
-    void ICACHE_RAM_ATTR triggerSoon(void);
+    void FAST_CODE_1 triggerSoon(void);
 
 private:
     uint32_t HWtimerInterval;

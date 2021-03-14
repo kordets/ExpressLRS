@@ -10,7 +10,7 @@ void RadioHalSpi::Begin(uint32_t speed, int sck, int miso, int mosi)
     spi_prepare(spi_bus);
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RadioHalSpi::transfer(uint8_t *data, uint8_t len, uint8_t receive) const
 {
     gpio_out_write(CS, 0);
@@ -18,7 +18,7 @@ RadioHalSpi::transfer(uint8_t *data, uint8_t len, uint8_t receive) const
     gpio_out_write(CS, 1);
 }
 
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 RadioHalSpi::readRegister(uint8_t reg) const
 {
     uint8_t _data[] = {(uint8_t)(reg | p_read), 0};
@@ -28,7 +28,7 @@ RadioHalSpi::readRegister(uint8_t reg) const
     return _data[1];
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RadioHalSpi::writeRegister(uint8_t reg, uint8_t data) const
 {
     uint8_t _data[] = {(uint8_t)(reg | p_write), data};
@@ -37,7 +37,7 @@ RadioHalSpi::writeRegister(uint8_t reg, uint8_t data) const
     gpio_out_write(CS, 1);
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RadioHalSpi::readRegisterBurst(uint8_t reg, uint8_t numBytes, uint8_t *inBytes) const
 {
     uint8_t _data = reg | p_read;
@@ -47,7 +47,7 @@ RadioHalSpi::readRegisterBurst(uint8_t reg, uint8_t numBytes, uint8_t *inBytes) 
     gpio_out_write(CS, 1);
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RadioHalSpi::writeRegisterBurst(uint8_t reg, uint8_t *data, uint8_t numBytes) const
 {
     uint8_t _data = reg | p_write;
@@ -57,7 +57,7 @@ RadioHalSpi::writeRegisterBurst(uint8_t reg, uint8_t *data, uint8_t numBytes) co
     gpio_out_write(CS, 1);
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RadioHalSpi::readRegisterOffset(uint8_t reg, uint8_t offset,
                                 uint8_t *data, uint8_t numBytes) const
 {
@@ -68,7 +68,7 @@ RadioHalSpi::readRegisterOffset(uint8_t reg, uint8_t offset,
     gpio_out_write(CS, 1);
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RadioHalSpi::writeRegisterOffset(uint8_t reg, uint8_t offset,
                                  uint8_t *data, uint8_t numBytes) const
 {

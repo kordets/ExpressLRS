@@ -71,7 +71,7 @@ static void msp_data_cb(uint8_t const *const input)
     }
 }
 
-static void ICACHE_RAM_ATTR
+static void FAST_CODE_1
 update_handset_sync(uint32_t const current_us)
 {
     // tells the crsf that we want to send data now - this allows opentx packet syncing

@@ -22,7 +22,7 @@ struct gpio_out led_out;
 #endif
 
 
-void ICACHE_RAM_ATTR Printf::_putchar(char character)
+void IRAM_ATTR Printf::_putchar(char character)
 {
 #ifdef DEBUG_SERIAL
     DEBUG_SERIAL.print(character);

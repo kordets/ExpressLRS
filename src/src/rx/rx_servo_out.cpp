@@ -95,7 +95,7 @@ void servo_out_init(void) {
 }
 
 
-void ICACHE_RAM_ATTR servo_out_fail_safe(void)
+void FAST_CODE_1 servo_out_fail_safe(void)
 {
     Servo * servos[] = {
 #if (SERVO_PIN_CH1 != UNDEF_PIN)
@@ -137,7 +137,7 @@ void ICACHE_RAM_ATTR servo_out_fail_safe(void)
 }
 
 
-void ICACHE_RAM_ATTR servo_out_write(rc_channels_t const * const channels) {
+void FAST_CODE_1 servo_out_write(rc_channels_t const * const channels) {
     /* set pwm outputs for servos */
     uint32_t now = millis();
 

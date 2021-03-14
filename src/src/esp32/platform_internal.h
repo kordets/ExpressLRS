@@ -18,6 +18,9 @@
 
 #define DRAM_FORCE_ATTR DRAM_ATTR
 
+#define FAST_CODE_1 IRAM_ATTR
+#define FAST_CODE_2 IRAM_ATTR
+
 #define _DISABLE_IRQ()
 #define _ENABLE_IRQ()
 #define _SAVE_IRQ() 0; xSemaphoreTake(irqMutex, portMAX_DELAY);

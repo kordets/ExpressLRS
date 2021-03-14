@@ -7,6 +7,9 @@
 #define likely(x) (x)
 #define unlikely(x) (x)
 
+#define FAST_CODE_1 ICACHE_RAM_ATTR
+#define FAST_CODE_2 ICACHE_RAM_ATTR
+
 #define DRAM_ATTR
 #define DRAM_FORCE_ATTR DRAM_ATTR
 #define DMA_ATTR WORD_ALIGNED_ATTR

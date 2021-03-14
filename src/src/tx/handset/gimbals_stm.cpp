@@ -103,10 +103,10 @@ public:
     GimbalNoFilter() {
         output = GIMBAL_MID;
     }
-    uint32_t ICACHE_RAM_ATTR getCurrent(void) {
+    uint32_t FAST_CODE_1 getCurrent(void) {
         return output;
     }
-    uint32_t ICACHE_RAM_ATTR update(uint32_t input) {
+    uint32_t FAST_CODE_1 update(uint32_t input) {
         output = input;
         return input;
     }
@@ -151,7 +151,7 @@ timer_reset_period(void)
     TIMx->ARR = TIM_INVERVAL_US - 1;
 }
 
-void ICACHE_RAM_ATTR handle_dma_isr(void)
+void FAST_CODE_1 handle_dma_isr(void)
 {
     uint32_t val;
     uint_fast8_t iter, index;
@@ -190,14 +190,14 @@ void ICACHE_RAM_ATTR handle_dma_isr(void)
 
 
 extern "C" {
-void ICACHE_RAM_ATTR ADC_IRQHandler(void)
+void FAST_CODE_1 ADC_IRQHandler(void)
 {
     if (READ_BIT(ADC1->SR, ADC_SR_OVR)) {
         WRITE_REG(ADC1->SR , ADC_SR_OVR);
     }
 }
 
-void ICACHE_RAM_ATTR DMA2_Stream0_IRQHandler(void)
+void FAST_CODE_1 DMA2_Stream0_IRQHandler(void)
 {
     // DMA transfer complete.
     if (READ_BIT(DMA2->LISR, DMA_LISR_TCIF0)) {
@@ -215,7 +215,7 @@ void ICACHE_RAM_ATTR DMA2_Stream0_IRQHandler(void)
     }
 }
 
-void ICACHE_RAM_ATTR TIMx_IRQx_FUNC(void)
+void FAST_CODE_1 TIMx_IRQx_FUNC(void)
 {
     uint16_t SR = TIMx->SR;
     if (SR & TIM_SR_UIF) {
@@ -421,14 +421,14 @@ void gimbals_init(void)
 #endif
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 gimbals_timer_adjust(uint32_t us)
 {
     // Counts up
     TIMx->CNT = TIM_MARGIN_US;
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 gimbals_get(uint16_t * const out)
 {
     struct gimbal_limit * limit;

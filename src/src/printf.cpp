@@ -189,7 +189,7 @@ static inline bool _is_digit(char ch)
 
 
 // internal ASCII string to unsigned int conversion
-static unsigned int ICACHE_RAM_ATTR _atoi(const char** str)
+static unsigned int FAST_CODE_1 _atoi(const char** str)
 {
   unsigned int i = 0U;
   while (_is_digit(**str)) {
@@ -200,7 +200,7 @@ static unsigned int ICACHE_RAM_ATTR _atoi(const char** str)
 
 
 // output the specified string in reverse, taking care of any zero-padding
-static size_t ICACHE_RAM_ATTR _out_rev(out_fct_type out, char* buffer, size_t idx, size_t maxlen, const char* buf, size_t len, unsigned int width, unsigned int flags)
+static size_t FAST_CODE_1 _out_rev(out_fct_type out, char* buffer, size_t idx, size_t maxlen, const char* buf, size_t len, unsigned int width, unsigned int flags)
 {
   const size_t start_idx = idx;
 
@@ -228,7 +228,7 @@ static size_t ICACHE_RAM_ATTR _out_rev(out_fct_type out, char* buffer, size_t id
 
 
 // internal itoa format
-static size_t ICACHE_RAM_ATTR _ntoa_format(out_fct_type out, char* buffer, size_t idx, size_t maxlen, char* buf, size_t len, bool negative, unsigned int base, unsigned int prec, unsigned int width, unsigned int flags)
+static size_t FAST_CODE_1 _ntoa_format(out_fct_type out, char* buffer, size_t idx, size_t maxlen, char* buf, size_t len, bool negative, unsigned int base, unsigned int prec, unsigned int width, unsigned int flags)
 {
   // pad leading zeros
   if (!(flags & FLAGS_LEFT)) {
@@ -282,7 +282,7 @@ static size_t ICACHE_RAM_ATTR _ntoa_format(out_fct_type out, char* buffer, size_
 
 
 // internal itoa for 'long' type
-static size_t ICACHE_RAM_ATTR _ntoa_long(out_fct_type out, char* buffer, size_t idx, size_t maxlen, unsigned long value, bool negative, unsigned long base, unsigned int prec, unsigned int width, unsigned int flags)
+static size_t FAST_CODE_1 _ntoa_long(out_fct_type out, char* buffer, size_t idx, size_t maxlen, unsigned long value, bool negative, unsigned long base, unsigned int prec, unsigned int width, unsigned int flags)
 {
   char buf[PRINTF_NTOA_BUFFER_SIZE];
   size_t len = 0U;
@@ -307,7 +307,7 @@ static size_t ICACHE_RAM_ATTR _ntoa_long(out_fct_type out, char* buffer, size_t 
 
 // internal itoa for 'long long' type
 #if defined(PRINTF_SUPPORT_LONG_LONG)
-static size_t ICACHE_RAM_ATTR _ntoa_long_long(out_fct_type out, char* buffer, size_t idx, size_t maxlen, unsigned long long value, bool negative, unsigned long long base, unsigned int prec, unsigned int width, unsigned int flags)
+static size_t FAST_CODE_1 _ntoa_long_long(out_fct_type out, char* buffer, size_t idx, size_t maxlen, unsigned long long value, bool negative, unsigned long long base, unsigned int prec, unsigned int width, unsigned int flags)
 {
   char buf[PRINTF_NTOA_BUFFER_SIZE];
   size_t len = 0U;
@@ -340,7 +340,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 
 
 // internal ftoa for fixed decimal floating point
-static size_t ICACHE_RAM_ATTR _ftoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, double value, unsigned int prec, unsigned int width, unsigned int flags)
+static size_t FAST_CODE_1 _ftoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, double value, unsigned int prec, unsigned int width, unsigned int flags)
 {
   char buf[PRINTF_FTOA_BUFFER_SIZE];
   size_t len  = 0U;
@@ -468,7 +468,7 @@ static size_t ICACHE_RAM_ATTR _ftoa(out_fct_type out, char* buffer, size_t idx, 
 
 #if defined(PRINTF_SUPPORT_EXPONENTIAL)
 // internal ftoa variant for exponential floating-point type, contributed by Martijn Jasperse <m.jasperse@gmail.com>
-static size_t ICACHE_RAM_ATTR _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, double value, unsigned int prec, unsigned int width, unsigned int flags)
+static size_t FAST_CODE_1 _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, double value, unsigned int prec, unsigned int width, unsigned int flags)
 {
   // check for NaN and special values
   if ((value != value) || (value > DBL_MAX) || (value < -DBL_MAX)) {
@@ -578,7 +578,7 @@ static size_t ICACHE_RAM_ATTR _etoa(out_fct_type out, char* buffer, size_t idx, 
 
 
 // internal vsnprintf
-static int ICACHE_RAM_ATTR _vsnprintf(out_fct_type out, char* buffer, const size_t maxlen, const char* format, va_list va)
+static int FAST_CODE_1 _vsnprintf(out_fct_type out, char* buffer, const size_t maxlen, const char* format, va_list va)
 {
   unsigned int flags, width, precision, n;
   size_t idx = 0U;
@@ -863,7 +863,7 @@ static int ICACHE_RAM_ATTR _vsnprintf(out_fct_type out, char* buffer, const size
 
 ///////////////////////////////////////////////////////////////////////////////
 
-int ICACHE_RAM_ATTR printf_(const char* format, ...)
+int FAST_CODE_1 printf_(const char* format, ...)
 {
   va_list va;
   va_start(va, format);
@@ -874,7 +874,7 @@ int ICACHE_RAM_ATTR printf_(const char* format, ...)
 }
 
 
-int ICACHE_RAM_ATTR sprintf_(char* buffer, const char* format, ...)
+int FAST_CODE_1 sprintf_(char* buffer, const char* format, ...)
 {
   va_list va;
   va_start(va, format);
@@ -884,7 +884,7 @@ int ICACHE_RAM_ATTR sprintf_(char* buffer, const char* format, ...)
 }
 
 
-int ICACHE_RAM_ATTR snprintf_(char* buffer, size_t count, const char* format, ...)
+int FAST_CODE_1 snprintf_(char* buffer, size_t count, const char* format, ...)
 {
   va_list va;
   va_start(va, format);
@@ -894,20 +894,20 @@ int ICACHE_RAM_ATTR snprintf_(char* buffer, size_t count, const char* format, ..
 }
 
 
-int ICACHE_RAM_ATTR vprintf_(const char* format, va_list va)
+int FAST_CODE_1 vprintf_(const char* format, va_list va)
 {
   char buffer[1];
   return _vsnprintf(_out_char, buffer, (size_t)-1, format, va);
 }
 
 
-int ICACHE_RAM_ATTR vsnprintf_(char* buffer, size_t count, const char* format, va_list va)
+int FAST_CODE_1 vsnprintf_(char* buffer, size_t count, const char* format, va_list va)
 {
   return _vsnprintf(_out_buffer, buffer, count, format, va);
 }
 
 
-int ICACHE_RAM_ATTR fctprintf(void (*out)(char character, void* arg), void* arg, const char* format, ...)
+int FAST_CODE_1 fctprintf(void (*out)(char character, void* arg), void* arg, const char* format, ...)
 {
   va_list va;
   va_start(va, format);

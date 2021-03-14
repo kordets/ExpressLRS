@@ -127,7 +127,7 @@ channels_pack(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4)
 /**
  * Convert received OTA packet data to CRSF packet for FC
  */
-void ICACHE_RAM_ATTR RcChannels_channels_extract(uint8_t const *const input,
+void FAST_CODE_1 RcChannels_channels_extract(uint8_t const *const input,
                                                  rc_channels_t &PackedRCdataOut)
 {
     uint16_t switchValue;
@@ -262,7 +262,7 @@ void RcChannels_processChannels(rc_channels_t const *const rcChannels)
     channels_pack(rcChannels->ch0, rcChannels->ch1, rcChannels->ch2, rcChannels->ch3);
 }
 
-void ICACHE_RAM_ATTR RcChannels_get_packed_data(uint8_t *const output)
+void FAST_CODE_1 RcChannels_get_packed_data(uint8_t *const output)
 {
     uint8_t iter = sizeof(RcDataPacket_s);
     uint32_t irq = _SAVE_IRQ();
@@ -271,7 +271,7 @@ void ICACHE_RAM_ATTR RcChannels_get_packed_data(uint8_t *const output)
     _RESTORE_IRQ(irq);
 }
 
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 RcChannels_get_arm_channel_state(void)
 {
 #if TX_SKIP_SYNC_WHEN_ARMED
@@ -308,7 +308,7 @@ typedef struct {
 static_assert(sizeof(TlmDataPacket_s) <= OTA_PACKET_DATA,
               "OTA pkt size is not correct");
 
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 RcChannels_tlm_ota_send(uint8_t *const output,
                         mspPacket_t &packet,
                         uint8_t tx)
@@ -345,7 +345,7 @@ RcChannels_tlm_ota_send(uint8_t *const output,
     return done;
 }
 
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 RcChannels_tlm_ota_receive(uint8_t const *const input,
                            mspPacket_t &packet)
 {
@@ -390,7 +390,7 @@ RcChannels_tlm_ota_receive(uint8_t const *const input,
  * LINK STATISTICS OTA PACKET
  *************************************************************************************/
 #define FRAMETYPE_LINK_STATISTICS 0x14
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RcChannels_link_stas_pack(uint8_t *const output,
                           LinkStats_t &input, uint_fast8_t ul_lq)
 {
@@ -413,7 +413,7 @@ RcChannels_link_stas_pack(uint8_t *const output,
     output[5] = FRAMETYPE_LINK_STATISTICS << 2;
 }
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RcChannels_link_stas_extract(uint8_t const *const input,
                              LinkStats_t &output,
                              int8_t snr, int16_t rssi)
@@ -441,7 +441,7 @@ RcChannels_link_stas_extract(uint8_t const *const input,
  *************************************************************************************/
 #define FRAMETYPE_GPS 0x02
 
-void ICACHE_RAM_ATTR
+void FAST_CODE_1
 RcChannels_gps_extract(uint8_t const *const input, GpsOta_t & output)
 {
     uint8_t type = input[5] >> 2;
@@ -482,7 +482,7 @@ RcChannels_gps_extract(uint8_t const *const input, GpsOta_t & output)
     }
 }
 
-uint8_t ICACHE_RAM_ATTR
+uint8_t FAST_CODE_1
 RcChannels_gps_pack(uint8_t *const output, GpsOta_t & input)
 {
     uint8_t type = (input.pkt_cnt << 4) + FRAMETYPE_GPS;

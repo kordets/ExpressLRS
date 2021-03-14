@@ -18,7 +18,7 @@ void HwSerial::Begin(uint32_t baud, uint32_t config)
     HardwareSerial::begin((unsigned long)baud, (uint8_t)config);
 }
 
-void ICACHE_RAM_ATTR HwSerial::enable_receiver(void)
+void FAST_CODE_1 HwSerial::enable_receiver(void)
 {
     if (gpio_out_valid(duplex_pin)) {
         HardwareSerial::flush(); // wait until write ends
@@ -27,7 +27,7 @@ void ICACHE_RAM_ATTR HwSerial::enable_receiver(void)
     }
 }
 
-void ICACHE_RAM_ATTR HwSerial::enable_transmitter(void)
+void FAST_CODE_1 HwSerial::enable_transmitter(void)
 {
     if (gpio_out_valid(duplex_pin)) {
         HAL_HalfDuplex_EnableTransmitter(&_serial.handle);

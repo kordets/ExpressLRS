@@ -5,7 +5,7 @@
 
 static SX1280Driver * DRAM_ATTR instance = NULL;
 
-static void ICACHE_RAM_ATTR _rxtx_isr_handler(void)
+static void FAST_CODE_1 _rxtx_isr_handler(void)
 {
     SX1280Driver * const _radio = instance;
     uint32_t const rx_us = micros();
@@ -192,7 +192,7 @@ void SX1280Driver::SetRegulatorMode(uint8_t mode)
     TransferBuffer(cmd, sizeof(cmd), 0);
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
+void FAST_CODE_1 SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
 {
     WORD_ALIGNED_ATTR uint8_t buffer[4];
     uint8_t len = 2;
@@ -330,7 +330,7 @@ void SX1280Driver::SetOutputPower(int8_t power, uint8_t init)
     current_power = power;
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::SetFrequency(uint32_t Reqfreq)
+void FAST_CODE_1 SX1280Driver::SetFrequency(uint32_t Reqfreq)
 {
     // Skip if already set
     if (current_freq == Reqfreq) return;
@@ -359,7 +359,7 @@ void ICACHE_RAM_ATTR SX1280Driver::SetFrequency(uint32_t Reqfreq)
     current_freq = Reqfreq;
 }
 
-int32_t ICACHE_RAM_ATTR SX1280Driver::GetFrequencyError()
+int32_t FAST_CODE_1 SX1280Driver::GetFrequencyError()
 {
 #if EFE_NO_DOUBLE
     int32_t efe;
@@ -398,12 +398,12 @@ int32_t ICACHE_RAM_ATTR SX1280Driver::GetFrequencyError()
 #endif // EFE_NO_DOUBLE
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
+void FAST_CODE_1 SX1280Driver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
 {
     // Apply freq error correction
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::TXnbISR(uint16_t irqs)
+void FAST_CODE_1 SX1280Driver::TXnbISR(uint16_t irqs)
 {
     // Ignore if not a TX DONE ISR
     if (!(irqs & SX1280_IRQ_TX_DONE))
@@ -413,7 +413,7 @@ void ICACHE_RAM_ATTR SX1280Driver::TXnbISR(uint16_t irqs)
     TXdoneCallback1();
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::TXnb(const uint8_t *data, uint8_t length, uint32_t freq)
+void FAST_CODE_1 SX1280Driver::TXnb(const uint8_t *data, uint8_t length, uint32_t freq)
 {
     SetMode(SX1280_MODE_FS);
     TxEnable(); // do first to allow PA stablise
@@ -428,7 +428,7 @@ void ICACHE_RAM_ATTR SX1280Driver::TXnb(const uint8_t *data, uint8_t length, uin
 
 static uint8_t DMA_ATTR RXdataBuffer[16];
 
-void ICACHE_RAM_ATTR SX1280Driver::RXnbISR(uint32_t rx_us, uint16_t irqs)
+void FAST_CODE_1 SX1280Driver::RXnbISR(uint32_t rx_us, uint16_t irqs)
 {
     int32_t FIFOaddr;
     // Ignore if not a RX DONE ISR, CRC fail or timeout
@@ -446,7 +446,7 @@ void ICACHE_RAM_ATTR SX1280Driver::RXnbISR(uint32_t rx_us, uint16_t irqs)
     RXdoneCallback1(RXdataBuffer, rx_us);
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::RXnb(uint32_t freq)
+void FAST_CODE_1 SX1280Driver::RXnb(uint32_t freq)
 {
     SetMode(SX1280_MODE_FS);
     RxEnable();
@@ -464,7 +464,7 @@ void SX1280Driver::StopContRX(void)
     TxRxDisable();
 }
 
-int8_t ICACHE_RAM_ATTR SX1280Driver::GetLastPacketRSSI()
+int8_t FAST_CODE_1 SX1280Driver::GetLastPacketRSSI()
 {
     // Instantaneous RSSI is updated at every symbol received
     uint8_t buff[] = {SX1280_RADIO_GET_RSSIINST, 0, 0};
@@ -478,13 +478,13 @@ int8_t ICACHE_RAM_ATTR SX1280Driver::GetLastPacketRSSI()
  * PRIVATE METHODS
  *************************************************************************************/
 
-void ICACHE_RAM_ATTR SX1280Driver::SetFIFOaddr(uint8_t const txBaseAddr, uint8_t const rxBaseAddr)
+void FAST_CODE_1 SX1280Driver::SetFIFOaddr(uint8_t const txBaseAddr, uint8_t const rxBaseAddr)
 {
     uint8_t buf[] = {SX1280_RADIO_SET_BUFFERBASEADDRESS, txBaseAddr, rxBaseAddr};
     TransferBuffer(buf, sizeof(buf), 0);
 }
 
-uint16_t ICACHE_RAM_ATTR SX1280Driver::GetIRQFlags()
+uint16_t FAST_CODE_1 SX1280Driver::GetIRQFlags()
 {
     uint16_t irqs;
     uint8_t buff[] = {SX1280_RADIO_GET_IRQSTATUS, 0, 0, 0};
@@ -496,7 +496,7 @@ uint16_t ICACHE_RAM_ATTR SX1280Driver::GetIRQFlags()
     return irqs;
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::ClearIrqStatus(uint16_t const irqMask)
+void FAST_CODE_1 SX1280Driver::ClearIrqStatus(uint16_t const irqMask)
 {
     uint8_t buf[] = {SX1280_RADIO_CLR_IRQSTATUS, (uint8_t)(irqMask >> 8), (uint8_t)irqMask};
     TransferBuffer(buf, sizeof(buf), 0);
@@ -518,7 +518,7 @@ void SX1280Driver::SetDioIrqParams(uint16_t const irqMask, uint16_t const dio1Ma
     TransferBuffer(buf, sizeof(buf), 0);
 }
 
-int32_t ICACHE_RAM_ATTR SX1280Driver::GetRxBufferAddr(void)
+int32_t FAST_CODE_1 SX1280Driver::GetRxBufferAddr(void)
 {
     uint8_t status[] = {SX1280_RADIO_GET_RXBUFFERSTATUS, 0, 0, 0};
     TransferBuffer(status, sizeof(status), 1);
@@ -528,7 +528,7 @@ int32_t ICACHE_RAM_ATTR SX1280Driver::GetRxBufferAddr(void)
     return status[3];
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::GetLastRssiSnr(void)
+void FAST_CODE_1 SX1280Driver::GetLastRssiSnr(void)
 {
     // RSSI value latched upon the detection of the sync address
     // SNR on last packet received (estimation)
@@ -541,12 +541,12 @@ void ICACHE_RAM_ATTR SX1280Driver::GetLastRssiSnr(void)
 
 ///////// SPI Interface
 
-void ICACHE_RAM_ATTR SX1280Driver::WriteBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const
+void FAST_CODE_1 SX1280Driver::WriteBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const
 {
     WaitOnBusy();
     writeRegisterOffset(SX1280_RADIO_WRITE_BUFFER, offset, buffer, size);
 }
-void ICACHE_RAM_ATTR SX1280Driver::ReadBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const
+void FAST_CODE_1 SX1280Driver::ReadBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const
 {
     WaitOnBusy();
     readRegisterOffset(SX1280_RADIO_READ_BUFFER, offset, buffer, size);
