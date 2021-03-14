@@ -7,44 +7,6 @@
 
 #include "irq.h" // irqstatus_t
 
-void irq_disable(void)
-{
-    asm volatile("cpsid i" ::
-                     : "memory");
-}
-
-void irq_enable(void)
-{
-    asm volatile("cpsie i" ::
-                     : "memory");
-}
-
-irqstatus_t
-irq_save(void)
-{
-    irqstatus_t flag;
-    asm volatile("mrs %0, primask"
-                 : "=r"(flag)::"memory");
-    irq_disable();
-    return flag;
-}
-
-void irq_restore(irqstatus_t flag)
-{
-    asm volatile("msr primask, %0" ::"r"(flag)
-                 : "memory");
-}
-
-void irq_wait(void)
-{
-    asm volatile("cpsie i\n    wfi\n    cpsid i\n" ::
-                     : "memory");
-}
-
-void irq_poll(void)
-{
-}
-
 // Clear the active irq if a shutdown happened in an irq handler
 void clear_active_irq(void)
 {

@@ -7,7 +7,7 @@
 
 volatile uint32_t _ms_cntr;
 
-extern "C" void SysTick_Handler(void)
+extern "C" void  ICACHE_RAM_ATTR SysTick_Handler(void)
 {
     ++_ms_cntr;
 }
@@ -24,14 +24,14 @@ uint8_t timer_is_before(uint32_t time1, uint32_t time2)
     return (int32_t)(time1 - time2) < 0;
 }
 
-uint32_t millis(void)
+uint32_t ICACHE_RAM_ATTR millis(void)
 {
     //uint32_t ms = read_u32(&_ms_cntr);
     //return ms;
     return _ms_cntr;
 }
 
-void delay(uint32_t const ms)
+void ICACHE_RAM_ATTR delay(uint32_t const ms)
 {
     uint32_t const start = millis();
     //ms += millis();

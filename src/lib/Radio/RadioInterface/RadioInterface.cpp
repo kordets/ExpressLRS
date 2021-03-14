@@ -27,10 +27,6 @@ void RadioInterface::Reset(void)
     }
 }
 
-void ICACHE_RAM_ATTR RadioInterface::isr_state_set(enum isr_states isr) {
-    p_state_isr = isr;
-}
-
 void ICACHE_RAM_ATTR RadioInterface::WaitOnBusy() const
 {
     while (unlikely(gpio_in_read(_BUSY)));

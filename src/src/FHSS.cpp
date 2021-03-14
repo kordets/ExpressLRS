@@ -21,7 +21,7 @@ static uint32_t * DRAM_FORCE_ATTR FHSSfreqs;
 volatile uint32_t DRAM_ATTR FHSSptr;
 volatile int_fast32_t DRAM_ATTR FreqCorrection;
 
-void ICACHE_RAM_ATTR FHSS_init(uint8_t mode)
+void FHSS_init(uint8_t mode)
 {
 #if RADIO_SX127x
     if (mode == RADIO_TYPE_127x) {

@@ -61,7 +61,9 @@ public:
     enum isr_states ICACHE_RAM_ATTR isr_state_get(void) const {
         return p_state_isr;
     }
-    void ICACHE_RAM_ATTR isr_state_set(enum isr_states isr);
+    void ICACHE_RAM_ATTR isr_state_set(enum isr_states isr) {
+        p_state_isr = isr;
+    }
 
     ////////// Callback Function Pointers //////////
     static void rx_nullCallback(uint8_t *, uint32_t){};
@@ -76,10 +78,10 @@ public:
 
 protected:
     void Reset(void);
-    void ICACHE_RAM_ATTR WaitOnBusy() const;
-    void ICACHE_RAM_ATTR TxEnable();
-    void ICACHE_RAM_ATTR RxEnable();
-    void ICACHE_RAM_ATTR TxRxDisable();
+    void WaitOnBusy() const;
+    void TxEnable();
+    void RxEnable();
+    void TxRxDisable();
 
     gpio_out _RXen;
     gpio_out _TXen;

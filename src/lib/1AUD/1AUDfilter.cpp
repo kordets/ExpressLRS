@@ -1,39 +1,40 @@
 /** ----------------------------------------------------------------------------------------
  *  1AUD Filter
- * 
+ *
  *  Designed by Chris Thompson
- * 
+ *
  *  Implementation by James Kingdon
- * 
+ *
  *  The 1AUD filter is a dynamic filter that builds on the 1 Euro filter.
  *  Compared to 1E the 1AUD uses stacked PT1 filters as input to the derivative, enabling
- *  the use of higher derivative filter cut-off frequencies (and therefore faster tracking 
- *  of D), and stacked PT1 filters for the main filter, providing stronger (2nd order) 
+ *  the use of higher derivative filter cut-off frequencies (and therefore faster tracking
+ *  of D), and stacked PT1 filters for the main filter, providing stronger (2nd order)
  *  filtering of the input signal. Slew limiting of the input is also implemented.
- * 
+ *
  *  This software is released under the MIT license:
- * 
+ *
  *  Copyright 2020 C Thompson, J Kingdon
  *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy of this 
- *  software and associated documentation files (the "Software"), to deal in the Software 
- *  without restriction, including without limitation the rights to use, copy, modify, merge, 
- *  publish, distribute, sublicense, and/or sell copies of the Software, and to permit 
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+ *  software and associated documentation files (the "Software"), to deal in the Software
+ *  without restriction, including without limitation the rights to use, copy, modify, merge,
+ *  publish, distribute, sublicense, and/or sell copies of the Software, and to permit
  *  persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in all copies or 
+ *  The above copyright notice and this permission notice shall be included in all copies or
  *  substantial portions of the Software.
  *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
- *  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
- *  PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE 
- *  FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, 
- *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ *  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ *  PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+ *  FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *  THE SOFTWARE.
  * ----------------------------------------------------------------------------------------
 */
 
 #include "1AUDfilter.h"
+#include "platform.h"
 
 // Some compilers mis-optimise the use of float constants and get better performance
 // with an explicit declaration
@@ -46,19 +47,19 @@ DoublePT1filter::DoublePT1filter()
     current2 = FASTZERO;
 }
 
-float DoublePT1filter::update(const float x)
+float ICACHE_RAM_ATTR DoublePT1filter::update(const float x)
 {
     current1 = current1 + k * (x - current1);
     current2 = current2 + k * (current1 - current2);
     return current2;
 }
 
-float DoublePT1filter::getCurrent()
+float ICACHE_RAM_ATTR DoublePT1filter::getCurrent()
 {
     return current2;
 }
 
-void DoublePT1filter::setK(const float newK)
+void ICACHE_RAM_ATTR DoublePT1filter::setK(const float newK)
 {
     k = newK;
 }
@@ -67,7 +68,7 @@ void DoublePT1filter::setK(const float newK)
  *  Note that the cutoff frequencies must be less than sampleRate/(2Pi) in order for the filter
  * to remain stable
  */
-OneAUDfilter::OneAUDfilter(const float _minFreq, const float _maxFreq, const float _beta, const float _sampleRate, 
+OneAUDfilter::OneAUDfilter(const float _minFreq, const float _maxFreq, const float _beta, const float _sampleRate,
                            const float _dCutoff, const float _maxSlew, const float initialValue)
 {
     // save the params
@@ -114,7 +115,7 @@ void OneAUDfilter::setSampleRate(const float newSampleRate)
     // The output PT1s get a new K at each update, so no need to set here
 }
 
-float OneAUDfilter::slewLimit(const float x)
+float ICACHE_RAM_ATTR OneAUDfilter::slewLimit(const float x)
 {
     if (slewDisabled) {
         return x;
@@ -132,7 +133,7 @@ float OneAUDfilter::slewLimit(const float x)
 }
 
 // update the filter with a new value
-float OneAUDfilter::update(const float newValue)
+float ICACHE_RAM_ATTR OneAUDfilter::update(const float newValue)
 {
     // slew limit the input
     const float limitedNew = slewLimit(newValue);
@@ -153,8 +154,8 @@ float OneAUDfilter::update(const float newValue)
         fMain = maxFreq;
     }
 
-    // ## get the k value for the cutoff 
-    // kCutoff = 2*PI*cutoff/sampleRate. 
+    // ## get the k value for the cutoff
+    // kCutoff = 2*PI*cutoff/sampleRate.
     // 2*PI/sampleRate has been pre-computed and held in kScale
     const float kMain = fMain * kScale;
     oFilt.setK(kMain);
@@ -169,7 +170,7 @@ float OneAUDfilter::update(const float newValue)
 }
 
 // get the current filtered value
-float OneAUDfilter::getCurrent()
+float ICACHE_RAM_ATTR OneAUDfilter::getCurrent()
 {
     return oFilt.getCurrent();
 }

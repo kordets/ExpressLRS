@@ -92,20 +92,23 @@ void gpio_out_reset(struct gpio_out g, uint32_t val)
     irq_restore(flag);
 }
 
-void gpio_out_toggle_noirq(struct gpio_out g)
+void ICACHE_RAM_ATTR
+gpio_out_toggle_noirq(struct gpio_out g)
 {
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
     regs->ODR ^= g.bit;
 }
 
-void gpio_out_toggle(struct gpio_out g)
+void ICACHE_RAM_ATTR
+gpio_out_toggle(struct gpio_out g)
 {
     irqstatus_t flag = irq_save();
     gpio_out_toggle_noirq(g);
     irq_restore(flag);
 }
 
-void gpio_out_write(struct gpio_out g, uint32_t val)
+void ICACHE_RAM_ATTR
+gpio_out_write(struct gpio_out g, uint32_t val)
 {
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
     if (val)
@@ -114,7 +117,8 @@ void gpio_out_write(struct gpio_out g, uint32_t val)
         regs->BSRR = g.bit << 16;
 }
 
-uint8_t gpio_out_read(struct gpio_out g)
+uint8_t ICACHE_RAM_ATTR
+gpio_out_read(struct gpio_out g)
 {
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
     return !!(regs->ODR & g.bit);
@@ -144,7 +148,7 @@ void gpio_in_reset(struct gpio_in g, int32_t pull_up)
     irq_restore(flag);
 }
 
-uint8_t
+uint8_t ICACHE_RAM_ATTR
 gpio_in_read(struct gpio_in g)
 {
     GPIO_TypeDef *regs = (GPIO_TypeDef *)g.regs;
@@ -158,7 +162,7 @@ typedef struct
 } gpio_irq_conf_str;
 
 /* Private Variables */
-static gpio_irq_conf_str gpio_irq_conf[GPIO_NUM_PINS] = {
+static gpio_irq_conf_str DRAM_FORCE_ATTR gpio_irq_conf[GPIO_NUM_PINS] = {
 #if defined(STM32F0xx) || defined(STM32G0xx) || defined(STM32L0xx)
     {.irqnb = EXTI0_1_IRQn, .callback = NULL},  //GPIO_PIN_0
     {.irqnb = EXTI0_1_IRQn, .callback = NULL},  //GPIO_PIN_1
@@ -285,7 +289,8 @@ void gpio_in_isr_remove(struct gpio_in g)
     irq_restore(irq);
 }
 
-void gpio_in_isr_clear_pending(struct gpio_in g)
+void ICACHE_RAM_ATTR
+gpio_in_isr_clear_pending(struct gpio_in g)
 {
     if (gpio_in_valid(g))
         // Clear pending IRQ
@@ -294,7 +299,8 @@ void gpio_in_isr_clear_pending(struct gpio_in g)
 
 /*********************/
 
-void GPIO_EXTI_IRQHandler(uint16_t pin)
+void ICACHE_RAM_ATTR
+GPIO_EXTI_IRQHandler(uint16_t pin)
 {
     /* EXTI line interrupt detected */
     uint16_t index = 0x1 << pin;

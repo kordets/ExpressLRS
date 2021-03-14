@@ -96,8 +96,14 @@ if stm:
     env['UPLOAD_PROTOCOL'] = 'custom'
 
     def replace_arm_startup_file(node):
-        if ".S" in str(node):
-            return os.path.join(env['PROJECT_DIR'], "variants/STM32F7/startup_stm32f722xx.S")
-        return os.path.join(env['PROJECT_DIR'], "variants/STM32F7/system_stm32f7xx.c")
-    env.AddBuildMiddleware(replace_arm_startup_file, "*/startup_stm32f722xx.S")
-    env.AddBuildMiddleware(replace_arm_startup_file, "*/system_stm32f7xx.c")
+        _f = os.path.basename(str(node))
+        _p = os.path.dirname(env.get("LDSCRIPT_PATH", "variants/"))
+        return os.path.join(env['PROJECT_DIR'], _p, _f)
+    env.AddBuildMiddleware(replace_arm_startup_file, "*/startup_stm32*.S")
+    env.AddBuildMiddleware(replace_arm_startup_file, "*/system_stm32*.c")
+    #env.AddBuildMiddleware(replace_arm_startup_file, "*/startup_stm32l432xx.S")
+    #env.AddBuildMiddleware(replace_arm_startup_file, "*/system_stm32l4xx.c")
+    #env.AddBuildMiddleware(replace_arm_startup_file, "*/startup_stm32l071xx.S")
+    #env.AddBuildMiddleware(replace_arm_startup_file, "*/system_stm32l0xx.c")
+    #env.AddBuildMiddleware(replace_arm_startup_file, "*/startup_stm32f103xb.S")
+    #env.AddBuildMiddleware(replace_arm_startup_file, "*/system_stm32f1xx.c")

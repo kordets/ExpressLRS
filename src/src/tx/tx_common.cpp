@@ -126,8 +126,8 @@ void tx_common_init(void)
 
 ///////////////////////////////////////
 
-static void ICACHE_RAM_ATTR ProcessTLMpacket(uint8_t *buff, uint32_t rx_us);
-static void ICACHE_RAM_ATTR HandleTLM();
+static void ProcessTLMpacket(uint8_t *buff, uint32_t rx_us);
+static void HandleTLM();
 
 uint8_t tx_tlm_change_interval(uint8_t value, uint8_t init = 0)
 {

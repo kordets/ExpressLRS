@@ -13,7 +13,7 @@
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
-#if STM32F7xx
+#if !RAM_CODE_IGNORE
 #define FAST_CODE       __section(".ram_code")
 #else
 #define FAST_CODE

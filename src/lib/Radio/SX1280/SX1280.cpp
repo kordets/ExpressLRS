@@ -314,7 +314,7 @@ void SX1280Driver::ConfigModParams(uint8_t bw, uint8_t sf, uint8_t cr)
 #endif // EFE_NO_DOUBLE
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::SetOutputPower(int8_t power, uint8_t init)
+void SX1280Driver::SetOutputPower(int8_t power, uint8_t init)
 {
     power += 18;
     if (power < 0) power = 0;           //  0 = -18dBm
@@ -458,7 +458,7 @@ void ICACHE_RAM_ATTR SX1280Driver::RXnb(uint32_t freq)
     SetMode(SX1280_MODE_RX);
 }
 
-void ICACHE_RAM_ATTR SX1280Driver::StopContRX(void)
+void SX1280Driver::StopContRX(void)
 {
     SetMode(SX1280_MODE_STDBY_RC);
     TxRxDisable();

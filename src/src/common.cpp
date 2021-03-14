@@ -73,7 +73,7 @@ static expresslrs_mod_settings_t DRAM_FORCE_ATTR ExpressLRS_AirRateConfig_127x[]
 #endif /* RADIO_SX127x */
 
 
-static expresslrs_mod_settings_t* ICACHE_RAM_ATTR get_air_rate_config(uint8_t type)
+static expresslrs_mod_settings_t* get_air_rate_config(uint8_t type)
 {
     switch (type) {
 #if RADIO_SX127x
@@ -161,7 +161,7 @@ static RadioParameters_t DRAM_FORCE_ATTR RadioType[] = {
 
 static_assert(0 < ARRAY_SIZE(RadioType), "INVALID CONFIG");
 
-static RadioParameters_t* ICACHE_RAM_ATTR get_radio_type_cfg(uint8_t type)
+static RadioParameters_t* get_radio_type_cfg(uint8_t type)
 {
 #if RADIO_SX127x && RADIO_SX128x
     switch (type) {

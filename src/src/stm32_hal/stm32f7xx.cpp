@@ -1,6 +1,7 @@
 #include "Arduino.h"
 #include "stm32_def.h"
 #include "priorities.h"
+#include "platform.h"
 
 #ifdef STM32F7xx
 
@@ -220,17 +221,17 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
 
 
 // Return the current time (in absolute clock ticks).
-uint32_t timer_read_time(void)
+uint32_t ICACHE_RAM_ATTR timer_read_time(void)
 {
     return DWT->CYCCNT;
 }
 
-uint32_t micros(void)
+uint32_t ICACHE_RAM_ATTR micros(void)
 {
     return clockCyclesToMicroseconds(timer_read_time());
 }
 
-void delayMicroseconds(uint32_t usecs)
+void ICACHE_RAM_ATTR delayMicroseconds(uint32_t usecs)
 {
     //uint32_t end = timer_read_time() + microsecondsToClockCycles(usecs);
     //while (timer_is_before(timer_read_time(), end))
@@ -386,19 +387,19 @@ void RTC_IRQHandler(void) {Error_Handler();}
 void FLASH_IRQHandler(void) {Error_Handler();}
 void RCC_IRQHandler(void) {Error_Handler();}
 
-void EXTI0_IRQHandler(void) {GPIO_EXTI_IRQHandler(0);}
-void EXTI1_IRQHandler(void) {GPIO_EXTI_IRQHandler(1);}
-void EXTI2_IRQHandler(void) {GPIO_EXTI_IRQHandler(2);}
-void EXTI3_IRQHandler(void) {GPIO_EXTI_IRQHandler(3);}
-void EXTI4_IRQHandler(void) {GPIO_EXTI_IRQHandler(4);}
-void EXTI9_5_IRQHandler(void)
+void ICACHE_RAM_ATTR EXTI0_IRQHandler(void) {GPIO_EXTI_IRQHandler(0);}
+void ICACHE_RAM_ATTR EXTI1_IRQHandler(void) {GPIO_EXTI_IRQHandler(1);}
+void ICACHE_RAM_ATTR EXTI2_IRQHandler(void) {GPIO_EXTI_IRQHandler(2);}
+void ICACHE_RAM_ATTR EXTI3_IRQHandler(void) {GPIO_EXTI_IRQHandler(3);}
+void ICACHE_RAM_ATTR EXTI4_IRQHandler(void) {GPIO_EXTI_IRQHandler(4);}
+void ICACHE_RAM_ATTR EXTI9_5_IRQHandler(void)
 {
     uint8_t pin;
     for (pin = 5; pin <= 9; pin++) {
         GPIO_EXTI_IRQHandler(pin);
     }
 }
-void EXTI15_10_IRQHandler(void)
+void ICACHE_RAM_ATTR EXTI15_10_IRQHandler(void)
 {
     uint8_t pin;
     for (pin = 10; pin <= 15; pin++) {
@@ -406,23 +407,23 @@ void EXTI15_10_IRQHandler(void)
     }
 }
 
-void DMA1_Stream0_IRQHandler(void) {USARTx_DMA_handler(4);} // UART5 RX
-void DMA1_Stream1_IRQHandler(void) {USARTx_DMA_handler(2);} // USART3 RX
-void DMA1_Stream2_IRQHandler(void) {USARTx_DMA_handler(3);} // UART4 RX
-void DMA1_Stream3_IRQHandler(void) {USARTx_DMA_handler(2);} // USART3 TX
-void DMA1_Stream4_IRQHandler(void) {USARTx_DMA_handler(3);} // UART4 TX
-void DMA1_Stream5_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 RX
-void DMA1_Stream6_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 TX
-void DMA1_Stream7_IRQHandler(void) {USARTx_DMA_handler(4);} // UART5 TX
+void ICACHE_RAM_ATTR DMA1_Stream0_IRQHandler(void) {USARTx_DMA_handler(4);} // UART5 RX
+void ICACHE_RAM_ATTR DMA1_Stream1_IRQHandler(void) {USARTx_DMA_handler(2);} // USART3 RX
+void ICACHE_RAM_ATTR DMA1_Stream2_IRQHandler(void) {USARTx_DMA_handler(3);} // UART4 RX
+void ICACHE_RAM_ATTR DMA1_Stream3_IRQHandler(void) {USARTx_DMA_handler(2);} // USART3 TX
+void ICACHE_RAM_ATTR DMA1_Stream4_IRQHandler(void) {USARTx_DMA_handler(3);} // UART4 TX
+void ICACHE_RAM_ATTR DMA1_Stream5_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 RX
+void ICACHE_RAM_ATTR DMA1_Stream6_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 TX
+void ICACHE_RAM_ATTR DMA1_Stream7_IRQHandler(void) {USARTx_DMA_handler(4);} // UART5 TX
 
-//void DMA2_Stream0_IRQHandler(void) {Error_Handler();} // ADC1 DMA
-void DMA2_Stream1_IRQHandler(void) {USARTx_DMA_handler(5);} // USART6 RX
-void DMA2_Stream2_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1 RX
+//void ICACHE_RAM_ATTR DMA2_Stream0_IRQHandler(void) {Error_Handler();} // ADC1 DMA
+void ICACHE_RAM_ATTR DMA2_Stream1_IRQHandler(void) {USARTx_DMA_handler(5);} // USART6 RX
+void ICACHE_RAM_ATTR DMA2_Stream2_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1 RX
 void DMA2_Stream3_IRQHandler(void) {Error_Handler();} // ADC2 DMA
 void DMA2_Stream4_IRQHandler(void) {Error_Handler();}
 void DMA2_Stream5_IRQHandler(void) {Error_Handler();}
-void DMA2_Stream6_IRQHandler(void) {USARTx_DMA_handler(5);} // USART6 TX
-void DMA2_Stream7_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1 TX
+void ICACHE_RAM_ATTR DMA2_Stream6_IRQHandler(void) {USARTx_DMA_handler(5);} // USART6 TX
+void ICACHE_RAM_ATTR DMA2_Stream7_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1 TX
 
 void TIM1_BRK_TIM9_IRQHandler(void) {Error_Handler();}
 void TIM1_UP_TIM10_IRQHandler(void) {Error_Handler();}
@@ -448,35 +449,35 @@ void SPI1_IRQHandler(void) {Error_Handler();}
 void SPI2_IRQHandler(void) {Error_Handler();}
 void SPI3_IRQHandler(void) {Error_Handler();}
 
-void USART1_IRQHandler(void)
+void ICACHE_RAM_ATTR USART1_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(0);
 }
-void USART2_IRQHandler(void)
+void ICACHE_RAM_ATTR USART2_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(1);
 }
-void USART3_IRQHandler(void)
+void ICACHE_RAM_ATTR USART3_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(2);
 }
-void USART6_IRQHandler(void)
+void ICACHE_RAM_ATTR USART6_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(5);
 }
-void UART4_IRQHandler(void)
+void ICACHE_RAM_ATTR UART4_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(3);
 }
-void UART5_IRQHandler(void)
+void ICACHE_RAM_ATTR UART5_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(4);
 }
-void UART7_IRQHandler(void)
+void ICACHE_RAM_ATTR UART7_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(6);
 }
-void UART8_IRQHandler(void)
+void ICACHE_RAM_ATTR UART8_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(7);
 }
