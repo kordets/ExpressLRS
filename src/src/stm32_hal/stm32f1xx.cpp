@@ -1,6 +1,7 @@
 #include "Arduino.h"
 #include "stm32_def.h"
 #include "priorities.h"
+#include "platform_internal.h"
 
 #ifdef STM32F1xx
 
@@ -175,17 +176,17 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
 
 
 // Return the current time (in absolute clock ticks).
-uint32_t timer_read_time(void)
+uint32_t FAST_CODE_1 timer_read_time(void)
 {
     return DWT->CYCCNT;
 }
 
-uint32_t micros(void)
+uint32_t FAST_CODE_1 micros(void)
 {
     return clockCyclesToMicroseconds(timer_read_time());
 }
 
-void delayMicroseconds(uint32_t usecs)
+void FAST_CODE_1 delayMicroseconds(uint32_t usecs)
 {
     #if 0
     if (!(CoreDebug->DEMCR & CoreDebug_DEMCR_TRCENA_Msk)) {
@@ -347,32 +348,32 @@ void USBWakeUp_IRQHandler(void) {Error_Handler();}
 
 
 /* USART1 TX DMA */
-void DMA1_Channel4_IRQHandler(void)
+void FAST_CODE_1 DMA1_Channel4_IRQHandler(void)
 {
     USARTx_DMA_handler(0);
 }
 
 /* USART2 TX DMA */
-void DMA1_Channel6_IRQHandler(void)
+void FAST_CODE_1 DMA1_Channel6_IRQHandler(void)
 {
     USARTx_DMA_handler(1);
 }
 
 /* USART3 TX DMA */
-void DMA1_Channel2_IRQHandler(void)
+void FAST_CODE_1 DMA1_Channel2_IRQHandler(void)
 {
     USARTx_DMA_handler(2);
 }
 
-void USART1_IRQHandler(void)
+void FAST_CODE_1 USART1_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(0);
 }
-void USART2_IRQHandler(void)
+void FAST_CODE_1 USART2_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(1);
 }
-void USART3_IRQHandler(void)
+void FAST_CODE_1 USART3_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(2);
 }
@@ -382,7 +383,7 @@ void USART3_IRQHandler(void)
  * @param  None
  * @retval None
  */
-void EXTI0_IRQHandler(void)
+void FAST_CODE_1 EXTI0_IRQHandler(void)
 {
     GPIO_EXTI_IRQHandler(0);
 }
@@ -392,7 +393,7 @@ void EXTI0_IRQHandler(void)
  * @param  None
  * @retval None
  */
-void EXTI1_IRQHandler(void)
+void FAST_CODE_1 EXTI1_IRQHandler(void)
 {
     GPIO_EXTI_IRQHandler(1);
 }
@@ -402,7 +403,7 @@ void EXTI1_IRQHandler(void)
  * @param  None
  * @retval None
  */
-void EXTI2_IRQHandler(void)
+void FAST_CODE_1 EXTI2_IRQHandler(void)
 {
     GPIO_EXTI_IRQHandler(2);
 }
@@ -412,7 +413,7 @@ void EXTI2_IRQHandler(void)
  * @param  None
  * @retval None
  */
-void EXTI3_IRQHandler(void)
+void FAST_CODE_1 EXTI3_IRQHandler(void)
 {
     GPIO_EXTI_IRQHandler(3);
 }
@@ -422,7 +423,7 @@ void EXTI3_IRQHandler(void)
  * @param  None
  * @retval None
  */
-void EXTI4_IRQHandler(void)
+void FAST_CODE_1 EXTI4_IRQHandler(void)
 {
     GPIO_EXTI_IRQHandler(4);
 }
@@ -432,7 +433,7 @@ void EXTI4_IRQHandler(void)
  * @param  None
  * @retval None
  */
-void EXTI9_5_IRQHandler(void)
+void FAST_CODE_1 EXTI9_5_IRQHandler(void)
 {
     uint8_t pin;
     for (pin = 5; pin <= 9; pin++)
@@ -446,7 +447,7 @@ void EXTI9_5_IRQHandler(void)
  * @param  None
  * @retval None
  */
-void EXTI15_10_IRQHandler(void)
+void FAST_CODE_1 EXTI15_10_IRQHandler(void)
 {
     uint8_t pin;
     for (pin = 10; pin <= 15; pin++)

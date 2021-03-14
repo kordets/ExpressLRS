@@ -22,17 +22,17 @@ HwTimer TxTimer;
 #define TIMx_IRQn TIM2_IRQn
 #define TIMx_IRQx_FUNC TIM2_IRQHandler
 
-static inline uint32_t timer_counter_get(void)
+static FORCED_INLINE uint32_t timer_counter_get(void)
 {
     return TIMx->CNT;
 }
 
-static inline void timer_counter_set(uint32_t cnt)
+static FORCED_INLINE void timer_counter_set(uint32_t cnt)
 {
     TIMx->CNT = cnt >> TIMER_IS_2US;
 }
 
-static inline void timer_set(uint32_t next)
+static FORCED_INLINE void timer_set(uint32_t next)
 {
     TIMx->ARR = next >> TIMER_IS_2US;
     //TIMx->SR  &= ~(TIM_SR_UIF);
@@ -45,7 +45,7 @@ static inline void timer_set(uint32_t next)
 extern "C"
 {
     // Hardware timer IRQ handler - dispatch software timers
-    void TIMx_IRQx_FUNC(void)
+    void FAST_CODE_1 TIMx_IRQx_FUNC(void)
     {
         uint16_t SR = TIMx->SR;
         if (SR & TIM_SR_UIF) {
@@ -118,7 +118,7 @@ void HwTimer::pause()
     timer_disable();
 }
 
-void HwTimer::reset(int32_t offset)
+void FAST_CODE_1 HwTimer::reset(int32_t offset)
 {
     if (running)
     {
@@ -132,14 +132,14 @@ void HwTimer::reset(int32_t offset)
     }
 }
 
-void HwTimer::setTime(uint32_t time)
+void FAST_CODE_1 HwTimer::setTime(uint32_t time)
 {
     if (!time)
         time = HWtimerInterval;
     timer_set(time);
 }
 
-void HwTimer::triggerSoon(void)
+void FAST_CODE_1 HwTimer::triggerSoon(void)
 {
 #if 1
     TIMx->SR  &= ~(TIM_SR_UIF); // Clear pending ISR

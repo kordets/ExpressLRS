@@ -25,24 +25,24 @@ class HwTimer
 public:
     HwTimer();
     void init();
-    void FAST_CODE_1 start();
-    void FAST_CODE_1 reset(int32_t offset = 0);
-    void FAST_CODE_1 pause();
-    void FAST_CODE_1 stop();
-    void FAST_CODE_1 updateInterval(uint32_t newTimerInterval);
-    bool FAST_CODE_1 isRunning(void)
+    void start();
+    void reset(int32_t offset = 0);
+    void pause();
+    void stop();
+    void updateInterval(uint32_t newTimerInterval);
+    inline bool FAST_CODE_1 isRunning(void)
     {
         return running;
     }
 
-    void FAST_CODE_1 callback();
+    void callback();
 
     void (*callbackTockPre)(uint32_t us);
     void (*callbackTock)(uint32_t us);
 
-    void FAST_CODE_1 setTime(uint32_t time = 0);
+    void setTime(uint32_t time = 0);
 
-    void FAST_CODE_1 triggerSoon(void);
+    void triggerSoon(void);
 
 private:
     uint32_t HWtimerInterval;

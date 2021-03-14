@@ -92,7 +92,7 @@ private:
 
     void RxConfig(uint32_t freq);
 
-    inline __attribute__((always_inline)) void _change_mode_val(uint8_t mode);
+    FORCED_INLINE void _change_mode_val(uint8_t mode);
     void reg_op_mode_mode_lora(void);
     void reg_dio1_rx_done(void);
     void reg_dio1_tx_done(void);

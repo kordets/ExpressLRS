@@ -23,5 +23,5 @@ uint32_t rng0to2(void);
 // returns 0 <= x < max where max <= 256
 uint32_t rngN(uint32_t upper);
 
-unsigned int FAST_CODE_1
+unsigned int
 volatile_memcpy(volatile void *d, volatile void *s, unsigned int n);

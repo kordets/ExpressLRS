@@ -202,7 +202,7 @@ void SX127xDriver::SetPreambleLength(uint16_t PreambleLen)
     SetMode(SX127X_STANDBY);
 }
 
-void FAST_CODE_1 SX127xDriver::SetFrequency(uint32_t freq, uint8_t mode)
+void FAST_CODE_2 SX127xDriver::SetFrequency(uint32_t freq, uint8_t mode)
 {
     // TODO: Take this into use if ok!!
     if (freq == current_freq)
@@ -279,7 +279,7 @@ void FAST_CODE_1 SX127xDriver::TXnbISR(uint8_t irqs)
     TXdoneCallback1();
 }
 
-void FAST_CODE_1 SX127xDriver::TXnb(const uint8_t *data, uint8_t length, uint32_t freq)
+void FAST_CODE_2 SX127xDriver::TXnb(const uint8_t *data, uint8_t length, uint32_t freq)
 {
     SetMode(SX127X_STANDBY);
 
@@ -309,7 +309,7 @@ void FAST_CODE_1 SX127xDriver::TXnb(const uint8_t *data, uint8_t length, uint32_
 /////////////////////////////////// RX functions ///////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
 
-void FAST_CODE_1 SX127xDriver::RxConfig(uint32_t freq)
+void FAST_CODE_2 SX127xDriver::RxConfig(uint32_t freq)
 {
     SetMode(SX127X_STANDBY);
 
@@ -370,7 +370,7 @@ void SX127xDriver::StopContRX()
     TxRxDisable();
 }
 
-void FAST_CODE_1 SX127xDriver::RXnb(uint32_t freq)
+void FAST_CODE_2 SX127xDriver::RXnb(uint32_t freq)
 {
     RxConfig(freq);
     SetMode(SX127X_RXCONTINUOUS);
@@ -404,7 +404,7 @@ uint8_t SX127xDriver::RunCAD(uint32_t timeout)
 //////////////////////////////// config functions //////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
 
-inline __attribute__((always_inline)) void FAST_CODE_1 SX127xDriver::_change_mode_val(uint8_t mode)
+FORCED_INLINE void SX127xDriver::_change_mode_val(uint8_t mode)
 {
     p_RegOpMode &= (~SX127X_CAD);
     p_RegOpMode |= (mode & SX127X_CAD);
@@ -676,7 +676,7 @@ void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t fre
     SetMode(SX127X_STANDBY);
 }
 
-void FAST_CODE_1 SX127xDriver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
+void FAST_CODE_2 SX127xDriver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
 {
     if (!frf) // use locally stored value if not defined
         frf = current_freq;
@@ -693,7 +693,7 @@ void FAST_CODE_1 SX127xDriver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
     writeRegister(SX127x_REG_PPMOFFSET, regValue);
 }
 
-int32_t FAST_CODE_1 SX127xDriver::GetFrequencyError()
+int32_t FAST_CODE_2 SX127xDriver::GetFrequencyError()
 {
     int32_t intFreqError;
     uint8_t fei_reg[3] = {0x0, 0x0, 0x0};
@@ -725,7 +725,7 @@ int32_t FAST_CODE_1 SX127xDriver::GetFrequencyError()
     return intFreqError;
 }
 
-int16_t FAST_CODE_1 SX127xDriver::GetCurrRSSI() const
+int16_t FAST_CODE_2 SX127xDriver::GetCurrRSSI() const
 {
     return (-157 + readRegister(SX127X_REG_RSSI_VALUE));
 }
@@ -749,13 +749,13 @@ void FAST_CODE_1 SX127xDriver::ClearIRQFlags()
     writeRegister(SX127X_REG_IRQ_FLAGS, 0xff);
 }
 
-void FAST_CODE_1 SX127xDriver::reg_op_mode_mode_lora(void)
+void SX127xDriver::reg_op_mode_mode_lora(void)
 {
     p_RegOpMode |= SX127X_LORA;
     writeRegister(SX127X_REG_OP_MODE, p_RegOpMode);
 }
 
-void FAST_CODE_1 SX127xDriver::reg_dio1_rx_done(void)
+void SX127xDriver::reg_dio1_rx_done(void)
 {
     // 0b00 == DIO0 RxDone
     writeRegister(SX127X_REG_DIO_MAPPING_1, SX127X_DIO0_RX_DONE);
@@ -763,7 +763,7 @@ void FAST_CODE_1 SX127xDriver::reg_dio1_rx_done(void)
     //p_isr_mask = SX127X_MASK_IRQ_FLAG_RX_DONE;
 }
 
-void FAST_CODE_1 SX127xDriver::reg_dio1_tx_done(void)
+void SX127xDriver::reg_dio1_tx_done(void)
 {
     // 0b00 == DIO0 TxDone
     writeRegister(SX127X_REG_DIO_MAPPING_1, SX127X_DIO0_TX_DONE);
@@ -771,7 +771,7 @@ void FAST_CODE_1 SX127xDriver::reg_dio1_tx_done(void)
     //p_isr_mask = SX127X_MASK_IRQ_FLAG_TX_DONE;
 }
 
-void FAST_CODE_1 SX127xDriver::reg_dio1_isr_mask_write(uint8_t mask)
+void SX127xDriver::reg_dio1_isr_mask_write(uint8_t mask)
 {
     // write mask and clear irqs
     uint8_t cfg[2] = {mask, 0xff};

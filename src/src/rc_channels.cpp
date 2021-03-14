@@ -64,7 +64,7 @@ uint8_t DRAM_ATTR p_nextSwitchIndex;
  * If any switch has changed since last sent, it sends the lowest index changed switch.
  * If no switches have changed then this sends p_nextSwitchIndex and increment the value.
  */
-inline __attribute__((always_inline)) uint8_t
+FORCED_INLINE uint8_t
 getNextSwitchIndex(void)
 {
     uint16_t changed = p_auxChannelsChanged;
@@ -98,7 +98,7 @@ getNextSwitchIndex(void)
  * changed takes the lowest indexed one and send that, hence lower indexed switches have
  * higher priority in the event that several are changed at once.
  */
-inline __attribute__((always_inline)) void
+FORCED_INLINE void
 channels_pack(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4)
 {
     // find the next switch to send

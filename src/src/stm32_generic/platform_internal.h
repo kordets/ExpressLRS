@@ -3,9 +3,6 @@
 
 #include "irq.h"
 
-#ifndef noinline
-#define noinline __attribute__((noinline))
-#endif
 #ifndef __section
 #define __section(S) __attribute__((section(S)))
 #endif

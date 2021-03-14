@@ -359,7 +359,7 @@ void FAST_CODE_1 SX1280Driver::SetFrequency(uint32_t Reqfreq)
     current_freq = Reqfreq;
 }
 
-int32_t FAST_CODE_1 SX1280Driver::GetFrequencyError()
+int32_t FAST_CODE_2 SX1280Driver::GetFrequencyError()
 {
 #if EFE_NO_DOUBLE
     int32_t efe;
@@ -398,7 +398,7 @@ int32_t FAST_CODE_1 SX1280Driver::GetFrequencyError()
 #endif // EFE_NO_DOUBLE
 }
 
-void FAST_CODE_1 SX1280Driver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
+void FAST_CODE_2 SX1280Driver::setPPMoffsetReg(int32_t error_hz, uint32_t frf)
 {
     // Apply freq error correction
 }
@@ -413,7 +413,7 @@ void FAST_CODE_1 SX1280Driver::TXnbISR(uint16_t irqs)
     TXdoneCallback1();
 }
 
-void FAST_CODE_1 SX1280Driver::TXnb(const uint8_t *data, uint8_t length, uint32_t freq)
+void FAST_CODE_2 SX1280Driver::TXnb(const uint8_t *data, uint8_t length, uint32_t freq)
 {
     SetMode(SX1280_MODE_FS);
     TxEnable(); // do first to allow PA stablise
@@ -446,7 +446,7 @@ void FAST_CODE_1 SX1280Driver::RXnbISR(uint32_t rx_us, uint16_t irqs)
     RXdoneCallback1(RXdataBuffer, rx_us);
 }
 
-void FAST_CODE_1 SX1280Driver::RXnb(uint32_t freq)
+void FAST_CODE_2 SX1280Driver::RXnb(uint32_t freq)
 {
     SetMode(SX1280_MODE_FS);
     RxEnable();
@@ -464,7 +464,7 @@ void SX1280Driver::StopContRX(void)
     TxRxDisable();
 }
 
-int8_t FAST_CODE_1 SX1280Driver::GetLastPacketRSSI()
+int8_t FAST_CODE_2 SX1280Driver::GetLastPacketRSSI()
 {
     // Instantaneous RSSI is updated at every symbol received
     uint8_t buff[] = {SX1280_RADIO_GET_RSSIINST, 0, 0};
@@ -478,7 +478,7 @@ int8_t FAST_CODE_1 SX1280Driver::GetLastPacketRSSI()
  * PRIVATE METHODS
  *************************************************************************************/
 
-void FAST_CODE_1 SX1280Driver::SetFIFOaddr(uint8_t const txBaseAddr, uint8_t const rxBaseAddr)
+void FAST_CODE_2 SX1280Driver::SetFIFOaddr(uint8_t const txBaseAddr, uint8_t const rxBaseAddr)
 {
     uint8_t buf[] = {SX1280_RADIO_SET_BUFFERBASEADDRESS, txBaseAddr, rxBaseAddr};
     TransferBuffer(buf, sizeof(buf), 0);
@@ -541,12 +541,12 @@ void FAST_CODE_1 SX1280Driver::GetLastRssiSnr(void)
 
 ///////// SPI Interface
 
-void FAST_CODE_1 SX1280Driver::WriteBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const
+void FAST_CODE_2 SX1280Driver::WriteBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const
 {
     WaitOnBusy();
     writeRegisterOffset(SX1280_RADIO_WRITE_BUFFER, offset, buffer, size);
 }
-void FAST_CODE_1 SX1280Driver::ReadBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const
+void FAST_CODE_2 SX1280Driver::ReadBuffer(uint8_t offset, uint8_t *buffer, uint8_t size) const
 {
     WaitOnBusy();
     readRegisterOffset(SX1280_RADIO_READ_BUFFER, offset, buffer, size);

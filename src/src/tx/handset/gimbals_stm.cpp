@@ -145,7 +145,7 @@ static GimbalNoFilter DRAM_FORCE_ATTR filters[NUM_ANALOGS] = {
 #error "invalid filter selected"
 #endif
 
-inline __attribute__((always_inline)) void
+static FORCED_INLINE void
 timer_reset_period(void)
 {
     TIMx->ARR = TIM_INVERVAL_US - 1;

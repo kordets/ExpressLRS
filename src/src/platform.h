@@ -10,6 +10,11 @@
 #define __section(S)
 #endif
 
+#define FORCED_INLINE inline __attribute__((always_inline))
+#ifndef noinline
+#define noinline __attribute__((noinline))
+#endif
+
 #define SERVO_WRITE_FROM_ISR 0
 
 #define barrier() __asm__ __volatile__("": : :"memory")

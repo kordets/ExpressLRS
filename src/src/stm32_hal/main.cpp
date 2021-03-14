@@ -20,13 +20,13 @@ static void dwt_access(bool ena)
 
     if ((lsr & DWT_LSR_Present_Msk) != 0) {
         if (ena) {
-        if ((lsr & DWT_LSR_Access_Msk) != 0) { //locked
-            DWT->LAR = 0xC5ACCE55;
-        }
+            if ((lsr & DWT_LSR_Access_Msk) != 0) { //locked
+                DWT->LAR = 0xC5ACCE55;
+            }
         } else {
-        if ((lsr & DWT_LSR_Access_Msk) == 0) { //unlocked
-            DWT->LAR = 0;
-        }
+            if ((lsr & DWT_LSR_Access_Msk) == 0) { //unlocked
+                DWT->LAR = 0;
+            }
         }
     }
 #else /* __CORTEX_M */

@@ -119,13 +119,13 @@ typedef struct
         payload[payloadIterator++] = b;
     }
 
-    inline void FAST_CODE_1 setIteratorToSize()
+    inline void FAST_CODE_2 setIteratorToSize()
     {
         payloadSize = payloadIterator;
         payloadIterator = 0;
     }
 
-    uint8_t FAST_CODE_1 readByte()
+    uint8_t FAST_CODE_2 readByte()
     {
         if (iterated())
         {

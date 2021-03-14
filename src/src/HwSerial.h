@@ -14,10 +14,10 @@ public:
 
     void Begin(uint32_t baud, uint32_t config = SERIAL_8N1);
 
-    void FAST_CODE_1 enable_receiver(void);
-    void FAST_CODE_1 enable_transmitter(void);
+    void FAST_CODE_2 enable_receiver(void);
+    void FAST_CODE_2 enable_transmitter(void);
 
-    void FAST_CODE_1 flush_read()
+    void FAST_CODE_2 flush_read()
     {
         while (available())
             (void)read();

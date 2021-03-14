@@ -79,7 +79,7 @@
 char   printf_out[PRINTF_NUM_BLOCKS][PRINTF_BUFF_SIZE];
 size_t printf_idx, printf_buff;
 
-void Printf::_putchar(char character)
+void FAST_CODE_2 Printf::_putchar(char character)
 {
     uint8_t is_end = character == '\n';
     printf_out[printf_buff][printf_idx++] = character;
@@ -127,7 +127,7 @@ enum {
     USE_DMA_TX      = UART_ENABLE_DMA_TX << 2,
 };
 
-static inline uint32_t
+static FORCED_INLINE uint32_t
 dma_ifcr_mask_get(uint32_t mask, uint8_t dma_ch)
 {
 #ifdef STM32F7xx
@@ -146,7 +146,7 @@ dma_ifcr_mask_get(uint32_t mask, uint8_t dma_ch)
     return mask;
 }
 
-int8_t DMA_transmit(HardwareSerial * serial, uint8_t dma_ch)
+int8_t FAST_CODE_2 DMA_transmit(HardwareSerial * serial, uint8_t dma_ch)
 {
     DMA_TypeDef * dma = (DMA_TypeDef *)serial->dma_unit_tx;
     //irqstatus_t irqs = irq_save();
@@ -187,7 +187,7 @@ int8_t DMA_transmit(HardwareSerial * serial, uint8_t dma_ch)
 }
 
 #if UART_USE_TX_POOL_ONLY
-int8_t UART_transmit(HardwareSerial * serial)
+int8_t FAST_CODE_2 UART_transmit(HardwareSerial * serial)
 {
     //irqstatus_t irqs = irq_save();
     uint32_t len = 0;
@@ -202,7 +202,7 @@ int8_t UART_transmit(HardwareSerial * serial)
 }
 #endif
 
-void USART_IDLE_IRQ_handler(uint32_t index)
+void FAST_CODE_2 USART_IDLE_IRQ_handler(uint32_t index)
 {
     if (serial_cnt <= index)
         return;
@@ -261,7 +261,7 @@ void USART_IDLE_IRQ_handler(uint32_t index)
     }
 }
 
-void USARTx_DMA_handler(uint32_t index)
+void FAST_CODE_2 USARTx_DMA_handler(uint32_t index)
 {
     if (serial_cnt <= index)
         return;
@@ -646,7 +646,7 @@ uint32_t HardwareSerial::write(const uint8_t *buff, uint32_t len)
     return len;
 }
 
-void HardwareSerial::hw_enable_receiver(void)
+void FAST_CODE_2 HardwareSerial::hw_enable_receiver(void)
 {
     USART_TypeDef * const uart = (USART_TypeDef *)p_usart_rx;
     uint8_t duplex = gpio_out_valid(p_duplex_pin);
@@ -661,7 +661,7 @@ void HardwareSerial::hw_enable_receiver(void)
     uart->CR1 = DR_RX;
 }
 
-void HardwareSerial::hw_enable_transmitter(void)
+void FAST_CODE_2 HardwareSerial::hw_enable_transmitter(void)
 {
     USART_TypeDef * uart = (USART_TypeDef *)p_usart_tx;
     uart->CR1 = DR_TX;

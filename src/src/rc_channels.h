@@ -88,13 +88,13 @@ typedef struct ElrsSyncPacket_s {
 } ElrsSyncPacket_s;
 
 
-inline __attribute__((always_inline)) uint8_t
+static FORCED_INLINE uint8_t
 RcChannels_packetTypeGet(uint8_t const *const input)
 {
     return input[OTA_PACKET_DATA-1] & 0b11;
 }
 
-inline __attribute__((always_inline)) void
+static FORCED_INLINE void
 RcChannels_packetTypeSet(uint8_t *const output, uint8_t type)
 {
     uint8_t val = output[OTA_PACKET_DATA-1];
