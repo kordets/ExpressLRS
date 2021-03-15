@@ -6,7 +6,7 @@
 uint8_t linkQualityArray[100];
 uint8_t linkQualityArrayIndex;
 
-void FAST_CODE_1 LQ_nextPacket()
+void FAST_CODE_1 LQ_nextPacket(void)
 {
     uint_fast8_t index = linkQualityArrayIndex;
     index = (index + 1) % sizeof(linkQualityArray);

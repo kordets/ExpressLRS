@@ -83,10 +83,21 @@ static void init(void)
 #endif
 }
 
+void copy_functions_to_ram(void)
+{
+  /* Load functions into ITCM RAM */
+  extern uint8_t ram_code_start;
+  extern uint8_t ram_code_end;
+  extern uint8_t ram_code;
+  memcpy(&ram_code_start, &ram_code, (size_t) (&ram_code_end - &ram_code_start));
+}
+
 // Force init to be called *first*, i.e. before static object allocation.
 // Otherwise, statically allocated objects that need HAL may fail.
 __attribute__((constructor(101))) void premain()
 {
+    copy_functions_to_ram();
+
     /* Reset vector location which is set wrongly by SystemInit */
     extern uint32_t g_pfnVectors;
     SCB->VTOR = (__IO uint32_t) &g_pfnVectors;
