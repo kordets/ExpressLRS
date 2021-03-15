@@ -175,44 +175,26 @@ const uint16_t DRAM_FORCE_ATTR crc_ccitt_table[256] = {
 uint8_t CRC16_POLY_PKT[5] = {0x11, 0x22, 0x33, 0x44, 0x55};
 #endif
 
-uint16_t FAST_CODE_1 CalcCRC16_CCITT(uint8_t const *data, uint16_t length, uint16_t crc)
+uint16_t FAST_CODE_1 CalcCRC16(uint8_t const *data, uint16_t length, uint16_t crc)
 {
-    while (length--)
-        crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ *data++) & 0xff];
+#if (CRC16_POLY_NEW == 14) || (CRC16_POLY_NEW == 15)
+    uint16_t parity = 0;
+#endif
+    uint8_t _byte;
+    while (length--) {
+        _byte = *data++;
+        crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ _byte) & 0xff];
+#if (CRC16_POLY_NEW == 14) || (CRC16_POLY_NEW == 15)
+        parity ^= __builtin_parity(_byte);
+#endif
+    }
 #if (CRC16_POLY_NEW == 14)
-    return crc & 0x3FFF;
+    return ((crc & 0x3FFF) | (parity << 14));
 #elif (CRC16_POLY_NEW == 15)
-    return crc & 0xFFFE;
+    return ((crc & 0xFFFE) | parity);
 #else
     return crc;
 #endif
-}
-
-
-/* XMODEM CRC16 */
-uint16_t FAST_CODE_1 CalcCRC16_XMODEM(uint8_t const *data, uint16_t length)
-{
-    uint16_t crc = 0u;
-
-    while (length--) {
-        crc = crc ^ ((uint16_t)*data++ << 8u);
-        for (uint8_t i = 0u; i < 8u; i++) {
-            if (crc & 0x8000u) {
-                crc = (crc << 1u) ^ 0x1021;
-            } else {
-                crc = crc << 1u;
-            }
-        }
-    }
-    return crc;
-}
-
-uint8_t FAST_CODE_1 CalcParity(uint8_t const *data, uint16_t length)
-{
-    uint8_t parity = 0u;
-    while (length--)
-        parity ^= __builtin_parity(*data++);
-    return parity;
 }
 
 uint8_t crc8_dvb_s2(uint8_t crc, uint8_t a)

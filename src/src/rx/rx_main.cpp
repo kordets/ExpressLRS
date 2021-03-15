@@ -426,14 +426,7 @@ void FAST_CODE_1 ProcessRFPacketCallback(uint8_t *rx_buffer, const uint32_t curr
     //DEBUG_PRINTF("I");
     uint32_t freq_err;
     const connectionState_e _conn_state = connectionState;
-#if (CRC16_POLY_NEW == 14)
-    const uint16_t parity = (uint16_t)CalcParity(rx_buffer, OTA_PACKET_PAYLOAD) << 14;
-#elif (CRC16_POLY_NEW == 15)
-    const uint16_t parity = (uint16_t)CalcParity(rx_buffer, OTA_PACKET_PAYLOAD);
-#else
-    #define parity 0;
-#endif
-    const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_PAYLOAD, CRCCaesarCipher) | parity;
+    const uint16_t crc = CalcCRC16(rx_buffer, OTA_PACKET_PAYLOAD, CRCCaesarCipher);
     const uint16_t crc_in = ((uint16_t)rx_buffer[OTA_PACKET_PAYLOAD] << 8) + rx_buffer[OTA_PACKET_PAYLOAD+1];
     const uint8_t type = RcChannels_packetTypeGet(rx_buffer);
 
