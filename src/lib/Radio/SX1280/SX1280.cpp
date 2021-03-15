@@ -192,7 +192,7 @@ void SX1280Driver::SetRegulatorMode(uint8_t mode)
     TransferBuffer(cmd, sizeof(cmd), 0);
 }
 
-void FAST_CODE_1 SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
+void FAST_CODE_2 SX1280Driver::SetMode(SX1280_RadioOperatingModes_t OPmode)
 {
     WORD_ALIGNED_ATTR uint8_t buffer[4];
     uint8_t len = 2;
@@ -330,7 +330,7 @@ void SX1280Driver::SetOutputPower(int8_t power, uint8_t init)
     current_power = power;
 }
 
-void FAST_CODE_1 SX1280Driver::SetFrequency(uint32_t Reqfreq)
+void FAST_CODE_2 SX1280Driver::SetFrequency(uint32_t Reqfreq)
 {
     // Skip if already set
     if (current_freq == Reqfreq) return;
@@ -484,7 +484,7 @@ void FAST_CODE_2 SX1280Driver::SetFIFOaddr(uint8_t const txBaseAddr, uint8_t con
     TransferBuffer(buf, sizeof(buf), 0);
 }
 
-uint16_t FAST_CODE_1 SX1280Driver::GetIRQFlags()
+uint16_t FAST_CODE_2 SX1280Driver::GetIRQFlags()
 {
     uint16_t irqs;
     uint8_t buff[] = {SX1280_RADIO_GET_IRQSTATUS, 0, 0, 0};
@@ -496,7 +496,7 @@ uint16_t FAST_CODE_1 SX1280Driver::GetIRQFlags()
     return irqs;
 }
 
-void FAST_CODE_1 SX1280Driver::ClearIrqStatus(uint16_t const irqMask)
+void FAST_CODE_2 SX1280Driver::ClearIrqStatus(uint16_t const irqMask)
 {
     uint8_t buf[] = {SX1280_RADIO_CLR_IRQSTATUS, (uint8_t)(irqMask >> 8), (uint8_t)irqMask};
     TransferBuffer(buf, sizeof(buf), 0);
