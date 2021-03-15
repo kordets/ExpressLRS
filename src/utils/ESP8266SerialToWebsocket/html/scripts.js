@@ -153,10 +153,10 @@ function setting_set(type, value) {
                 if (value == 4) {
                     options.unshift('500Hz');
                 }
-                rf_module.selectedIndex = 1;
+                rf_module.selectedIndex = 2;
             } else {
                 options = ['200Hz', '100Hz', '50Hz'];
-                rf_module.selectedIndex = 0;
+                rf_module.selectedIndex = 1;
             }
             for (i = 0; i < options.length; i++) {
                 var option = document.createElement("option");

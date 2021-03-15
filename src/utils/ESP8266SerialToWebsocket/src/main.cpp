@@ -1286,5 +1286,5 @@ void loop()
 
   batt_voltage_measure();
 
-  eeprom_storage.save();
+  eeprom_storage.update();
 }
