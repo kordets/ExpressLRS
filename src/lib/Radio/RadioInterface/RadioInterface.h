@@ -58,10 +58,10 @@ public:
     virtual void RXnb(uint32_t freq = 0) = 0;
     virtual void TXnb(const uint8_t *data, uint8_t length, uint32_t freq = 0) = 0;
 
-    enum isr_states FAST_CODE_1 isr_state_get(void) const {
+    inline enum isr_states isr_state_get(void) const {
         return p_state_isr;
     }
-    void FAST_CODE_1 isr_state_set(enum isr_states isr) {
+    inline void isr_state_set(enum isr_states isr) {
         p_state_isr = isr;
     }
 
