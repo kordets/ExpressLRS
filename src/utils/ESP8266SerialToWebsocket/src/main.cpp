@@ -1174,15 +1174,16 @@ void setup()
 
 int serialEvent()
 {
-  int temp, limit = 8;
+  int temp;
   uint8_t inChar;
-  while (Serial.available() && limit--) {
+  while (Serial.available()) {
     temp = Serial.read();
     if (temp < 0)
       break;
 
     inChar = (uint8_t)temp;
     if (msp_handler.processReceivedByte(inChar)) {
+      uint8_t forward = true;
       String info = "MSP received: ";
       // msp fully received
       mspPacket_t &msp_in = msp_handler.getPacket();
@@ -1230,29 +1231,35 @@ int serialEvent()
             break;
           }
           case ELRS_HANDSET_TLM_LINK_STATS: {
-            info += "LNK STAT telemetry";
+            info = "";
+            forward = false;
             handleHandsetTlmLnkStats(payload);
             break;
           }
           case ELRS_HANDSET_TLM_BATTERY: {
-            info += "BATTERY telemetry";
+            info = "";
+            forward = false;
             handleHandsetTlmBattery(payload);
             break;
           }
           case ELRS_HANDSET_TLM_GPS: {
-            info += "GPS telemetry";
+            info = "";
+            forward = false;
             handleHandsetTlmGps(payload);
             break;
           }
 #endif /* CONFIG_HANDSET */
           default:
             info += "UNKNOWN";
+            forward = false;
             break;
         };
       }
 
-      websocket_send(info);
-      espnow_send_msp(msp_in);
+      if (info.length())
+        websocket_send(info);
+      if (forward)
+        espnow_send_msp(msp_in);
 
       msp_handler.markPacketFree();
     } else if (!msp_handler.mspOngoing()) {
