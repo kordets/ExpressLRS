@@ -25,7 +25,7 @@
 #endif
 #elif defined(TARGET_HANDSET_STM32F722)
 #define DEBUG_SERIAL CTRL_SERIAL
-#elif CRC16_POLY_TESTING
+#elif CRC16_POLY_TESTING || RX_DEBUG_ENABLED
 #define DEBUG_SERIAL CrsfSerial
 #else
 //#define DEBUG_SERIAL CrsfSerial
