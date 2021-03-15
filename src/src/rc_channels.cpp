@@ -6,6 +6,11 @@
 
 #include <assert.h>
 
+#ifndef TX_SKIP_SYNC_WHEN_ARMED
+#define TX_SKIP_SYNC_WHEN_ARMED 0
+#endif
+
+
 /*************************************************************************************
  * RC OTA PACKET
  *************************************************************************************/
@@ -275,7 +280,6 @@ uint8_t FAST_CODE_1
 RcChannels_get_arm_channel_state(void)
 {
 #if TX_SKIP_SYNC_WHEN_ARMED
-    // FIXME: expects ARM channel to be AUX1
     return currentSwitches[0];
 #else
     return 0;

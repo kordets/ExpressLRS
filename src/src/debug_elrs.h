@@ -27,6 +27,7 @@
 #define DEBUG_SERIAL CTRL_SERIAL
 #elif CRC16_POLY_TESTING || RX_DEBUG_ENABLED
 #define DEBUG_SERIAL CrsfSerial
+#warning "CRSF serial debug enabled! No real connection to FC!"
 #else
 //#define DEBUG_SERIAL CrsfSerial
 #endif

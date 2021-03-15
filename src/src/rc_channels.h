@@ -18,9 +18,6 @@
 #endif
 #define N_CHANNELS (N_CONTROLS + N_SWITCHES)
 
-#ifndef TX_SKIP_SYNC_WHEN_ARMED
-#define TX_SKIP_SYNC_WHEN_ARMED 0
-#endif
 
 /*************************************************
  *    Data conversion macros
