@@ -399,6 +399,7 @@ https://github.com/jaxxzer
 
 // ESPbackpack logger (USART1)
 #define CTRL_SERIAL Serial1
+#define CTRL_SERIAL_BAUD    921600
 #define DEFINE_SERIAL1
 
 // Both radios are included
