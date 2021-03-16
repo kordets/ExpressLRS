@@ -49,7 +49,9 @@ public:
     virtual void Config(uint32_t bw, uint32_t sf, uint32_t cr,
                         uint32_t freq, uint16_t PreambleLength,
                         uint8_t crc = 0) = 0;
-    virtual void SetSyncWord(uint8_t syncWord) {};
+    void SetSyncWord(uint8_t syncWord) {
+        _syncWord = syncWord;
+    };
     virtual void SetOutputPower(int8_t power, uint8_t init=0) = 0;
     virtual void setPPMoffsetReg(int32_t error_hz, uint32_t frf = 0) = 0;
     virtual int32_t GetFrequencyError() = 0;
@@ -96,6 +98,7 @@ protected:
     volatile int8_t current_power;
 
     uint8_t module_type;
+    uint8_t _syncWord;
 
 private:
     volatile enum isr_states p_state_isr;

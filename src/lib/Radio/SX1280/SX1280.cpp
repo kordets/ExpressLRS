@@ -33,6 +33,7 @@ SX1280Driver::SX1280Driver(uint8_t payload_len):
     current_freq = 0; //2400000000;
     current_power = -100;
     currOpmode = SX1280_MODE_UNKNOWN_MAX;
+    _syncWord = 0;
 
 #if defined(TARGET_MODULE_LORA1280F27)
     module_type = MODULE_LORA1280F27;
@@ -112,10 +113,9 @@ void SX1280Driver::Config(uint32_t bw, uint32_t sf, uint32_t cr,
     SetPacketType(SX1280_PACKET_TYPE_LORA);
     SetFrequency(freq);
     ConfigModParams(bw, sf, cr);
-    //SetAutoFs(1);
     SetPacketParams(SX1280_LORA_PACKET_IMPLICIT,
                     (crc) ? SX1280_LORA_CRC_ON : SX1280_LORA_CRC_OFF,
-                    SX1280_LORA_IQ_NORMAL,
+                    ((_syncWord & 0x1) ? SX1280_LORA_IQ_INVERTED : SX1280_LORA_IQ_NORMAL),
                     PreambleLength, RX_buffer_size);
     SetAutoFs(1);
     SetHighSensitivityMode(1);

@@ -46,7 +46,6 @@ public:
     SX127xDriver(uint8_t payload_len = RX_BUFFER_LEN);
 
     ///////////Radio Variables////////
-    uint8_t _syncWord;
 
     ////////////////Configuration Functions/////////////
     int8_t Begin(int sck, int miso, int mosi);
@@ -55,7 +54,6 @@ public:
                 uint32_t freq, uint16_t PreambleLength,
                 uint8_t crc = 0);
 
-    void SetSyncWord(uint8_t syncWord);
     void SetOutputPower(int8_t Power, uint8_t init=0);
     void SetFrequency(uint32_t freq, uint8_t mode);
     int32_t GetFrequencyError();
