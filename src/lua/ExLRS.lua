@@ -8,20 +8,20 @@
   Original author: AlessandroAU.
 ]] --
 
-local version = 'v0.1'
+local version = 'v0.2'
 local gotFirstResp = false
 
 local SX127x_RATES = {
     list = {'200 Hz', '100 Hz', '50 Hz'},
     values = {0x00, 0x01, 0x02},
 }
-local SX128x_RATES_800 = {
-    list = {'250 Hz', '125 Hz', '50 Hz'},
-    values = {0x00, 0x01, 0x02},
-}
-local SX128x_RATES_1600 = {
+local SX128x_RATES = {
     list = {'500 Hz', '250 Hz', '125 Hz', '50 Hz'},
     values = {0x00, 0x01, 0x02, 0x03},
+}
+local SX128x_RATES_HIGH = {
+    list = {'800 Hz', '500 Hz', '250 Hz', '125 Hz', '50 Hz'},
+    values = {0x00, 0x01, 0x02, 0x03, 0x04},
 }
 
 local AirRate = {
@@ -54,14 +54,14 @@ local MaxPower = {
     max_allowed = 9,
 }
 
-local RFfreq = {
+local RFunit = {
     index = 4,
     editable = false,
-    name = 'RF Freq',
+    name = 'RF unit',
     selected = 99,
-    list = {'915 MHz', '868 MHz', '433 MHz', '2.4 GHz (800k)', '2.4 GHz (1.6M)'},
-    values = {0x00, 0x01, 0x02, 0x03, 0x04},
-    max_allowed = 5,
+    list = {' 900 (SX127x)', '2400 (SX128x)'},
+    values = {0x00, 0x03},
+    max_allowed = 2,
 }
 
 local function binding(item, event)
@@ -117,8 +117,8 @@ local menu = {
     selected = 1,
     modify = false,
     -- Note: list indexes must match to param handling in tx_main!
-    --list = {AirRate, TLMinterval, MaxPower, RFfreq, Bind, WebServer, exit_script},
-    list = {AirRate, TLMinterval, MaxPower, RFfreq, WebServer, exit_script},
+    --list = {AirRate, TLMinterval, MaxPower, RFunit, Bind, WebServer, exit_script},
+    list = {AirRate, TLMinterval, MaxPower, RFunit, WebServer, exit_script},
 }
 
 -- returns flags to pass to lcd.drawText for inverted and flashing text
@@ -269,20 +269,29 @@ local function processResp()
                 if data[6] < #MaxPower.list then
                     MaxPower.max_allowed = data[6] + 1 -- limit power list
                 end
-                if data[7] ~= 0xff and data[7] < #RFfreq.list then
-                    RFfreq.selected = data[7] + 1
-                    if data[7] == 4 then
-                        -- ISM 2400 band (SX128x), BW 1.6MHz
-                        AirRate.list = SX128x_RATES_1600.list
-                        AirRate.values = SX128x_RATES_1600.values
-                        AirRate.max_allowed = #SX128x_RATES_1600.values
-                    elseif data[7] == 3 then
-                        -- ISM 2400 band (SX128x), BW 0.8MHz
-                        AirRate.list = SX128x_RATES_800.list
-                        AirRate.values = SX128x_RATES_800.values
-                        AirRate.max_allowed = #SX128x_RATES_800.values
+                if data[7] ~= 0xff then
+                    local rfmode = data[7]
+                    RFunit.selected = 2
+                    if bit32.band(rfmode,0x80) == 0x80 then
+                        RFunit.editable = true
+                        rfmode = bit32.band(rfmode,0x7f)
+                    else
+                        RFunit.editable = false
+                    end
+
+                    if rfmode == 3 or rfmode == 4 then
+                        -- ISM 2400 band (SX128x)
+                        AirRate.list = SX128x_RATES.list
+                        AirRate.values = SX128x_RATES.values
+                        AirRate.max_allowed = #SX128x_RATES.values
+                    elseif rfmode == 5 then
+                        -- ISM 2400 band (SX128x) with 800Hz
+                        AirRate.list = SX128x_RATES_HIGH.list
+                        AirRate.values = SX128x_RATES_HIGH.values
+                        AirRate.max_allowed = #SX128x_RATES_HIGH.values
                     else
                         -- 433/868/915 (SX127x)
+                        RFunit.selected = 1
                         AirRate.list = SX127x_RATES.list
                         AirRate.values = SX127x_RATES.values
                         AirRate.max_allowed = #SX127x_RATES.values

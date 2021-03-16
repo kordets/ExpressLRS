@@ -493,7 +493,7 @@ int8_t SettingsCommandHandle(uint8_t const *in, uint8_t *out,
     } else if (RADIO_SX128x && pl_config.rf_mode == RADIO_TYPE_128x) {
         buff[4] = RADIO_RF_MODE_2400_ISM_500Hz;
     }
-#if TARGET_HANDSET
+#if DOMAIN_BOTH
     buff[4] |= 0x80;
 #endif
 
