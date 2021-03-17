@@ -11,20 +11,13 @@ _Min_Stack_Size = 0x1000; /* required amount of stack */
 /* Define output sections */
 SECTIONS
 {
-  /* The startup code goes first into FLASH */
-  .isr_vector :
-  {
-    . = ALIGN(4);
-    KEEP(*(.isr_vector)) /* Startup code */
-    . = ALIGN(4);
-  } >FLASH
-
   /* Critical program code goes into RAM_CODE */
   ram_code = LOADADDR(.ram_code);
   .ram_code :
   {
     . = ALIGN(4);
     ram_code_start = .;
+    KEEP(*(.isr_vector)) /* Startup code */
     *(.ram_code)
     *(.ram_code*)
     . = ALIGN(4);

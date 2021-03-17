@@ -71,21 +71,20 @@
 #ifdef DEBUG_SERIAL
 // dummy putchar
 #ifndef PRINTF_NUM_BLOCKS
-#define PRINTF_NUM_BLOCKS   4
+#define PRINTF_NUM_BLOCKS   8
 #endif
 #ifndef PRINTF_BUFF_SIZE
-#define PRINTF_BUFF_SIZE    128
+#define PRINTF_BUFF_SIZE    64
 #endif
 char   printf_out[PRINTF_NUM_BLOCKS][PRINTF_BUFF_SIZE];
 size_t printf_idx, printf_buff;
 
-void FAST_CODE_2 Printf::_putchar(char character)
+void FAST_CODE_2 Printf::_putchar(char const character)
 {
-    uint8_t is_end = character == '\n';
     printf_out[printf_buff][printf_idx++] = character;
 
     /* Send buff out if line end or buffer is full */
-    if (is_end || PRINTF_BUFF_SIZE <= printf_idx) {
+    if ((character == '\n') || (PRINTF_BUFF_SIZE <= printf_idx)) {
         DEBUG_SERIAL.write((uint8_t*)printf_out[printf_buff], printf_idx);
         printf_buff = (printf_buff+1) % PRINTF_NUM_BLOCKS;
         printf_idx = 0;

@@ -25,7 +25,6 @@ void FHSS_init(uint8_t mode)
 {
 #if RADIO_SX127x
     if (mode == RADIO_TYPE_127x) {
-        DEBUG_PRINTF("FHSS: 900MHz ");
         FHSSsequence = SX127x::FHSSsequence;
         FHSSsequenceLen = sizeof(SX127x::FHSSsequence);
         FHSSfreqs = SX127x::FHSSfreqs;
@@ -34,7 +33,6 @@ void FHSS_init(uint8_t mode)
 #endif
 #if RADIO_SX128x
     if (mode == RADIO_TYPE_128x) {
-        DEBUG_PRINTF("FHSS: 2.4GHz ");
         FHSSsequence = SX128x::FHSSsequence;
         FHSSsequenceLen = sizeof(SX128x::FHSSsequence);
         FHSSfreqs = SX128x::FHSSfreqs;
@@ -42,7 +40,7 @@ void FHSS_init(uint8_t mode)
     }
 #endif
     //FHSSrandomiseFHSSsequence();
-    DEBUG_PRINTF("len %u, step %u\n",
+    DEBUG_PRINTF("FHSS len %hu, step %hu\n",
         FHSSsequenceLen, FHSSstep);
 }
 

@@ -213,10 +213,9 @@ RadioInterface* common_config_radio(uint8_t type)
         return NULL;
     }
 
-    DEBUG_PRINTF("Using radio type: %s\n", config->str);
+    DEBUG_PRINTF("RF: %s\n", config->str);
     FHSS_init(type);
 
     current_settings = get_air_rate_config(type);
-    DEBUG_PRINTF("Radio configured\n");
     return radio;
 }
