@@ -20,9 +20,7 @@ function safelyParseJson(json) {
     return parsed // Could be undefined!
 }
 
-
 var websock;
-var log_history = [];
 function start() {
     var test = "";
     //test = "0:1:1,1:0:1,2:3:0,3:2:0,4:0:0,5:2:0";
@@ -69,13 +67,13 @@ function start() {
             var logger = $id("logField");
             var autoscroll = $id("autoscroll").checked;
             var scrollsize = parseInt($id("scrollsize").value, 10);
+            var log_history = logger.value.split("\n");
             while (scrollsize < log_history.length) {
                 log_history.shift();
             }
             var date = new Date();
             var n=new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString();
             log_history.push(n + ' ' + text);
-            //logger.value += n + ' ' + text + '\n';
             logger.value = log_history.join('\n');
             if (autoscroll)
                 logger.scrollTop = logger.scrollHeight;
