@@ -134,6 +134,10 @@ static inline uint32_t get_flash_end(void)
 #define FLASH_BASE_ADDRESS  ((uint32_t)(DATA_EEPROM_BASE))
 #elif defined(EEPROM_RETRAM_MODE)
 #define FLASH_BASE_ADDRESS  EEPROM_RETRAM_START_ADDRESS
+#elif defined(FLASH_SIZE) && \
+    (defined (STM32G0xx) || defined(STM32G4xx) || defined (STM32L4xx) ||\
+     defined(STM32WBxx))
+#define FLASH_BASE_ADDRESS  ((uint32_t)((FLASH_SIZE) - FLASH_PAGE_SIZE))
 #else
 #define FLASH_BASE_ADDRESS  ((uint32_t)((FLASH_END + 1) - FLASH_PAGE_SIZE))
 #endif
@@ -142,7 +146,7 @@ static inline uint32_t get_flash_end(void)
 #endif
 #endif /* FLASH_BASE_ADDRESS */
 
-static uint8_t eeprom_buffer[E2END + 1] __attribute__((aligned(8))) = {0};
+static uint8_t eeprom_buffer[E2END + 1] __attribute__((aligned(8)));
 
 /**
   * @brief  Function reads a byte from emulated eeprom (flash)
@@ -228,6 +232,12 @@ void eeprom_buffer_flush(void)
     defined (STM32L1xx) || defined (STM32L4xx) || defined (STM32WBxx)
   uint32_t pageError = 0;
   uint64_t data = 0;
+
+  /* Check whether the save is needed or not */
+  if (memcmp(eeprom_buffer, (uint8_t *)address, (E2END + 1)) == 0) {
+    /* Content is same */
+    return;
+  }
 
   /* ERASING page */
   EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;

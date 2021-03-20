@@ -5,7 +5,7 @@
 #include "POWERMGNT.h"
 #include "gpio.h"
 #include "ws2812.h"
-#include <EEPROM.h>
+#include <stm32_eeprom.h>
 
 uint8_t rate_config_dips = 0xff;
 
@@ -99,7 +99,11 @@ int8_t platform_config_load(struct platform_config &config)
 #if STORE_TO_FLASH
     int8_t res = -1;
     struct platform_config temp;
-    EEPROM.get(0, temp);
+
+    size_t len = sizeof(config), idx = 0;
+    uint8_t * ptr = (uint8_t*)&temp;
+    while(len--)
+        *ptr++ = eeprom_buffered_read_byte(idx++);
     if (temp.key == ELRS_EEPROM_KEY) {
         /* load ok, copy values */
         memcpy(&config, &temp, sizeof(temp));
@@ -119,7 +123,11 @@ int8_t platform_config_save(struct platform_config &config)
     if (config.key != ELRS_EEPROM_KEY)
         return -1;
 #if STORE_TO_FLASH
-    EEPROM.put(0, config);
+    size_t len = sizeof(config), idx = 0;
+    uint8_t * ptr = (uint8_t*)&config;
+    while(len--)
+        eeprom_buffered_write_byte(idx++, *ptr++);
+    eeprom_buffer_flush();
 #endif
     return 0;
 }
@@ -127,7 +135,8 @@ int8_t platform_config_save(struct platform_config &config)
 /******************* SETUP *********************/
 void platform_setup(void)
 {
-    EEPROM.begin();
+    /* Read "eeprom" content from flash into temp buffer */
+    eeprom_buffer_fill();
 
 #if defined(DEBUG_SERIAL) && defined(TX_MODULE) && !defined(TARGET_HANDSET_STM32F722)
     // Init debug serial if not done already

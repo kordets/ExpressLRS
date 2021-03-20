@@ -20,7 +20,7 @@
 
 #ifndef EEPROM_h
 #define EEPROM_h
-
+#error "perkeles..."
 #include "stm32_eeprom.h"
 
 /***
