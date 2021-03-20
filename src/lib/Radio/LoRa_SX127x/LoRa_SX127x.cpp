@@ -572,8 +572,8 @@ void SX127xDriver::SX127xConfig(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t fre
     writeRegister(SX127X_REG_HOP_PERIOD, SX127X_HOP_PERIOD_OFF);
 
     // Invert IQ according to sync word
-    reg = 0x27 | ((syncWord & 0x1) << 6);
-    writeRegister(SX127X_REG_INVERT_IQ, reg);
+    //reg = 0x27 | ((syncWord & 0x1) << 6);
+    //writeRegister(SX127X_REG_INVERT_IQ, reg);
 
     // basic setting (bw, cr, sf, header mode and CRC)
     reg = (sf | SX127X_TX_MODE_SINGLE); // RX timeout MSB = 0b00
