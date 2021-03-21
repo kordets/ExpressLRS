@@ -9,7 +9,11 @@
 #include "msp.h"
 #include "rc_channels.h"
 
+#if PROTOCOL_ELRS_TO_FC
+#define CRSF_RX_BAUDRATE      691200
+#else // !PROTOCOL_ELRS_TO_FC
 #define CRSF_RX_BAUDRATE      420000
+#endif // PROTOCOL_ELRS_TO_FC
 #define CRSF_TX_BAUDRATE_FAST 400000
 #define CRSF_TX_BAUDRATE_SLOW 115200
 #define CRSF_NUM_CHANNELS     16         // Number of input channels
@@ -34,9 +38,11 @@ enum crsf_frame_type_e
     CRSF_FRAMETYPE_GPS = 0x02,
     CRSF_FRAMETYPE_BATTERY_SENSOR = 0x08,
     CRSF_FRAMETYPE_LINK_STATISTICS = 0x14,
+    CRSF_FRAMETYPE_LINK_STATISTICS_ELRS = 0x15,
     CRSF_FRAMETYPE_OPENTX_SYNC = 0x10,
     CRSF_FRAMETYPE_RADIO_ID = 0x3A,
     CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
+    CRSF_FRAMETYPE_RC_CHANNELS_PACKED_ELRS = 0x17,
     CRSF_FRAMETYPE_ATTITUDE = 0x1E,
     CRSF_FRAMETYPE_FLIGHT_MODE = 0x21,
     // Extended Header Frames, range: 0x28 to 0x96
@@ -128,10 +134,30 @@ typedef struct crsf_channels_s
     unsigned ch15 : 11;
 } PACKED crsf_channels_t;
 
+typedef struct elrs_channels_s {
+    // 64 bits of data (4 x 10 bits + 8 x 3 bits channels) = 8 bytes.
+    unsigned int analog0 : 10;
+    unsigned int analog1 : 10;
+    unsigned int analog2 : 10;
+    unsigned int analog3 : 10;
+    unsigned int aux4 : 3;
+    unsigned int aux5 : 3;
+    unsigned int aux6 : 3;
+    unsigned int aux7 : 3;
+    unsigned int aux8 : 3;
+    unsigned int aux9 : 3;
+    unsigned int aux10 : 3;
+    unsigned int aux11 : 3;
+} PACKED elrs_channels_t;
+
 typedef struct crsf_channels_msg_s
 {
     crsf_header_t header;
+#if PROTOCOL_ELRS_TO_FC
+    elrs_channels_t data;
+#else // !PROTOCOL_ELRS_TO_FC
     crsf_channels_t data;
+#endif // PROTOCOL_ELRS_TO_FC
     uint8_t crc;
 } PACKED crsf_channels_msg_t;
 
@@ -165,6 +191,21 @@ typedef struct crsf_sensor_battery_s
  * Uplink:   PILOT => UAV
  * Downlink: UAV   => PILOT
  */
+// Compact version of uplink link statistics
+typedef struct elrsPayloadLinkstatistics_s {
+    uint8_t uplink_RSSI;
+    uint8_t uplink_Link_quality;
+    int8_t  uplink_SNR;
+    uint8_t rf_Mode;
+} PACKED elrsLinkStatistics_t;
+
+typedef struct crsfLinkStatisticsMsg_elrs_s
+{
+    crsf_header_t header;
+    elrsLinkStatistics_t stats;
+    uint8_t crc;
+} PACKED crsfLinkStatisticsMsg_elrs_t;
+
 typedef struct crsfLinkStatistics_s
 {
     uint8_t uplink_RSSI_1;

@@ -137,7 +137,7 @@ void FAST_CODE_2 servo_out_fail_safe(void)
 }
 
 
-void FAST_CODE_2 servo_out_write(rc_channels_t const * const channels) {
+void FAST_CODE_2 servo_out_write(rc_channels_rx_t const * const channels) {
     /* set pwm outputs for servos */
     uint32_t now = millis();
 

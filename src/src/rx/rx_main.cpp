@@ -62,7 +62,7 @@ static uint16_t DRAM_ATTR CRCCaesarCipher;
 static uint8_t DRAM_ATTR update_servos;
 #endif
 #endif
-static rc_channels_t DRAM_ATTR CrsfChannels;
+static rc_channels_rx_t DRAM_ATTR CrsfChannels;
 static LinkStats_t DRAM_ATTR LinkStatistics;
 static GpsOta_t DRAM_ATTR GpsTlm;
 

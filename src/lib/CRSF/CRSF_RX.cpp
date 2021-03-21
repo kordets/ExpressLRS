@@ -3,15 +3,24 @@
 #include "debug_elrs.h"
 #include <string.h>
 
-crsf_channels_msg_s DMA_ATTR p_crsf_channels;
+crsf_channels_msg_t DMA_ATTR p_crsf_channels;
 crsf_msp_packet_fc_t DMA_ATTR msp_packet;
+
+#if PROTOCOL_ELRS_TO_FC
+crsfLinkStatisticsMsg_elrs_t DMA_ATTR link_stat_packet;
+#else // !PROTOCOL_ELRS_TO_FC
 crsfLinkStatisticsMsg_t DMA_ATTR link_stat_packet;
+#endif // PROTOCOL_ELRS_TO_FC
 
 void CRSF_RX::Begin(void)
 {
     link_stat_packet.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
     link_stat_packet.header.frame_size = sizeof(link_stat_packet) - CRSF_FRAME_START_BYTES;
+#if PROTOCOL_ELRS_TO_FC
+    link_stat_packet.header.type = CRSF_FRAMETYPE_LINK_STATISTICS_ELRS;
+#else // !PROTOCOL_ELRS_TO_FC
     link_stat_packet.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
+#endif // PROTOCOL_ELRS_TO_FC
 
     msp_packet.header.device_addr = CRSF_ADDRESS_BROADCAST;
     msp_packet.header.frame_size = sizeof(msp_packet) - CRSF_FRAME_START_BYTES;
@@ -21,7 +30,11 @@ void CRSF_RX::Begin(void)
 
     p_crsf_channels.header.device_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
     p_crsf_channels.header.frame_size = sizeof(p_crsf_channels) - CRSF_FRAME_START_BYTES;
+#if PROTOCOL_ELRS_TO_FC
+    p_crsf_channels.header.type = CRSF_FRAMETYPE_RC_CHANNELS_PACKED_ELRS;
+#else // !PROTOCOL_ELRS_TO_FC
     p_crsf_channels.header.type = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
+#endif // PROTOCOL_ELRS_TO_FC
 
     CRSF::Begin();
 }
@@ -38,6 +51,12 @@ void FAST_CODE_1 CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size) const
 
 void CRSF_RX::LinkStatisticsSend(LinkStatsLink_t & stats) const
 {
+#if PROTOCOL_ELRS_TO_FC
+    link_stat_packet.stats.uplink_RSSI = stats.uplink_RSSI_1;
+    link_stat_packet.stats.uplink_Link_quality = stats.uplink_Link_quality;
+    link_stat_packet.stats.uplink_SNR = stats.uplink_SNR;
+    link_stat_packet.stats.rf_Mode = stats.rf_Mode;
+#else // PROTOCOL_ELRS_TO_FC
     link_stat_packet.stats.uplink_RSSI_1 = stats.uplink_RSSI_1;
     link_stat_packet.stats.uplink_RSSI_2 = stats.uplink_RSSI_2;
     link_stat_packet.stats.uplink_Link_quality = stats.uplink_Link_quality;
@@ -48,12 +67,13 @@ void CRSF_RX::LinkStatisticsSend(LinkStatsLink_t & stats) const
     link_stat_packet.stats.downlink_RSSI = stats.downlink_RSSI;
     link_stat_packet.stats.downlink_Link_quality = stats.downlink_Link_quality;
     link_stat_packet.stats.downlink_SNR = stats.downlink_SNR;
+#endif // PROTOCOL_ELRS_TO_FC
     sendFrameToFC((uint8_t*)&link_stat_packet, sizeof(link_stat_packet));
 }
 
-void FAST_CODE_1 CRSF_RX::sendRCFrameToFC(rc_channels_t * channels) const
+void FAST_CODE_1 CRSF_RX::sendRCFrameToFC(rc_channels_rx_t * channels) const
 {
-    memcpy(&p_crsf_channels.data, (void*)channels, sizeof(crsf_channels_t));
+    memcpy(&p_crsf_channels.data, (void*)channels, sizeof(p_crsf_channels.data));
     sendFrameToFC((uint8_t*)&p_crsf_channels, sizeof(p_crsf_channels));
 }
 

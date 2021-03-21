@@ -133,19 +133,36 @@ channels_pack(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4)
  * Convert received OTA packet data to CRSF packet for FC
  */
 void FAST_CODE_1 RcChannels_channels_extract(uint8_t const *const input,
-                                                 rc_channels_t &PackedRCdataOut)
+                                             rc_channels_rx_t &PackedRCdataOut)
 {
+    RcDataPacket_s *rcdata = (RcDataPacket_s *)&input[0];
     uint16_t switchValue;
     uint8_t switchIndex;
 
-    RcDataPacket_s *rcdata = (RcDataPacket_s *)&input[0];
+#if PROTOCOL_ELRS_TO_FC
+#define RC_SCALE 0
+#else // PROTOCOL_ELRS_TO_FC
+#define RC_SCALE 1
+#endif // PROTOCOL_ELRS_TO_FC
+
     // The analog channels, scale packet to 11bit
-    PackedRCdataOut.ch0 = ((uint16_t)rcdata->rc1 << 1);
-    PackedRCdataOut.ch1 = ((uint16_t)rcdata->rc2 << 1);
-    PackedRCdataOut.ch2 = ((uint16_t)rcdata->rc3 << 1);
-    PackedRCdataOut.ch3 = ((uint16_t)rcdata->rc4 << 1);
+    PackedRCdataOut.ch0 = ((uint16_t)rcdata->rc1 << RC_SCALE);
+    PackedRCdataOut.ch1 = ((uint16_t)rcdata->rc2 << RC_SCALE);
+    PackedRCdataOut.ch2 = ((uint16_t)rcdata->rc3 << RC_SCALE);
+    PackedRCdataOut.ch3 = ((uint16_t)rcdata->rc4 << RC_SCALE);
     // The round-robin switch
     switchIndex = rcdata->aux_n_idx;
+#if PROTOCOL_ELRS_TO_FC
+#if N_SWITCHES <= 5
+    PackedRCdataOut.ch4 = SWITCH2b_to_3b(rcdata->aux0);
+    switchValue = SWITCH2b_to_3b(rcdata->aux_n);
+    switchIndex++; // values 1...4
+#elif N_SWITCHES <= 8
+    switchValue = rcdata->aux_n;
+#else
+    switchValue = SWITCH2b_to_3b(rcdata->aux_n);
+#endif
+#else // PROTOCOL_ELRS_TO_FC
 #if N_SWITCHES <= 5
     PackedRCdataOut.ch4 = SWITCH2b_to_CRSF(rcdata->aux0);
     switchValue = SWITCH2b_to_CRSF(rcdata->aux_n);
@@ -155,6 +172,7 @@ void FAST_CODE_1 RcChannels_channels_extract(uint8_t const *const input,
 #else
     switchValue = SWITCH2b_to_CRSF(rcdata->aux_n);
 #endif
+#endif // PROTOCOL_ELRS_TO_FC
 
     switch (switchIndex) {
 #if 5 < N_SWITCHES

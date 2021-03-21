@@ -143,7 +143,7 @@ public:
     void Begin(void);
     void handleUartIn(void);
 
-    void sendRCFrameToFC(rc_channels_t * channels);
+    void sendRCFrameToFC(rc_channels_rx_t * channels);
     void LinkStatisticsSend(LinkStatsLink_t & stats);
     void sendMSPFrameToFC(mspPacket_t & msp) const;
 

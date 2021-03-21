@@ -44,7 +44,7 @@ void GHST::handleUartIn(void)
     }
 }
 
-void GHST::sendRCFrameToFC(rc_channels_t * channels)
+void GHST::sendRCFrameToFC(rc_channels_rx_t * channels)
 {
     rc_data.channels.ch1to4.ch1 = channels->ch0 << 1;
     rc_data.channels.ch1to4.ch2 = channels->ch1 << 1;

@@ -54,6 +54,8 @@
 #define CRSF_to_BIT(val) (((val) > 1000) ? 1 : 0)
 #define BIT_to_CRSF(val) ((val) ? CRSF_CHANNEL_OUT_VALUE_MAX : CRSF_CHANNEL_OUT_VALUE_MIN)
 
+#define SWITCH2b_to_3b(_D) ((_D) ? ((2 == (_D)) ? 6 : 3) : 0)
+
 
 // expresslrs packet header types
 // 00 -> standard 4 channel data packet
@@ -123,6 +125,27 @@ typedef struct rc_channels_s
     unsigned ch15 : 11;
 } PACKED rc_channels_t;
 
+#if PROTOCOL_ELRS_TO_FC
+typedef struct rc_channels_rx_s {
+    // 64 bits of data (4 x 10 bits + 8 x 3 bits channels) = 8 bytes.
+    unsigned int ch0 : 10;
+    unsigned int ch1 : 10;
+    unsigned int ch2 : 10;
+    unsigned int ch3 : 10;
+    unsigned int ch4 : 3;
+    unsigned int ch5 : 3;
+    unsigned int ch6 : 3;
+    unsigned int ch7 : 3;
+    unsigned int ch8 : 3;
+    unsigned int ch9 : 3;
+    unsigned int ch10 : 3;
+    unsigned int ch11 : 3;
+} PACKED rc_channels_rx_t;
+#else // !PROTOCOL_ELRS_TO_FC
+typedef rc_channels_t rc_channels_rx_t;
+#endif // PROTOCOL_ELRS_TO_FC
+
+
 void
 RcChannels_processChannels(rc_channels_t const *const channels);
 void FAST_CODE_1
@@ -133,7 +156,7 @@ RcChannels_get_arm_channel_state(void);
 // RX related
 void FAST_CODE_1
 RcChannels_channels_extract(uint8_t const *const input,
-                            rc_channels_t &output);
+                            rc_channels_rx_t &output);
 
 /*************************************************************************************
  * TELEMETRY OTA PACKET
