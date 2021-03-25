@@ -99,11 +99,7 @@ int8_t platform_config_load(struct platform_config &config)
 #if STORE_TO_FLASH
     int8_t res = -1;
     struct platform_config temp;
-
-    size_t len = sizeof(config), idx = 0;
-    uint8_t * ptr = (uint8_t*)&temp;
-    while(len--)
-        *ptr++ = eeprom_buffered_read_byte(idx++);
+    eeprom_read((uint8_t*)&temp, sizeof(temp));
     if (temp.key == ELRS_EEPROM_KEY) {
         /* load ok, copy values */
         memcpy(&config, &temp, sizeof(temp));
@@ -123,11 +119,7 @@ int8_t platform_config_save(struct platform_config &config)
     if (config.key != ELRS_EEPROM_KEY)
         return -1;
 #if STORE_TO_FLASH
-    size_t len = sizeof(config), idx = 0;
-    uint8_t * ptr = (uint8_t*)&config;
-    while(len--)
-        eeprom_buffered_write_byte(idx++, *ptr++);
-    eeprom_buffer_flush();
+    eeprom_write((uint8_t*)&config, sizeof(config));
 #endif
     return 0;
 }
@@ -135,9 +127,6 @@ int8_t platform_config_save(struct platform_config &config)
 /******************* SETUP *********************/
 void platform_setup(void)
 {
-    /* Read "eeprom" content from flash into temp buffer */
-    eeprom_buffer_fill();
-
 #if defined(DEBUG_SERIAL) && defined(TX_MODULE) && !defined(TARGET_HANDSET_STM32F722)
     // Init debug serial if not done already
     if (((void *)&DEBUG_SERIAL != (void *)&CrsfSerial) &&

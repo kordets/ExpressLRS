@@ -86,13 +86,10 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 
-uint8_t eeprom_read_byte(const uint32_t pos);
-void eeprom_write_byte(uint32_t pos, uint8_t value);
+uint8_t eeprom_read(uint8_t * out, uint32_t len);
 
-void eeprom_buffer_fill();
-void eeprom_buffer_flush();
-uint8_t eeprom_buffered_read_byte(const uint32_t pos);
-void eeprom_buffered_write_byte(uint32_t pos, uint8_t value);
+uint8_t eeprom_write(uint8_t * data, uint32_t len);
+
 
 #ifdef __cplusplus
 }

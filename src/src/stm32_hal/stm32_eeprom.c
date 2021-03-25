@@ -146,83 +146,44 @@ static inline uint32_t get_flash_end(void)
 #endif
 #endif /* FLASH_BASE_ADDRESS */
 
-static uint8_t eeprom_buffer[E2END + 1] __attribute__((aligned(8)));
 
 /**
-  * @brief  Function reads a byte from emulated eeprom (flash)
-  * @param  pos : address to read
-  * @retval byte : data read from eeprom
+  * @brief  Function reads a bytes from the eeprom buffer
+  *
+  * @param  out[out]  pointer where data will be read
+  * @param  len[in]   how much data will be read
+  *
+  * @retval 0 fail
+  * @retval 1 success
   */
-uint8_t eeprom_read_byte(const uint32_t pos)
+uint8_t eeprom_read(uint8_t * out, uint32_t len)
 {
-  eeprom_buffer_fill();
-  return eeprom_buffered_read_byte(pos);
+  if (((E2END + 1) < len) || !out || !len)
+    return 0;
+  memcpy(out, (uint8_t *)(FLASH_BASE_ADDRESS), len);
+  return 1;
 }
 
 /**
-  * @brief  Function writes a byte to emulated eeprom (flash)
-  * @param  pos : address to write
-  * @param  value : value to write
-  * @retval none
+  * @brief  This function writes the buffer content into the flash
+  *
+  * @param  input[in] data to be written
+  * @param  len[in]   how much data will be written
+  *
+  * @retval 0 fail
+  * @retval 1 success
   */
-void eeprom_write_byte(uint32_t pos, uint8_t value)
+uint8_t eeprom_write(uint8_t * input, uint32_t len)
 {
-  eeprom_buffered_write_byte(pos, value);
-  eeprom_buffer_flush();
-}
-
-/**
-  * @brief  Function reads a byte from the eeprom buffer
-  * @param  pos : address to read
-  * @retval byte : data read from eeprom
-  */
-uint8_t eeprom_buffered_read_byte(const uint32_t pos)
-{
-  return eeprom_buffer[pos];
-}
-
-/**
-  * @brief  Function writes a byte to the eeprom buffer
-  * @param  pos : address to write
-  * @param  value : value to write
-  * @retval none
-  */
-void eeprom_buffered_write_byte(uint32_t pos, uint8_t value)
-{
-  eeprom_buffer[pos] = value;
-}
-
-/**
-  * @brief  This function copies the data from flash into the buffer
-  * @param  none
-  * @retval none
-  */
-void eeprom_buffer_fill(void)
-{
-  memcpy(eeprom_buffer, (uint8_t *)(FLASH_BASE_ADDRESS), E2END + 1);
-}
+  if (((E2END + 1) < len) || !input || !len)
+    return 0;
 
 #if defined(EEPROM_RETRAM_MODE)
 
-/**
-  * @brief  This function writes the buffer content into the flash
-  * @param  none
-  * @retval none
-  */
-void eeprom_buffer_flush(void)
-{
-  memcpy((uint8_t *)(FLASH_BASE_ADDRESS), eeprom_buffer, E2END + 1);
-}
+  memcpy((uint8_t *)(FLASH_BASE_ADDRESS), input, len);
 
 #else /* defined(EEPROM_RETRAM_MODE) */
 
-/**
-  * @brief  This function writes the buffer content into the flash
-  * @param  none
-  * @retval none
-  */
-void eeprom_buffer_flush(void)
-{
   FLASH_EraseInitTypeDef EraseInitStruct;
   uint32_t offset = 0;
   uint32_t address = FLASH_BASE_ADDRESS;
@@ -234,9 +195,9 @@ void eeprom_buffer_flush(void)
   uint64_t data = 0;
 
   /* Check whether the save is needed or not */
-  if (memcmp(eeprom_buffer, (uint8_t *)address, (E2END + 1)) == 0) {
+  if (memcmp(input, (uint8_t *)address, len) == 0) {
     /* Content is same */
-    return;
+    return 1;
   }
 
   /* ERASING page */
@@ -274,12 +235,12 @@ void eeprom_buffer_flush(void)
     if (HAL_FLASHEx_Erase(&EraseInitStruct, &pageError) == HAL_OK) {
       while (address <= address_end) {
 #if defined(STM32L0xx) || defined(STM32L1xx)
-        memcpy(&data, eeprom_buffer + offset, sizeof(uint32_t));
+        memcpy(&data, input + offset, sizeof(uint32_t));
         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address, data) == HAL_OK) {
           address += 4;
           offset += 4;
 #else
-        data = *((uint64_t *)((uint8_t *)eeprom_buffer + offset));
+        data = *((uint64_t *)((uint8_t *)input + offset));
 
         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, data) == HAL_OK) {
           address += 8;
@@ -315,12 +276,12 @@ void eeprom_buffer_flush(void)
     while (address <= address_end) {
 #if defined(STM32H7xx)
       /* 256 bits */
-      memcpy(&data, eeprom_buffer + offset, 8 * sizeof(uint32_t));
+      memcpy(&data, input + offset, 8 * sizeof(uint32_t));
       if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, address, (uint32_t)data) == HAL_OK) {
         address += 32;
         offset += 32;
 #else
-      memcpy(&data, eeprom_buffer + offset, sizeof(uint32_t));
+      memcpy(&data, input + offset, sizeof(uint32_t));
       if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address, data) == HAL_OK) {
         address += 4;
         offset += 4;
@@ -332,9 +293,10 @@ void eeprom_buffer_flush(void)
   }
   HAL_FLASH_Lock();
 #endif
-}
 
 #endif /* defined(EEPROM_RETRAM_MODE) */
+  return 1;
+}
 
 #ifdef __cplusplus
 }
