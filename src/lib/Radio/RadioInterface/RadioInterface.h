@@ -27,6 +27,8 @@ enum module_types
     MODULE_LORA1280F27,
     MODULE_E28_2G4M12S,
     MODULE_LORA1276F30,
+    MODULE_VOYAGER_DAC,
+    MODULE_FLASH_2400,
     MODULE_COUNT,
 };
 
@@ -43,7 +45,7 @@ public:
     }
 
     void SetPins(int rst, int dio1, int dio2, int dio3,
-                 int busy, int txpin, int rxpin, int cs);
+                 int busy, int txpin, int rxpin, int cs, int papin);
     virtual int8_t Begin(int sck, int miso, int mosi) = 0;
     virtual void End(void) = 0;
     virtual void Config(uint32_t bw, uint32_t sf, uint32_t cr,
@@ -87,6 +89,7 @@ protected:
 
     gpio_out _RXen;
     gpio_out _TXen;
+    gpio_out _PAen;
     gpio_out _RST;
     gpio_in _DIO1;
     gpio_in _DIO2;

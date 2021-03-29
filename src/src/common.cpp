@@ -128,7 +128,7 @@ uint8_t getSyncWord(void)
 
 typedef struct {
     int rst, dio0, dio1, dio2;
-    int busy, txen, rxen;
+    int busy, txen, rxen, pactrl;
     uint32_t nss;
     RadioInterface* radio_if;
     const char * str;
@@ -148,12 +148,14 @@ RadioInterface DRAM_FORCE_ATTR *Radio;
 static RadioParameters_t DRAM_FORCE_ATTR RadioType[] = {
 #if RADIO_SX127x
     {GPIO_PIN_RST_127x, GPIO_PIN_DIO0_127x, GPIO_PIN_DIO1_127x, GPIO_PIN_DIO2_127x,
-     UNDEF_PIN, GPIO_PIN_TXEN_127x, GPIO_PIN_RXEN_127x, GPIO_PIN_NSS_127x,
+     UNDEF_PIN, GPIO_PIN_TXEN_127x, GPIO_PIN_RXEN_127x, GPIO_PIN_PAEN_127x,
+     GPIO_PIN_NSS_127x,
      &Radio127x, "SX127x"},
 #endif
 #if RADIO_SX128x
     {GPIO_PIN_RST_128x, GPIO_PIN_DIO0_128x, GPIO_PIN_DIO1_128x, GPIO_PIN_DIO2_128x,
-     GPIO_PIN_BUSY, GPIO_PIN_TXEN_128x, GPIO_PIN_RXEN_128x, GPIO_PIN_NSS_128x,
+     GPIO_PIN_BUSY, GPIO_PIN_TXEN_128x, GPIO_PIN_RXEN_128x, GPIO_PIN_PAEN_128x,
+     GPIO_PIN_NSS_128x,
      &Radio128x, "SX128x"},
 #endif
 };
@@ -199,7 +201,8 @@ RadioInterface* common_config_radio(uint8_t type)
             config = &RadioType[iter];
             radio = config->radio_if;
             radio->SetPins(config->rst, config->dio0, config->dio1, config->dio2,
-                           config->busy, config->txen, config->rxen, config->nss);
+                           config->busy, config->txen, config->rxen, config->nss,
+                           config->pactrl);
             radio->SetSyncWord(getSyncWord());
             //radio->End();
         }

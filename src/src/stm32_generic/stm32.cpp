@@ -59,9 +59,9 @@ void play_tone_loop(uint32_t ms)
     }
 }
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
+#if DAC_IN_USE
 #include "DAC.h"
-#endif /* TARGET_R9M_TX */
+#endif /* DAC_IN_USE */
 #endif /* TX_MODULE */
 
 
@@ -181,11 +181,12 @@ void platform_setup(void)
 #if defined(TX_MODULE)
     /*************** CONFIGURE TX *******************/
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
+#if DAC_IN_USE
     // DAC is used to control ADC which sets PA output
-    r9dac.init(GPIO_PIN_SDA, GPIO_PIN_SCL, 0b0001100,
-               GPIO_PIN_RFswitch_CONTROL, GPIO_PIN_RFamp_APC1, GPIO_PIN_RFamp_APC2);
-#endif // TARGET_R9M_TX
+    r9dac.init(GPIO_PIN_SDA, GPIO_PIN_SCL, DAC_I2C_ADDRESS,
+               GPIO_PIN_RFswitch_CONTROL, GPIO_PIN_RFamp_APC1,
+               GPIO_PIN_RFamp_APC2);
+#endif // DAC_IN_USE
 #if (GPIO_PIN_BUZZER != UNDEF_PIN)
     buzzer = gpio_out_setup(GPIO_PIN_BUZZER, LOW);
 #endif // GPIO_PIN_BUZZER

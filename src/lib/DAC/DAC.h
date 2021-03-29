@@ -5,7 +5,7 @@
 
 class R9DAC
 {
-#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
+#if DAC_IN_USE
 private:
     enum
     {
@@ -30,6 +30,7 @@ private:
 
     const r9dac_lut_s LUT[R9_PWR_MAX] = {
         // mw, dB, gain, APC2volts*1000, figures assume 2dBm input
+#if defined(TARGET_R9M_TX)
 #if 0
         {10, 11, 9, 800},
         {25, 14, 12, 920},
@@ -50,6 +51,16 @@ private:
         {1000, 30, 28, 2100},
         {2000, 33, 31, 2600}, // Danger untested at high power
 #endif
+#elif defined(TARGET_NAMIMNORC_TX)
+        {10, 10, 8, 315},
+        {25, 14, 12, 460},
+        {50, 17, 15, 595},
+        {100, 20, 18, 750},
+        {250, 24, 22, 1125},
+        {500, 27, 25, 1505},
+        {1000, 30, 28, 2105},
+        {2000, 30, 28, 2105},
+#endif
     };
 
     struct gpio_out pin_RFswitch;
@@ -62,7 +73,7 @@ private:
     void setVoltageMV(uint32_t voltsMV);
     void setVoltageRegDirect(uint8_t voltReg);
     uint8_t get_lut_index(uint8_t power);
-#endif
+#endif /* DAC_IN_USE */
 public:
     R9DAC();
     void init(uint8_t SDA_, uint8_t SCL_, uint8_t ADDR_,

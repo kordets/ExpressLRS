@@ -18,15 +18,20 @@ PowerArray_t power_array[MODULE_COUNT] = {
     {  PWR_100mW/*PWR_500mW*/, -17,  -13,  -10,    -7,    -3,     0,      0,      0},
     // MODULE_LORA1276F30. 0 = 40mW, 15 = 300mW
     {  PWR_250mW,   0,    0,    1,     4,    11,    15,     15,     15},
+    // NamimnoRC Voyager, 900MHz TX module
+    {  PWR_1000mW,  0,    0,    0,     0,     0,     0,      0,      0},
+    // NamimnoRC Flash, 2400MHz TX module
+    {  PWR_1000mW,  -15,    -13,    -11,     -9,    -7,     -3,     0,      0},
 };
 
-POWERMGNT::POWERMGNT()
+POWERMGNT::POWERMGNT(int fan)
 {
     p_radio = NULL;
     p_dac = NULL;
     p_current_power = PWR_UNKNOWN;
     p_max_power = PWR_10mW;
     p_dyn_power = 0;
+    set_fan(fan);
 }
 
 void POWERMGNT::Begin(RadioInterface *radio, R9DAC *dac)
@@ -119,4 +124,7 @@ void POWERMGNT::p_set_power(PowerLevels_e power)
         p_radio->SetOutputPower(powers->power[power]);
     }
     p_current_power = power;
+
+    if (gpio_out_valid(fan_pin))
+        gpio_out_write(fan_pin, (PWR_50mW < power));
 }

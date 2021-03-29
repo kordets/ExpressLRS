@@ -358,6 +358,9 @@ https://github.com/jaxxzer
 #define BT_SERIAL_BAUD  TELEMETRY_EXTERNAL_BAUDRATE
 #endif /* TELEMETRY_EXTERNAL */
 
+/* R9M DAC control address */
+#define DAC_I2C_ADDRESS         0b0001100
+
 //#define GPIO_PIN_DIO1 PA1  //Not Needed, HEARTBEAT pin
 #endif /* R9M_LITE_TX */
 
@@ -468,6 +471,82 @@ https://github.com/jaxxzer
 #define SWITCH_CH_3     SWITCH_2
 #define SWITCH_CH_4     SWITCH_4
 
+#elif defined(TARGET_NAMIMNORC_TX)
+/*
+Designed by NamimnoRC
+*/
+#if DOMAIN_24GHZ
+    #define GPIO_PIN_RST            PB4
+    #define GPIO_PIN_BUSY           PB5
+    #define GPIO_PIN_DIO0           PB6
+    #define GPIO_PIN_DIO1           PB7
+    #define GPIO_PIN_NSS            PA4
+    #define GPIO_PIN_MOSI           PA7
+    #define GPIO_PIN_MISO           PA6
+    #define GPIO_PIN_SCK            PA5
+    // SKY65383-11 front end control
+    #define GPIO_PIN_RX_ENABLE      PA8     // CRX
+    #define GPIO_PIN_TX_ENABLE      PA11    // CTX
+    #define GPIO_PIN_PA_ENABLE      PA12    // CSD
+    #define RADIO_SX128x 1
+#else // !DOMAIN_24GHZ
+    #define GPIO_PIN_NSS            PB12
+    #define GPIO_PIN_DIO0           PA15
+    #define GPIO_PIN_MOSI           PB15
+    #define GPIO_PIN_MISO           PB14
+    #define GPIO_PIN_SCK            PB13
+    #define GPIO_PIN_RST            PC14
+    #define GPIO_PIN_RX_ENABLE      PB3  //HIGH = RX, LOW = TX
+    /* DAC settings */
+    #define GPIO_PIN_SDA            PB9
+    #define GPIO_PIN_SCL            PB8
+    #define DAC_I2C_ADDRESS         0b0001101
+    #define RADIO_SX127x 1
+#endif // DOMAIN_24GHZ
+
+/* S.Port input signal */
+#define GPIO_PIN_RCSIGNAL_RX    PB11 /* USART3 */
+#define GPIO_PIN_RCSIGNAL_TX    PB10 /* USART3 */
+#define BUFFER_OE               PA1
+#define BUFFER_OE_INVERTED      1
+#define RCSIGNAL_USE_DMA        0
+#define GPIO_PIN_FAN_CTRL       PB1
+/* Backpack logger connection */
+#define CTRL_SERIAL Serial1
+#define DEFINE_SERIAL1
+/* WS2812 led */
+#define GPIO_PIN_LED_RGB        PB0
+
+#elif defined(TARGET_NAMIMNORC_RX)
+/*
+Designed by NamimnoRC
+*/
+#if DOMAIN_24GHZ
+    #define GPIO_PIN_RST        PB4
+    #define GPIO_PIN_BUSY       PB5
+    #define GPIO_PIN_DIO0       PB6
+    #define GPIO_PIN_DIO1       PB7
+    #define GPIO_PIN_NSS        PA4
+    #define GPIO_PIN_MOSI       PA7
+    #define GPIO_PIN_MISO       PA6
+    #define GPIO_PIN_SCK        PA5
+    #define GPIO_PIN_LED_RED    PA1
+#else // !DOMAIN_24GHZ
+    #define GPIO_PIN_RST        PC14
+    #define GPIO_PIN_DIO0       PA15
+    #define GPIO_PIN_DIO1       PA1
+    #define GPIO_PIN_NSS        PB12
+    #define GPIO_PIN_MOSI       PB15
+    #define GPIO_PIN_MISO       PB14
+    #define GPIO_PIN_SCK        PB13
+    #define GPIO_PIN_LED_RED    PA11
+    // RF Switch: LOW = RX, HIGH = TX
+    #define GPIO_PIN_TX_ENABLE  PB3
+#endif // DOMAIN_24GHZ
+
+#define GPIO_PIN_RCSIGNAL_RX    PA10
+#define GPIO_PIN_RCSIGNAL_TX    PA9
+
 #endif
 
 
@@ -514,6 +593,9 @@ https://github.com/jaxxzer
 #endif
 #ifndef GPIO_PIN_TX_ENABLE
 #define GPIO_PIN_TX_ENABLE  UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_PA_ENABLE
+#define GPIO_PIN_PA_ENABLE  UNDEF_PIN
 #endif
 #ifndef BUFFER_OE
 #define BUFFER_OE           UNDEF_PIN
@@ -623,6 +705,9 @@ https://github.com/jaxxzer
 #ifndef GPIO_PIN_RXEN_127x
 #define GPIO_PIN_RXEN_127x GPIO_PIN_RX_ENABLE
 #endif
+#ifndef GPIO_PIN_PAEN_127x
+#define GPIO_PIN_PAEN_127x GPIO_PIN_PA_ENABLE
+#endif
 
 #ifndef GPIO_PIN_NSS_128x
 #define GPIO_PIN_NSS_128x GPIO_PIN_NSS
@@ -644,4 +729,11 @@ https://github.com/jaxxzer
 #endif
 #ifndef GPIO_PIN_RXEN_128x
 #define GPIO_PIN_RXEN_128x GPIO_PIN_RX_ENABLE
+#endif
+#ifndef GPIO_PIN_PAEN_128x
+#define GPIO_PIN_PAEN_128x GPIO_PIN_PA_ENABLE
+#endif
+
+#ifndef GPIO_PIN_FAN_CTRL
+#define GPIO_PIN_FAN_CTRL UNDEF_PIN
 #endif

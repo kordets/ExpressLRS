@@ -19,7 +19,8 @@
 #ifdef DEFINE_SERIAL1
 //#define DEBUG_SERIAL Serial1
 #endif
-#elif defined(TARGET_R9M_TX) || defined(TARGET_TX_DUAL_STM32F1)
+#elif defined(TARGET_R9M_TX) || defined(TARGET_TX_DUAL_STM32F1) || defined(TARGET_NAMIMNORC_TX)
+// FIXME: Change flagging!
 #ifdef DEFINE_SERIAL1
 #define DEBUG_SERIAL Serial1
 #endif

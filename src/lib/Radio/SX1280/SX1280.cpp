@@ -39,6 +39,8 @@ SX1280Driver::SX1280Driver(uint8_t payload_len):
     module_type = MODULE_LORA1280F27;
 #elif defined(TARGET_MODULE_E28)
     module_type = MODULE_E28_2G4M12S;
+#elif defined(TARGET_NAMIMNORC_TX)
+    module_type = MODULE_FLASH_2400;
 #else
     module_type = MODULE_DEFAULT;
 #endif

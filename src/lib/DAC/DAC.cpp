@@ -2,7 +2,7 @@
 #include "DAC.h"
 #include "helpers.h"
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
+#if DAC_IN_USE
 #include "POWERMGNT.h"
 #include <Wire.h>
 
@@ -116,13 +116,13 @@ uint8_t R9DAC::get_lut_index(uint8_t power)
     return index;
 }
 
-#else
+#else /* !DAC_IN_USE */
 R9DAC::R9DAC() {}
 void R9DAC::init(uint8_t sda, uint8_t scl, uint8_t addr,
                  int8_t pin_switch, int8_t pin_amp, int8_t pin_amp2) {}
 void R9DAC::standby() {}
 void R9DAC::resume() {}
 void R9DAC::setPower(uint8_t power) {}
-#endif
+#endif /* DAC_IN_USE */
 
 R9DAC r9dac;

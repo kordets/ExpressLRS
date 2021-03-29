@@ -124,6 +124,8 @@ SX127xDriver::SX127xDriver(uint8_t payload_len):
     module_type = MODULE_R9M_DAC;
 #elif defined(TARGET_MODULE_LORA1276F30)
     module_type = MODULE_LORA1276F30;
+#elif defined(TARGET_NAMIMNORC_TX)
+    module_type = MODULE_VOYAGER_DAC;
 #else
     module_type = MODULE_DEFAULT;
 #endif
@@ -199,7 +201,6 @@ void SX127xDriver::SetPreambleLength(uint16_t PreambleLen)
 
 void FAST_CODE_2 SX127xDriver::SetFrequency(uint32_t freq, uint8_t mode)
 {
-    // TODO: Take this into use if ok!!
     if (freq == current_freq)
         return;
 

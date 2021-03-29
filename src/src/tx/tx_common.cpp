@@ -21,7 +21,7 @@ extern CRSF_TX crsf;
 
 ///////////////////
 /// define some libs to use ///
-POWERMGNT DRAM_FORCE_ATTR PowerMgmt;
+POWERMGNT DRAM_FORCE_ATTR PowerMgmt(GPIO_PIN_FAN_CTRL);
 
 static uint32_t DRAM_ATTR _rf_rxtx_counter;
 static uint8_t DMA_ATTR rx_buffer[OTA_PACKET_SIZE];
@@ -223,11 +223,11 @@ static uint8_t SetRadioType(uint8_t type)
         DEBUG_PRINTF("SetRadioType type:%u, rate:%u, tlm:%u, pwr:%u\n",
             type, current_rate_config, TLMinterval, power);
 
-#if defined(TARGET_R9M_TX) && !defined(R9M_LITE_TX)
+#if DAC_IN_USE
         PowerMgmt.Begin(Radio, &r9dac);
-#else
+#else /* !DAC_IN_USE */
         PowerMgmt.Begin(Radio);
-#endif
+#endif /* DAC_IN_USE */
         PowerMgmt.setPower(power);
         pl_config.rf_mode = type;
 

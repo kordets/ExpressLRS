@@ -35,12 +35,17 @@ private:
     PowerLevels_e p_max_power;
     uint_fast8_t p_dyn_power;
     R9DAC * p_dac;
+    struct gpio_out fan_pin;
 
     void p_set_power(PowerLevels_e power);
 
 public:
-    POWERMGNT();
+    POWERMGNT(int fan = -1);
     void Begin(RadioInterface *radio, R9DAC *dac = NULL);
+
+    void set_fan(int pin) {
+        fan_pin = gpio_out_setup(pin, 0);
+    }
 
     // inc and decPower are used to control dynamic tx power
     PowerLevels_e incPower();

@@ -15,9 +15,13 @@ if stm and "$UPLOADER $UPLOADERFLAGS" in env.get('UPLOADCMD', '$UPLOADER $UPLOAD
     if "TX_R9M" in target_name:
         env.AddPostAction("buildprog", [opentx.gen_elrs])
         if "WIFI" in target_name:
+            # Make sure the firmware.elrs is generated
+            opentx.gen_elrs(source, target, env)
             env.Replace(UPLOADCMD=upload_via_esp8266_backpack.on_upload)
         else:
             env.Replace(UPLOADCMD=stlink.on_upload)
+    elif "_WIFI" in target_name:
+        env.Replace(UPLOADCMD=upload_via_esp8266_backpack.on_upload)
     elif "_BF_PASSTHROUGH" in target_name or "_BF" in target_name:
         env.Replace(UPLOADCMD=UARTupload.on_upload)
     else: # "_STLINK"
