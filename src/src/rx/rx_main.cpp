@@ -87,7 +87,7 @@ static uint8_t DRAM_ATTR uplink_Link_quality;
 
 ///////////////////////////////////////////////////////////////
 ///////////// Variables for Sync Behaviour ////////////////////
-static uint32_t DRAM_ATTR RFmodeNextCycle; // set from isr
+static uint32_t DRAM_ATTR RFmodeNextCycle;
 static uint8_t DRAM_ATTR scanIndex;
 static uint8_t DRAM_ATTR tentative_cnt;
 
@@ -678,6 +678,7 @@ void setup()
     dbg_pin_rx = gpio_out_setup(DBG_PIN_RX_ISR, 0);
 #endif
 
+    ExpressLRS_currAirRate = NULL;
     connectionState = STATE_disconnected;
     tentative_cnt = 0;
     CRCCaesarCipher = CalcCRC16(UID, sizeof(UID), 0);
@@ -722,38 +723,32 @@ static uint32_t led_toggle_ms = 0;
 void loop()
 {
     uint32_t now = millis();
+
     const connectionState_e _conn_state = (connectionState_e)read_u32(&connectionState);
 
-    if (STATE_lost < _conn_state)
-    {
+    if (STATE_lost < _conn_state) {
         // check if connection is lost or in very bad shape
         if (ExpressLRS_currAirRate->connectionLostTimeout <= (int32_t)(now - read_u32(&LastValidPacket))
-            /*|| read_u8(&uplink_Link_quality) <= 10*/)
-        {
+            /*|| read_u8(&uplink_Link_quality) <= 10*/) {
             LostConnection();
-        }
-        else if (_conn_state == STATE_connected)
-        {
+        } else if (_conn_state == STATE_connected) {
 #if SERVO_OUTPUTS_ENABLED
 #if !SERVO_WRITE_FROM_ISR
             if (read_u8(&update_servos))
                 servo_out_write(&CrsfChannels);
 #endif
 #else
-            if (SEND_LINK_STATS_TO_FC_INTERVAL <= (uint32_t)(now - SendLinkStatstoFCintervalNextSend))
-            {
+            if (SEND_LINK_STATS_TO_FC_INTERVAL <= (uint32_t)(now - SendLinkStatstoFCintervalNextSend)) {
                 LinkStatistics.link.uplink_Link_quality = read_u8(&uplink_Link_quality);
                 crsf.LinkStatisticsSend(LinkStatistics.link);
                 SendLinkStatstoFCintervalNextSend = now;
             }
 #endif
         }
-    }
-    else if (_conn_state == STATE_disconnected)
-    { /* Cycle only if initial connection search */
-
-        if (ExpressLRS_currAirRate->syncSearchTimeout < (uint32_t)(now - RFmodeNextCycle))
-        {
+    } else if (_conn_state == STATE_disconnected) {
+        /* Cycle only if initial connection search */
+        if ((!ExpressLRS_currAirRate) ||
+            (ExpressLRS_currAirRate->syncSearchTimeout < (uint32_t)(now - RFmodeNextCycle))) {
             uint8_t max_rate = get_elrs_airRateMax();
             SetRFLinkRate((scanIndex % max_rate)); //switch between rates
             scanIndex++;
@@ -761,17 +756,13 @@ void loop()
                 platform_connection_state(STATE_search_iteration_done);
 
             RFmodeNextCycle = now;
-        }
-        else if (150 <= (uint32_t)(now - led_toggle_ms))
-        {
+        } else if (150 <= (uint32_t)(now - led_toggle_ms)) {
             led_toggle();
             led_toggle_ms = now;
         }
-    }
-    else if (_conn_state == STATE_lost)
-    { /* Just blink a led if connections is lost */
-        if (300 <= (uint32_t)(now - led_toggle_ms))
-        {
+    } else if (_conn_state == STATE_lost) {
+        /* Just blink a led if connections is lost */
+        if (300 <= (uint32_t)(now - led_toggle_ms)) {
             led_toggle();
             led_toggle_ms = now;
         }

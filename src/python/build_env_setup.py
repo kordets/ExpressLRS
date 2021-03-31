@@ -8,9 +8,10 @@ import esp_compress
 platform = env.get('PIOPLATFORM', '')
 stm = platform in ['ststm32']
 
+target_name = env['PIOENV'].upper()
+
 # don't overwrite if custom command defined
 if stm and "$UPLOADER $UPLOADERFLAGS" in env.get('UPLOADCMD', '$UPLOADER $UPLOADERFLAGS'):
-    target_name = env['PIOENV'].upper()
     print("STM ENv: '%s'" % target_name)
     if "TX_R9M" in target_name:
         env.AddPostAction("buildprog", [opentx.gen_elrs])
@@ -34,5 +35,7 @@ elif platform in ['espressif8266']:
                      [esp_compress.compress_files])
     env.AddPostAction("${BUILD_DIR}/${ESP8266_FS_IMAGE_NAME}.bin",
                      [esp_compress.compress_fs_bin])
+    if "_WIFI" in target_name:
+        env.Replace(UPLOADCMD=upload_via_esp8266_backpack.on_upload)
 else:
     print("*** PLATFORM: '%s'" % platform)
