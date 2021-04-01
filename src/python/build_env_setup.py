@@ -9,15 +9,15 @@ platform = env.get('PIOPLATFORM', '')
 stm = platform in ['ststm32']
 
 target_name = env['PIOENV'].upper()
+print("PLATFORM : '%s'" % platform)
+print("BUILD ENV: '%s'" % target_name)
 
 # don't overwrite if custom command defined
 if stm and "$UPLOADER $UPLOADERFLAGS" in env.get('UPLOADCMD', '$UPLOADER $UPLOADERFLAGS'):
-    print("STM ENv: '%s'" % target_name)
     if "TX_R9M" in target_name:
-        env.AddPostAction("buildprog", [opentx.gen_elrs])
+        env.AddPostAction("buildprog", opentx.gen_elrs)
+        env.AddPreAction("upload", opentx.gen_elrs)
         if "WIFI" in target_name:
-            # Make sure the firmware.elrs is generated
-            opentx.gen_elrs(source, target, env)
             env.Replace(UPLOADCMD=upload_via_esp8266_backpack.on_upload)
         else:
             env.Replace(UPLOADCMD=stlink.on_upload)
@@ -36,6 +36,8 @@ elif platform in ['espressif8266']:
     env.AddPostAction("${BUILD_DIR}/${ESP8266_FS_IMAGE_NAME}.bin",
                      [esp_compress.compress_fs_bin])
     if "_WIFI" in target_name:
+        env.Replace(UPLOAD_PROTOCOL="custom")
         env.Replace(UPLOADCMD=upload_via_esp8266_backpack.on_upload)
 else:
     print("*** PLATFORM: '%s'" % platform)
+

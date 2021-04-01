@@ -28,7 +28,7 @@ def on_upload(source, target, env):
         if not os.path.exists(elrs_bin_target):
             raise Exception("No valid binary found!")
 
-    cmd = ["curl", "-v", "--max-time", "60",
+    cmd = ["curl", "--max-time", "60",
            "--retry", "2", "--retry-delay", "1",
            "-F", "data=@%s" % (elrs_bin_target,)]
     if isstm:
@@ -47,4 +47,4 @@ def on_upload(source, target, env):
         except subprocess.CalledProcessError:
             print("FAILED!")
 
-    raise Exception("WiFI upload FAILED!")
+    raise Exception("WIFI upload FAILED!")
