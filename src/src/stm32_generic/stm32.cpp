@@ -257,8 +257,18 @@ void platform_set_led(uint8_t state)
 #endif
 }
 
+struct bootloader {
+    uint32_t key;
+    uint32_t reset_type;
+};
+
 void platform_restart(void)
 {
+    /* Fill reset info into RAM for bootloader */
+    extern __IO uint32_t _bootloader_data;
+    volatile struct bootloader * blinfo = ((struct bootloader*)&_bootloader_data) + 0;
+    blinfo->key = 0x454c5253; // ELRS
+    blinfo->reset_type = 0xACDC;
     NVIC_SystemReset();
 }
 
