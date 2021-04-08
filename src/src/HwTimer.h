@@ -11,12 +11,7 @@
 #define USE_TIMER_KICK  1
 #endif
 
-//#ifdef STM32L0xx
-#define TIMER_OFFSET_KICK       100
-//#else
-//#define TIMER_OFFSET_KICK       200
-//#endif
-
+#define TIMER_OFFSET_KICK  100
 #define TIMER_OFFSET       250
 #define TIMER_OFFSET_LIMIT 50
 
