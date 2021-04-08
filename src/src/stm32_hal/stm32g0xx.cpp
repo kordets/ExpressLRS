@@ -3,10 +3,12 @@
 #include "priorities.h"
 #include "platform.h"
 
-#ifdef STM32L4xx
+#ifdef STM32G0xx
 
-#include <stm32l4xx_ll_dma.h>
+#include <stm32g0xx_ll_dma.h>
+#include <stm32g0xx_ll_cortex.h>
 
+#define APB2PERIPH_BASE (APBPERIPH_BASE + 0x00010000UL)
 
 uint32_t dma_get(uint32_t periph, uint8_t type, uint8_t index)
 {
@@ -15,36 +17,38 @@ uint32_t dma_get(uint32_t periph, uint8_t type, uint8_t index)
 
 uint32_t dma_channel_get(uint32_t periph, uint8_t type, uint8_t index)
 {
-    if (periph == USART1_BASE)
-        return (type == DMA_USART_RX) ? LL_DMA_CHANNEL_5 : LL_DMA_CHANNEL_4;
-    else if (periph == USART2_BASE)
-        return (type == DMA_USART_RX) ? LL_DMA_CHANNEL_6 : LL_DMA_CHANNEL_7;
-#ifdef USART3_BASE
-    else if (periph == USART3_BASE)
-        return (type == DMA_USART_RX) ? LL_DMA_CHANNEL_3 : LL_DMA_CHANNEL_2;
-#endif
+    if (periph == USART1_BASE || periph == USART2_BASE || periph == USART3_BASE)
+        return LL_DMA_CHANNEL_1;
     return 0xff;
 }
 
 uint32_t dma_irq_get(uint32_t periph, uint8_t type, uint8_t index)
 {
-    if (periph == USART1_BASE)
-        return (type == DMA_USART_RX) ? DMA1_Channel5_IRQn : DMA1_Channel4_IRQn;
-    else if (periph == USART2_BASE)
-        return (type == DMA_USART_RX) ? DMA1_Channel6_IRQn : DMA1_Channel7_IRQn;
-#ifdef USART3_BASE
-    else if (periph == USART3_BASE)
-        return (type == DMA_USART_RX) ? DMA1_Channel3_IRQn : DMA1_Channel2_IRQn;
-#endif
+    if (periph == USART1_BASE || periph == USART2_BASE || periph == USART3_BASE)
+        return DMA1_Channel1_IRQn;
     return 0xff;
 }
 
 void dma_request_config(uint32_t periph, uint8_t type, uint8_t index)
 {
+    uint32_t req;
+    switch (periph) {
+        case USART1_BASE:
+            req = (type == DMA_USART_RX) ? LL_DMAMUX_REQ_USART1_RX : LL_DMAMUX_REQ_USART1_TX;
+            break;
+        case USART2_BASE:
+            req = (type == DMA_USART_RX) ? LL_DMAMUX_REQ_USART2_RX : LL_DMAMUX_REQ_USART2_TX;
+            break;
+        case USART3_BASE:
+            req = (type == DMA_USART_RX) ? LL_DMAMUX_REQ_USART3_RX : LL_DMAMUX_REQ_USART3_TX;
+            break;
+        default:
+            return;
+    }
     LL_DMA_SetPeriphRequest(
         (DMA_TypeDef *)dma_get(periph, type, index),
         dma_channel_get(periph, type, index),
-        LL_DMA_REQUEST_2);
+        req);
 }
 
 uint32_t uart_peripheral_get(uint32_t pin)
@@ -64,9 +68,10 @@ uint32_t uart_peripheral_get(uint32_t pin)
 
 void uart_config_afio(uint32_t periph, uint32_t rx_pin, uint32_t tx_pin)
 {
+    // USART1 has alternative 0 config when pins are PB6 and PB7
     if (rx_pin != tx_pin && rx_pin != (uint32_t)-1)
-        gpio_peripheral(rx_pin, GPIO_FUNCTION(7), 1);
-    gpio_peripheral(tx_pin, GPIO_FUNCTION(7), 0);
+        gpio_peripheral(rx_pin, GPIO_FUNCTION((rx_pin == GPIO('B', 7) ? 0 : 1)), 1);
+    gpio_peripheral(tx_pin, GPIO_FUNCTION((tx_pin == GPIO('B', 6) ? 0 : 1)), 0);
 }
 
 // Enable a peripheral clock
@@ -76,17 +81,17 @@ void enable_pclock(uint32_t periph_base)
         return;
 
     if (periph_base < APB2PERIPH_BASE) {
-        uint32_t pos = (periph_base - APB1PERIPH_BASE) / 0x400;
-        RCC->APB1ENR1 |= (1 << pos);
-        RCC->APB1ENR1;
-    } else if (periph_base < AHB1PERIPH_BASE) {
+        uint32_t pos = (periph_base - APBPERIPH_BASE) / 0x400;
+        RCC->APBENR1 |= (1 << pos);
+        RCC->APBENR1;
+    } else if (periph_base < AHBPERIPH_BASE) {
         uint32_t pos = (periph_base - APB2PERIPH_BASE) / 0x400;
-        RCC->APB2ENR |= (1 << pos);
-        RCC->APB2ENR;
+        RCC->APBENR2 |= (1 << pos);
+        RCC->APBENR2;
     } else {
-        uint32_t pos = (periph_base - AHB1PERIPH_BASE) / 0x400;
-        RCC->AHB1ENR |= (1 << pos);
-        RCC->AHB1ENR;
+        uint32_t pos = (periph_base - AHBPERIPH_BASE) / 0x400;
+        RCC->AHBENR |= (1 << pos);
+        RCC->AHBENR;
     }
 }
 
@@ -94,14 +99,14 @@ void enable_pclock(uint32_t periph_base)
 uint32_t is_enabled_pclock(uint32_t periph_base)
 {
     if (periph_base < APB2PERIPH_BASE) {
-        uint32_t pos = (periph_base - APB1PERIPH_BASE) / 0x400;
-        return RCC->APB1ENR1 & (1 << pos);
-    } else if (periph_base < AHB1PERIPH_BASE) {
+        uint32_t pos = (periph_base - APBPERIPH_BASE) / 0x400;
+        return RCC->APBENR1 & (1 << pos);
+    } else if (periph_base < AHBPERIPH_BASE) {
         uint32_t pos = (periph_base - APB2PERIPH_BASE) / 0x400;
-        return RCC->APB2ENR & (1 << pos);
+        return RCC->APBENR2 & (1 << pos);
     } else {
-        uint32_t pos = (periph_base - AHB1PERIPH_BASE) / 0x400;
-        return RCC->AHB1ENR & (1 << pos);
+        uint32_t pos = (periph_base - AHBPERIPH_BASE) / 0x400;
+        return RCC->AHBENR & (1 << pos);
     }
 }
 
@@ -115,9 +120,9 @@ get_pclock_frequency(uint32_t periph_base)
 // Enable a GPIO peripheral clock
 void gpio_clock_enable(GPIO_TypeDef *regs)
 {
-    uint32_t rcc_pos = ((uint32_t)regs - AHB2PERIPH_BASE) / 0x400;
-    RCC->AHB2ENR |= 1 << rcc_pos;
-    (void)RCC->AHB2ENR;
+    uint32_t rcc_pos = ((uint32_t)regs - APB2PERIPH_BASE) / 0x400;
+    RCC->IOPENR |= 1 << rcc_pos;
+    (void)RCC->IOPENR;
 }
 
 // Set the mode and extended function of a pin
@@ -137,53 +142,76 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
     if (mode == GPIO_INPUT) {
         init.Mode = GPIO_MODE_INPUT;
     } else if (mode == GPIO_OUTPUT) {
+        // push-pull, 0b00 | max speed 2 MHz, 0b01
         init.Mode = GPIO_MODE_OUTPUT_PP;
     } else if (mode == (GPIO_OUTPUT | GPIO_OPEN_DRAIN)) {
+        // Open-drain, 0b01 | max speed 2 MHz, 0b01
         init.Mode = GPIO_MODE_OUTPUT_OD;
     } else if (mode == GPIO_ANALOG) {
         init.Mode = GPIO_MODE_ANALOG;
     } else {
         init.Alternate = (mode >> 4);
         init.Speed = GPIO_SPEED_FREQ_HIGH;
+        // Alternate config
         if (mode & GPIO_OPEN_DRAIN) {
+            // output open-drain mode, 10MHz
             init.Mode = GPIO_MODE_AF_OD;
         } else {
+            // output push-pull mode, 10MHz
             init.Mode = GPIO_MODE_AF_PP;
         }
     }
     HAL_GPIO_Init(regs, &init);
 }
 
+#define TIMC_1 TIM15
+#define TIMC_2 TIM16 // TIMC_1 UG triggers TIMC_2
 
 // Return the current time (in absolute clock ticks).
-uint32_t FAST_CODE_1 timer_read_time(void)
+uint32_t timer_read_time(void)
 {
-    return DWT->CYCCNT;
+    uint32_t us = TIMC_2->CNT;
+    us <<= 16;
+    us += TIMC_1->CNT;
+    return us;
 }
 
-uint32_t FAST_CODE_1 micros(void)
+uint32_t micros(void)
 {
-    return clockCyclesToMicroseconds(timer_read_time());
+    return timer_read_time();
 }
 
-void FAST_CODE_1 delayMicroseconds(uint32_t usecs)
+void delayMicroseconds(uint32_t const usecs)
 {
-    //uint32_t end = timer_read_time() + microsecondsToClockCycles(usecs);
-    //while (timer_is_before(timer_read_time(), end))
-    //    ;
-    usecs = microsecondsToClockCycles(usecs);
-    uint32_t const start = timer_read_time();
-    while ((timer_read_time() - start) < usecs);
+    uint32_t const start = micros();
+    while ((uint32_t)(micros() - start) < usecs);
 }
 
 void timer_init(void)
 {
-    // Enable Debug Watchpoint and Trace (DWT) for its 32bit timer
-    /*
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-    DWT->CYCCNT = 0;
-    */
+    /* STM32L0x1 does not have DWT so use timer for us timer */
+    enable_pclock((uint32_t)TIMC_1);
+    enable_pclock((uint32_t)TIMC_2);
+    TIMC_1->CR1 = 0; // Disable
+    TIMC_2->CR1 = 0; // Disable
+
+    /* Configure slave timer (upper 16bits) */
+    TIMC_2->PSC = 0;
+    TIMC_2->ARR = (1 << 16) - 1;
+    TIMC_2->CNT = 0;
+    TIMC_2->EGR = TIM_EGR_UG;
+    /* TS  > 0 = ITR0
+     * SMS > '111' = External clock mode 1 */
+    TIMC_2->SMCR = TIM_SMCR_SMS_Msk;
+    TIMC_2->CR1 = TIM_CR1_CEN;
+
+    /* Configure master timer (lower 16bits) for 1us */
+    TIMC_1->PSC = (CONFIG_CLOCK_FREQ / 1000000) - 1;
+    TIMC_1->ARR = (1 << 16) - 1;
+    TIMC_1->CNT = 0;
+    TIMC_1->EGR = TIM_EGR_UG;
+    TIMC_1->CR2 |= TIM_CR2_MMS_1; // Update trigger TRGO
+    TIMC_1->CR1 = TIM_CR1_CEN | TIM_CR1_URS;
 
     // Enable SysTick
     NVIC_SetPriority(SysTick_IRQn, ISR_PRIO_TICKS);
@@ -198,6 +226,9 @@ void SystemClock_Config(void)
 #if HSI_VALUE != 16000000
 #error "Wrong config! HSI VALUE is 16MHz!"
 #endif
+#if !USE_HSI
+#error "Only HSI is supported at the moment!"
+#endif
 
     RCC_OscInitTypeDef RCC_OscInitStruct;
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
@@ -207,7 +238,7 @@ void SystemClock_Config(void)
     __HAL_RCC_PWR_CLK_ENABLE();
 
     /* Configure the main internal regulator output voltage */
-    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+    HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
 
     /* Initializes the CPU, AHB and APB busses clocks */
     /*
@@ -219,39 +250,33 @@ void SystemClock_Config(void)
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
     RCC_OscInitStruct.HSEState = RCC_HSE_OFF;
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSIDiv = RCC_HSI_DIV1;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-    RCC_OscInitStruct.PLL.PLLM = 1;
-    RCC_OscInitStruct.PLL.PLLN = 10; // 16MHz * ( 10 / 1 ) = 160MHz
-    RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2; // 160MHz / 2 = 80MHz
-    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7; // 160MHz / 7
-#if defined(STM32L432xx)
-    RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV4; // 160MHz / 4
-#else // !STM32L432xx
-    /* STM32L433 */
-    RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2; // 160MHz / 2
-#endif // STM32L432xx
-    RCC_OscInitStruct.HSICalibrationValue = 0x10;
+    RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
+    RCC_OscInitStruct.PLL.PLLN = 8;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+    RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
         Error_Handler();
     }
-
     /* Initializes the CPU, AHB and APB busses clocks */
     RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-                                    | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+                                    | RCC_CLOCKTYPE_PCLK1;
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
-    /* Flash latency = (CpuClock / 16) - 1  = 4WS */
-    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
+    /* Flash latency = (CpuClock / 16) - 1  = 2WS */
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
         Error_Handler();
     }
 
     PeriphClkInit.PeriphClockSelection =
         RCC_PERIPHCLK_USART1 | RCC_PERIPHCLK_USART2 |
         RCC_PERIPHCLK_I2C1;
-    PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+    PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
     PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
     PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
@@ -268,9 +293,8 @@ void hw_init(void)
 {
     /* Configure Flash prefetch */
     __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+    /* Enable code cache */
     __HAL_FLASH_INSTRUCTION_CACHE_ENABLE();
-    __HAL_FLASH_DATA_CACHE_ENABLE();
-    //__HAL_FLASH_DATA_CACHE_DISABLE();
 }
 
 extern "C" {
@@ -281,61 +305,65 @@ void PendSV_Handler(void) {}
 // void SysTick_Handler(void) {Error_Handler();}
 void WWDG_IRQHandler(void) {Error_Handler();}
 void PVD_IRQHandler(void) {Error_Handler();}
-void RTC_IRQHandler(void) {Error_Handler();}
+void RTC_TAMP_IRQHandler(void) {Error_Handler();}
 void FLASH_IRQHandler(void) {Error_Handler();}
 void RCC_IRQHandler(void) {Error_Handler();}
 
-void FAST_CODE_1 EXTI0_IRQHandler(void) {GPIO_EXTI_IRQHandler(0);}
-void FAST_CODE_1 EXTI1_IRQHandler(void) {GPIO_EXTI_IRQHandler(1);}
-void FAST_CODE_1 EXTI2_IRQHandler(void) {GPIO_EXTI_IRQHandler(2);}
-void FAST_CODE_1 EXTI3_IRQHandler(void) {GPIO_EXTI_IRQHandler(3);}
-void FAST_CODE_1 EXTI4_IRQHandler(void) {GPIO_EXTI_IRQHandler(4);}
-void FAST_CODE_1 EXTI9_5_IRQHandler(void)
-{
-    uint8_t pin;
-    for (pin = 5; pin <= 9; pin++) {
-        GPIO_EXTI_IRQHandler(pin);
-    }
+void EXTI0_1_IRQHandler(void) {
+    GPIO_EXTI_IRQHandler(0);
+    GPIO_EXTI_IRQHandler(1);
 }
-void FAST_CODE_1 EXTI15_10_IRQHandler(void)
-{
+void EXTI2_3_IRQHandler(void) {
+    GPIO_EXTI_IRQHandler(2);
+    GPIO_EXTI_IRQHandler(3);
+}
+void EXTI4_15_IRQHandler(void) {
     uint8_t pin;
-    for (pin = 10; pin <= 15; pin++) {
+    for (pin = 4; pin <= 15; pin++)
+    {
         GPIO_EXTI_IRQHandler(pin);
     }
 }
 
-void DMA1_Channel1_IRQHandler(void) {Error_Handler();}
-void FAST_CODE_1 DMA1_Channel2_IRQHandler(void) {USARTx_DMA_handler(2);} // USART3
-void DMA1_Channel3_IRQHandler(void) {Error_Handler();}
-void FAST_CODE_1 DMA1_Channel4_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1
-void DMA1_Channel5_IRQHandler(void) {Error_Handler();}
-void DMA1_Channel6_IRQHandler(void) {Error_Handler();}
-void FAST_CODE_1 DMA1_Channel7_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2
+void UCPD1_2_IRQHandler(void) {Error_Handler();}
+
+void DMA1_Channel1_IRQHandler(void) {
+    uint8_t uart;
+    for (uart = 0; uart < 3; uart++)
+        USARTx_DMA_handler(uart); // USART TX/RX
+}
+void DMA1_Channel2_3_IRQHandler(void) {Error_Handler();}
+void DMA1_Ch4_7_DMAMUX1_OVR_IRQHandler(void) {Error_Handler();}
 
 void ADC1_COMP_IRQHandler(void) {Error_Handler();}
-void USART4_5_IRQHandler(void) {Error_Handler();}
-//void TIM2_IRQHandler(void) {Error_Handler();}
+void TIM1_BRK_UP_TRG_COM_IRQHandler(void) {Error_Handler();}
+void TIM1_CC_IRQHandler(void) {Error_Handler();}
+//void TIM2_IRQHandler(void) {Error_Handler();} // hwtimer
 void TIM3_IRQHandler(void) {Error_Handler();}
-void TIM6_IRQHandler(void) {Error_Handler();}
-void TIM7_IRQHandler(void) {Error_Handler();}
-void TIM21_IRQHandler(void) {Error_Handler();}
-void I2C3_IRQHandler(void) {Error_Handler();}
-void TIM22_IRQHandler(void) {Error_Handler();}
+void TIM6_DAC_LPTIM1_IRQHandler(void) {Error_Handler();}
+void TIM7_LPTIM2_IRQHandler(void) {Error_Handler();}
+void TIM14_IRQHandler(void) {Error_Handler();}
+void TIM15_IRQHandler(void) {Error_Handler();}
+void TIM16_IRQHandler(void) {Error_Handler();}
+void TIM17_IRQHandler(void) {Error_Handler();}
 void I2C1_IRQHandler(void) {Error_Handler();}
 void I2C2_IRQHandler(void) {Error_Handler();}
 void SPI1_IRQHandler(void) {Error_Handler();}
 void SPI2_IRQHandler(void) {Error_Handler();}
-void FAST_CODE_1 USART1_IRQHandler(void)
+
+void USART1_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(0);
 }
-void FAST_CODE_1 USART2_IRQHandler(void)
+void USART2_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(1);
 }
-void LPUART1_IRQHandler(void) {Error_Handler();}
+void USART3_4_LPUART1_IRQHandler(void) {
+    USART_IDLE_IRQ_handler(2);
+    USART_IDLE_IRQ_handler(3);
+}
 
 } // extern
 
-#endif /* STM32L4xx */
+#endif /* STM32G0xx */

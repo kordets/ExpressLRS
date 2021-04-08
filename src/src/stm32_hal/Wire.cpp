@@ -32,8 +32,8 @@ void* i2c_setup(I2C_HandleTypeDef * handle, uint32_t rate, uint8_t own_addr)
 #if defined(STM32F1xx) && defined(I2C_DUTYCYCLE_2)
     handle->Init.ClockSpeed = rate;
     handle->Init.DutyCycle = (100000 < rate) ? I2C_DUTYCYCLE_16_9 : I2C_DUTYCYCLE_2;
-#elif defined(STM32L0xx)
-    /* STM32L0xx runs with 32MHz clock! */
+#elif defined(STM32L0xx) || defined(STM32G0xx)
+    /* STM32L0xx and STM32G0xx runs I2C peripheral with 32MHz clock! */
     handle->Init.Timing = (rate == 100000) ? 0x10E0474A : 0x00B01626;
 #elif defined(STM32L4xx)
     /* STM32L4xx runs with 80MHz clock! */

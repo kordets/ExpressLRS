@@ -1,0 +1,12 @@
+
+/* Linker script for STM32G071GB Device with 128KByte FLASH, 36KByte SRAM */
+
+/* Specify the memory areas */
+MEMORY
+{
+  RAM_CODE (rx)   : ORIGIN = 0x20000000, LENGTH = 20K
+  RAM_DATA (rwx)  : ORIGIN = 0x20000000 + LENGTH(RAM_CODE), LENGTH = RAM_SIZE - LENGTH(RAM_CODE)
+  FLASH (rx)      : ORIGIN = 0x8000000 + FLASH_APP_OFFSET, LENGTH = FLASH_SIZE - FLASH_APP_OFFSET
+}
+
+INCLUDE "variants/ldscript_gen.ld"

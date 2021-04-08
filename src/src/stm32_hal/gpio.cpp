@@ -14,12 +14,16 @@
 #include "platform.h"
 #include <string.h> // ffs
 
-#if defined(STM32L4xx)
+#if defined(STM32L4xx) || defined(STM32G0xx)
 #define IMR IMR1
 #define EMR EMR1
 #define RTSR RTSR1
 #define FTSR FTSR1
+#if defined(STM32G0xx)
+#define PR FPR1
+#else
 #define PR PR1
+#endif
 #endif
 
 GPIO_TypeDef * __section(".data") digital_regs[] = {
@@ -231,6 +235,8 @@ void gpio_in_isr(struct gpio_in g, isr_cb_t callback, uint8_t it_mode)
     /* Configure the External Interrupt or event for the current IO */
 #ifdef AFIO_BASE
     __IO uint32_t * exticr_reg = &AFIO->EXTICR[index >> 2u];
+#elif defined(EXTI)
+    __IO uint32_t * exticr_reg = &EXTI->EXTICR[index >> 2u];
 #elif defined(SYSCFG_BASE)
     __IO uint32_t * exticr_reg = &SYSCFG->EXTICR[index >> 2u];
 #endif

@@ -10,7 +10,7 @@ struct spi_info
     uint8_t miso_pin, mosi_pin, sck_pin, function;
 };
 
-#if defined(STM32F0xx) || defined(STM32L0xx)
+#if defined(STM32F0xx) || defined(STM32L0xx) || defined(STM32G0xx)
 #define SPI_FUNCTION GPIO_FUNCTION(0)
 #else
 #define SPI_FUNCTION GPIO_FUNCTION(5)
@@ -66,7 +66,7 @@ spi_setup(uint32_t speed, int sck, int miso, int mosi, uint8_t mode)
                         (div << SPI_CR1_BR_Pos) |
                         SPI_CR1_SPE | SPI_CR1_MSTR |
                         SPI_CR1_SSM | SPI_CR1_SSI);
-#if STM32L4xx || STM32F7xx || STM32F3xx
+#if STM32L4xx || STM32F7xx || STM32F3xx || STM32G0xx
         spi->CR2 = SPI_DATASIZE_8BIT | SPI_RXFIFO_THRESHOLD_QF;
 #endif
         return (struct spi_config){.spi = spi, .spi_cr1 = cr1};

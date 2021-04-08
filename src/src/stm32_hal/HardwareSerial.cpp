@@ -36,6 +36,15 @@
 #define LL_DMA_DisableChannel LL_DMA_DisableStream
 #define LL_DMA_IsEnabledChannel LL_DMA_IsEnabledStream
 #define LL_DMA_SetChannelPriorityLevel LL_DMA_SetStreamPriorityLevel
+#elif defined(STM32G0xx)
+#include <stm32g0xx_ll_usart.h>
+#include <stm32g0xx_ll_bus.h>
+#include <stm32g0xx_ll_dma.h>
+#define USART_SR_RXNE       USART_ISR_RXNE_RXFNE
+#define USART_SR_TXE        USART_ISR_TXE_TXFNF
+#define USART_CR1_RXNEIE    USART_CR1_RXNEIE_RXFNEIE
+#define USART_CR1_TXEIE     USART_CR1_TXEIE_TXFNFIE
+#define USART3_IRQn         USART3_4_LPUART1_IRQn
 #endif
 #include <string.h>
 
@@ -333,10 +342,10 @@ static uint8_t uart_pin_is_tx(int32_t const pin)
     return 0;
 }
 
+#if defined(STM32F3xx)
 static uint8_t uart_tx_pin_is_rx(int32_t const pin)
 {
     switch (pin) {
-#if defined(STM32F3xx)
         case GPIO('A', 3):
         case GPIO('A', 10):
         case GPIO('A', 15):
@@ -347,10 +356,10 @@ static uint8_t uart_tx_pin_is_rx(int32_t const pin)
         case GPIO('C', 5):
         case GPIO('C', 11):
             return 1;
-#endif
     }
     return 0;
 }
+#endif
 
 static void configure_uart_peripheral(USART_TypeDef * uart, uint32_t baud, uint8_t half_duplex)
 {
@@ -358,6 +367,8 @@ static void configure_uart_peripheral(USART_TypeDef * uart, uint32_t baud, uint8
     uint32_t pclk = get_pclock_frequency((uint32_t)uart);
 #if defined(STM32F1xx)
     LL_USART_SetBaudRate(uart, pclk, baud);
+#elif defined(STM32G0xx)
+    LL_USART_SetBaudRate(uart, pclk, LL_USART_PRESCALER_DIV2, LL_USART_OVERSAMPLING_16, baud);
 #else
     LL_USART_SetBaudRate(uart, pclk, LL_USART_OVERSAMPLING_16, baud);
 #endif
