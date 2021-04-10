@@ -13,6 +13,7 @@
 #define CRSF_RX_BAUDRATE      691200
 #else // !PROTOCOL_ELRS_TO_FC
 #define CRSF_RX_BAUDRATE      420000
+#define CRSF_RX_BAUDRATE_V3   921600
 #endif // PROTOCOL_ELRS_TO_FC
 #define CRSF_TX_BAUDRATE_FAST 400000
 #define CRSF_TX_BAUDRATE_SLOW 115200
@@ -31,6 +32,9 @@
 #define CRSF_MSP_FRAME_SIZE(payload_size) (CRSF_FRAME_SIZE(payload_size) + CRSF_MSP_FRAME_HEADER_BYTES)
 
 
+#define CRSF_GEN_POLY 0xD5
+#define CRSF_CMD_POLY 0xBA
+
 //////////////////////////////////////////////////////////////
 
 enum crsf_frame_type_e
@@ -43,6 +47,9 @@ enum crsf_frame_type_e
     CRSF_FRAMETYPE_RADIO_ID = 0x3A,
     CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
     CRSF_FRAMETYPE_RC_CHANNELS_PACKED_ELRS = 0x17,
+    CRSF_FRAMETYPE_SUBSET_RC_CHANNELS_PACKED = 0x17,
+    CRSF_FRAMETYPE_LINK_STATISTICS_RX = 0x1C,
+    CRSF_FRAMETYPE_LINK_STATISTICS_TX = 0x1D,
     CRSF_FRAMETYPE_ATTITUDE = 0x1E,
     CRSF_FRAMETYPE_FLIGHT_MODE = 0x21,
     // Extended Header Frames, range: 0x28 to 0x96
@@ -56,6 +63,17 @@ enum crsf_frame_type_e
     CRSF_FRAMETYPE_MSP_REQ = 0x7A,   // response request using msp sequence as command
     CRSF_FRAMETYPE_MSP_RESP = 0x7B,  // reply with 58 byte chunked binary
     CRSF_FRAMETYPE_MSP_WRITE = 0x7C, // write with 8 byte chunked binary (OpenTX outbound telemetry buffer limit)
+};
+
+enum
+{
+    CRSF_COMMAND_SUBCMD_GENERAL = 0x0A,    // general command
+};
+
+enum
+{
+    CRSF_COMMAND_SUBCMD_GENERAL_CRSF_SPEED_PROPOSAL = 0x70,    // proposed new CRSF port speed
+    CRSF_COMMAND_SUBCMD_GENERAL_CRSF_SPEED_RESPONSE = 0x71,    // response to the proposed CRSF port speed
 };
 
 enum crsf_addr_e
@@ -114,50 +132,49 @@ typedef struct crsf_ext_header_s
     uint8_t orig_addr;
 } PACKED crsf_ext_header_t;
 
-typedef struct crsf_channels_s
+// Used by command frames (type in range 0x28 to 0x96)
+typedef struct crsf_command_header_s
 {
-    unsigned ch0 : 11;
-    unsigned ch1 : 11;
-    unsigned ch2 : 11;
-    unsigned ch3 : 11;
-    unsigned ch4 : 11;
-    unsigned ch5 : 11;
-    unsigned ch6 : 11;
-    unsigned ch7 : 11;
-    unsigned ch8 : 11;
-    unsigned ch9 : 11;
-    unsigned ch10 : 11;
-    unsigned ch11 : 11;
-    unsigned ch12 : 11;
-    unsigned ch13 : 11;
-    unsigned ch14 : 11;
-    unsigned ch15 : 11;
-} PACKED crsf_channels_t;
+    // Common header fields, see crsf_header_t
+    uint8_t device_addr;
+    uint8_t frame_size;
+    uint8_t type;
+    // Extended fields
+    uint8_t dest_addr;
+    uint8_t orig_addr;
+    // Command fields
+    uint8_t command;
+    uint8_t sub_command;
+} PACKED crsf_command_header_t;
 
-typedef struct elrs_channels_s {
-    // 64 bits of data (4 x 10 bits + 8 x 3 bits channels) = 8 bytes.
-    unsigned int analog0 : 10;
-    unsigned int analog1 : 10;
-    unsigned int analog2 : 10;
-    unsigned int analog3 : 10;
-    unsigned int aux4 : 3;
-    unsigned int aux5 : 3;
-    unsigned int aux6 : 3;
-    unsigned int aux7 : 3;
-    unsigned int aux8 : 3;
-    unsigned int aux9 : 3;
-    unsigned int aux10 : 3;
-    unsigned int aux11 : 3;
-} PACKED elrs_channels_t;
+typedef union crsf_buffer_u
+{
+    uint8_t type;
+    struct {
+        uint8_t payload[1];
+    } normal;
+    struct {
+        // Extended fields
+        uint8_t dest_addr;
+        uint8_t orig_addr;
+        uint8_t payload[1];
+    } extended;
+    struct {
+        // Extended fields
+        uint8_t dest_addr;
+        uint8_t orig_addr;
+        // Command fields
+        uint8_t command;
+        uint8_t sub_command;
+        uint8_t payload[1];
+    } command;
+} crsf_buffer_t;
 
+// RC data frame
 typedef struct crsf_channels_msg_s
 {
     crsf_header_t header;
-#if PROTOCOL_ELRS_TO_FC
-    elrs_channels_t data;
-#else // !PROTOCOL_ELRS_TO_FC
-    crsf_channels_t data;
-#endif // PROTOCOL_ELRS_TO_FC
+    rc_channels_rx_t data; // see rc_channels.h
     uint8_t crc;
 } PACKED crsf_channels_msg_t;
 
@@ -227,6 +244,59 @@ typedef struct crsfLinkStatisticsMsg_s
     uint8_t crc;
 } PACKED crsfLinkStatisticsMsg_t;
 
+/*
+ * 0x1C Link statistics RX (CRSF_FRAMETYPE_LINK_STATISTICS_RX)
+ * Payload:
+ *
+ * uint8_t Downlink RSSI ( dBm * -1 )
+ * uint8_t Downlink RSSI ( % )
+ * uint8_t Downlink Package success rate / Link quality ( % )
+ * int8_t Downlink SNR ( db )
+ * uint8_t Uplink RF Power ( db )
+ */
+typedef struct crsfPayloadLinkstatisticsRx_s {
+    uint8_t downlink_RSSI_1;
+    uint8_t downlink_RSSI_1_percentage;
+    uint8_t downlink_Link_quality;
+    int8_t  downlink_SNR;
+    uint8_t uplink_power;
+} crsfLinkStatisticsRx_t;
+
+typedef struct crsfLinkStatisticsRxMsg_s
+{
+    crsf_header_t header;
+    crsfLinkStatisticsRx_t stats;
+    uint8_t crc;
+} PACKED crsfLinkStatisticsRxMsg_t;
+
+/*
+ * 0x1D Link statistics TX (CRSF_FRAMETYPE_LINK_STATISTICS_TX)
+ * Payload:
+ *
+ * uint8_t Uplink RSSI ( dBm * -1 )
+ * uint8_t Uplink RSSI ( % )
+ * uint8_t Uplink Package success rate / Link quality ( % )
+ * int8_t Uplink SNR ( db )
+ * uint8_t Downlink RF Power ( db )
+ * uint8_t Uplink FPS ( FPS / 10 )
+ */
+typedef struct crsfPayloadLinkstatisticsTx_s {
+    uint8_t uplink_RSSI;
+    uint8_t uplink_RSSI_percentage;
+    uint8_t uplink_Link_quality;
+    int8_t  uplink_SNR;
+    uint8_t downlink_power;
+    uint8_t uplink_FPS;
+} crsfLinkStatisticsTx_t;
+
+typedef struct crsfLinkStatisticsTxMsg_s
+{
+    crsf_header_t header;
+    crsfLinkStatisticsTx_t stats;
+    uint8_t crc;
+} PACKED crsfLinkStatisticsTxMsg_t;
+
+
 typedef struct crsf_sensor_gps_s
 {
     crsf_header_t header;
@@ -238,6 +308,7 @@ typedef struct crsf_sensor_gps_s
     uint8_t satellites;
     uint8_t crc;
 } PACKED crsf_sensor_gps_t;
+
 
 /* MSP from radio to FC */
 #define CRSF_FRAME_RX_MSP_FRAME_SIZE 8
@@ -284,6 +355,25 @@ typedef struct crsf_msp_packet_radio_s
     uint8_t crc;
 } PACKED crsf_msp_packet_radio_t;
 
+
+typedef struct {
+    uint8_t command;
+    uint8_t sub_command;
+    uint8_t portID;
+    uint32_t baudrate;
+} PACKED crsf_v3_speed_control_proposal_t;
+
+typedef struct {
+    uint8_t portID;
+    uint8_t found; // true / false if baud ok
+} crsf_v3_speed_control_resp_t;
+
+struct crsf_speed_req {
+    crsf_ext_header_t header;
+    crsf_v3_speed_control_proposal_t proposal;
+    uint8_t crc; // POLY = 0xBA
+};
+
 /////inline and utility functions//////
 
 
@@ -311,6 +401,7 @@ protected:
 
 private:
     bool CRSFframeActive;
+    uint8_t crsf_cmd_ongoing;
     uint8_t SerialInCrc;
     uint8_t SerialInPacketStart;
     uint8_t SerialInPacketLen;      // length of the CRSF packet as measured

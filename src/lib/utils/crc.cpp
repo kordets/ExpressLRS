@@ -7,8 +7,22 @@
 uint8_t CRC16_POLY_PKT[5] = {0x11, 0x22, 0x33, 0x44, 0x55};
 #endif
 
+uint8_t FAST_CODE_1 CalcCRCxor(uint8_t const *data, uint16_t length, uint8_t crc)
+{
+    while (length--) {
+        crc = crc ^ *data++;
+    }
+    return crc;
+}
+
+uint8_t FAST_CODE_1 CalcCRCxor(uint8_t const data, uint8_t const crc)
+{
+    return crc ^ data;
+}
+
 
 /* CRC8 implementation with polynom = x​7​+ x​6​+ x​4​+ x​2​+ x​0 ​(0xD5) */
+// this is same as crc8_dvb_s2
 uint8_t DRAM_FORCE_ATTR crc8tab[256] = {
     0x00, 0xD5, 0x7F, 0xAA, 0xFE, 0x2B, 0x81, 0x54, 0x29, 0xFC, 0x56, 0x83, 0xD7, 0x02, 0xA8, 0x7D,
     0x52, 0x87, 0x2D, 0xF8, 0xAC, 0x79, 0xD3, 0x06, 0x7B, 0xAE, 0x04, 0xD1, 0x85, 0x50, 0xFA, 0x2F,
@@ -27,13 +41,14 @@ uint8_t DRAM_FORCE_ATTR crc8tab[256] = {
     0xD6, 0x03, 0xA9, 0x7C, 0x28, 0xFD, 0x57, 0x82, 0xFF, 0x2A, 0x80, 0x55, 0x01, 0xD4, 0x7E, 0xAB,
     0x84, 0x51, 0xFB, 0x2E, 0x7A, 0xAF, 0x05, 0xD0, 0xAD, 0x78, 0xD2, 0x07, 0x53, 0x86, 0x2C, 0xF9};
 
-// this is same as crc8_dvb_s2
-uint8_t FAST_CODE_1 CalcCRC(uint8_t const data, uint8_t const crc)
+uint8_t FAST_CODE_1
+CalcCRC8_D5(uint8_t const data, uint8_t const crc)
 {
     return crc8tab[crc ^ data];
 }
 
-uint8_t FAST_CODE_1 CalcCRC(volatile uint8_t const *data, uint16_t length, uint8_t crc)
+uint8_t FAST_CODE_1
+CalcCRC8len_D5(uint8_t const *data, uint16_t length, uint8_t crc)
 {
     while (length--) {
         crc = crc8tab[crc ^ *data++];
@@ -41,25 +56,32 @@ uint8_t FAST_CODE_1 CalcCRC(volatile uint8_t const *data, uint16_t length, uint8
     return crc;
 }
 
-uint8_t FAST_CODE_1 CalcCRC(uint8_t const *data, uint16_t length, uint8_t crc)
+uint8_t FAST_CODE_1
+CalcCRC8(uint8_t const data, uint8_t crc, uint8_t const poly)
 {
-    while (length--) {
-        crc = crc8tab[crc ^ *data++];
+    if (0xD5 != poly) {
+        crc ^= data;
+        for (int ii = 0; ii < 8; ++ii) {
+            if (crc & 0x80)
+                crc = (crc << 1) ^ poly;
+            else
+                crc = crc << 1;
+        }
+        return crc;
     }
-    return crc;
+    return CalcCRC8_D5(data, crc);
 }
 
-uint8_t FAST_CODE_1 CalcCRCxor(uint8_t const *data, uint16_t length, uint8_t crc)
+uint8_t FAST_CODE_1
+CalcCRC8len(uint8_t const *data, uint16_t length,
+            uint8_t crc, uint8_t const poly)
 {
-    while (length--) {
-        crc = crc ^ *data++;
+    if (0xD5 != poly) {
+        while (length--)
+            crc = CalcCRC8(*data++, crc, poly);
+        return crc;
     }
-    return crc;
-}
-
-uint8_t FAST_CODE_1 CalcCRCxor(uint8_t const data, uint8_t const crc)
-{
-    return crc ^ data;
+    return CalcCRC8len_D5(data, length, crc);
 }
 
 #if !CRC16_POLY_NEW
@@ -204,26 +226,6 @@ uint16_t FAST_CODE_1 CalcCRC16(uint8_t const *data, uint16_t length, uint16_t cr
 #else
     return crc;
 #endif
-}
-
-uint8_t crc8_dvb_s2(uint8_t crc, uint8_t a)
-{
-    crc ^= a;
-    for (int ii = 0; ii < 8; ++ii) {
-        if (crc & 0x80)
-            crc = (crc << 1) ^ 0xD5;
-        else
-            crc = crc << 1;
-    }
-    return crc;
-}
-
-uint8_t crc8_dvb_s2(uint8_t const* data, uint16_t length)
-{
-    uint8_t crc = 0u;
-    while (length--)
-        crc = crc8_dvb_s2(*data++, crc);
-    return crc;
 }
 
 uint32_t CalcCRC32(uint8_t const *data, uint16_t len) {

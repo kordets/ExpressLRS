@@ -13,7 +13,6 @@
 // current and sent switch values
 #define N_CONTROLS 4
 #ifndef N_SWITCHES
-//#define N_SWITCHES 8
 #define N_SWITCHES 5
 #endif
 #define N_CHANNELS (N_CONTROLS + N_SWITCHES)
@@ -107,6 +106,7 @@ RcChannels_packetTypeSet(uint8_t *const output, uint8_t type)
  *************************************************************************************/
 typedef struct rc_channels_s
 {
+    /* CRSF V1 and V2 is 16 channels */
     unsigned ch0 : 11;
     unsigned ch1 : 11;
     unsigned ch2 : 11;
@@ -125,6 +125,7 @@ typedef struct rc_channels_s
     unsigned ch15 : 11;
 } PACKED rc_channels_t;
 
+
 #if PROTOCOL_ELRS_TO_FC
 typedef struct rc_channels_rx_s {
     // 64 bits of data (4 x 10 bits + 8 x 3 bits channels) = 8 bytes.
@@ -140,6 +141,40 @@ typedef struct rc_channels_rx_s {
     unsigned int ch9 : 3;
     unsigned int ch10 : 3;
     unsigned int ch11 : 3;
+} PACKED rc_channels_rx_t;
+#elif PROTOCOL_CRSF_V3_TO_FC
+typedef struct rc_channels_rx_s {
+    /* CRSF V3 supports up to 24 channels */
+    uint16_t ch_idx : 5, ch0 : 11;
+    uint32_t ch1 : 11;
+    uint32_t ch2 : 11;
+    uint32_t ch3 : 11;
+    // switches:
+    uint32_t ch4 : 11;
+    uint32_t ch5 : 11;
+    uint32_t ch6 : 11;
+    uint32_t ch7 : 11;
+    uint32_t ch8 : 11;
+#if 5 < N_SWITCHES
+    uint32_t ch9 : 11;
+    uint32_t ch10 : 11;
+    uint32_t ch11 : 11;
+#if 8 < N_SWITCHES
+    uint32_t ch12 : 11;
+#if 9 < N_SWITCHES
+    uint32_t ch13 : 11;
+#if 10 < N_SWITCHES
+    uint32_t ch14 : 11;
+#if 11 < N_SWITCHES
+    uint32_t ch15 : 11;
+#if 12 < N_SWITCHES
+#error "Up to 12 AUX channels supported!"
+#endif // 12 < N_SWITCHES
+#endif // 11 < N_SWITCHES
+#endif // 10 < N_SWITCHES
+#endif // 9 < N_SWITCHES
+#endif // 8 < N_SWITCHES
+#endif // 5 < N_SWITCHES
 } PACKED rc_channels_rx_t;
 #else // !PROTOCOL_ELRS_TO_FC
 typedef rc_channels_t rc_channels_rx_t;

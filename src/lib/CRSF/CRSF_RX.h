@@ -3,6 +3,9 @@
 
 #include "CRSF.h"
 
+#define CRSF_v3_PORT_ID 0xCF
+
+
 class CRSF_RX : public CRSF
 {
 public:
@@ -16,9 +19,16 @@ public:
     void LinkStatisticsSend(LinkStatsLink_t & stats) const;
     void sendMSPFrameToFC(mspPacket_t & msp) const;
 
+    void negotiate_baud(uint32_t baudrate) const;
+    uint8_t negotiate_accepted(void) const {
+        return new_baud_ok;
+    }
+
 private:
-    void sendFrameToFC(uint8_t *buff, uint8_t size) const;
+    void sendFrameToFC(uint8_t *buff, uint8_t size, uint8_t poly = 0xD5) const;
     void processPacket(uint8_t const *data);
+
+    uint8_t new_baud_ok;
 };
 
 #endif /* CRSF_RX_H_ */

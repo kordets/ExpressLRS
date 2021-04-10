@@ -122,7 +122,7 @@ uint8_t get_elrs_airRateMax(void)
 uint8_t getSyncWord(void)
 {
     uint8_t UID[6] = {MY_UID};
-    return CalcCRC(UID, sizeof(UID));
+    return CalcCRC8len(UID, sizeof(UID));
 }
 
 

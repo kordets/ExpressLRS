@@ -8,7 +8,9 @@ crsf_msp_packet_fc_t DMA_ATTR msp_packet;
 
 #if PROTOCOL_ELRS_TO_FC
 crsfLinkStatisticsMsg_elrs_t DMA_ATTR link_stat_packet;
-#else // !PROTOCOL_ELRS_TO_FC
+#elif PROTOCOL_CRSF_V3_TO_FC
+crsfLinkStatisticsTxMsg_t DMA_ATTR link_stat_packet;
+#else // !PROTOCOL_ELRS_TO_FC && !PROTOCOL_CRSF_V3_TO_FC
 crsfLinkStatisticsMsg_t DMA_ATTR link_stat_packet;
 #endif // PROTOCOL_ELRS_TO_FC
 
@@ -18,7 +20,9 @@ void CRSF_RX::Begin(void)
     link_stat_packet.header.frame_size = sizeof(link_stat_packet) - CRSF_FRAME_START_BYTES;
 #if PROTOCOL_ELRS_TO_FC
     link_stat_packet.header.type = CRSF_FRAMETYPE_LINK_STATISTICS_ELRS;
-#else // !PROTOCOL_ELRS_TO_FC
+#elif PROTOCOL_CRSF_V3_TO_FC
+    link_stat_packet.header.type = CRSF_FRAMETYPE_LINK_STATISTICS_TX;
+#else // !PROTOCOL_ELRS_TO_FC && !PROTOCOL_CRSF_V3_TO_FC
     link_stat_packet.header.type = CRSF_FRAMETYPE_LINK_STATISTICS;
 #endif // PROTOCOL_ELRS_TO_FC
 
@@ -32,16 +36,18 @@ void CRSF_RX::Begin(void)
     p_crsf_channels.header.frame_size = sizeof(p_crsf_channels) - CRSF_FRAME_START_BYTES;
 #if PROTOCOL_ELRS_TO_FC
     p_crsf_channels.header.type = CRSF_FRAMETYPE_RC_CHANNELS_PACKED_ELRS;
-#else // !PROTOCOL_ELRS_TO_FC
+#elif PROTOCOL_CRSF_V3_TO_FC
+    p_crsf_channels.header.type = CRSF_FRAMETYPE_SUBSET_RC_CHANNELS_PACKED;
+#else // !PROTOCOL_ELRS_TO_FC && !PROTOCOL_CRSF_V3_TO_FC
     p_crsf_channels.header.type = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
 #endif // PROTOCOL_ELRS_TO_FC
 
     CRSF::Begin();
 }
 
-void FAST_CODE_1 CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t size) const
+void FAST_CODE_1 CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t const size, uint8_t const poly) const
 {
-    buff[size - 1] = CalcCRC(&buff[2], (buff[1] - 1));
+    buff[size - 1] = CalcCRC8len(&buff[2], (buff[1] - 1), 0, poly);
 #if !NO_DATA_TO_FC
     uint32_t irq = _SAVE_IRQ();
     _dev->write(buff, size);
@@ -56,7 +62,14 @@ void CRSF_RX::LinkStatisticsSend(LinkStatsLink_t & stats) const
     link_stat_packet.stats.uplink_Link_quality = stats.uplink_Link_quality;
     link_stat_packet.stats.uplink_SNR = stats.uplink_SNR;
     link_stat_packet.stats.rf_Mode = stats.rf_Mode;
-#else // PROTOCOL_ELRS_TO_FC
+#elif PROTOCOL_CRSF_V3_TO_FC
+    link_stat_packet.stats.uplink_RSSI = stats.uplink_RSSI_1;
+    link_stat_packet.stats.uplink_RSSI_percentage = 0;
+    link_stat_packet.stats.uplink_Link_quality = stats.uplink_Link_quality;
+    link_stat_packet.stats.uplink_SNR = stats.uplink_SNR;
+    link_stat_packet.stats.downlink_power = stats.uplink_TX_Power;
+    link_stat_packet.stats.uplink_FPS = 25;
+#else // !PROTOCOL_ELRS_TO_FC && !PROTOCOL_CRSF_V3_TO_FC
     link_stat_packet.stats.uplink_RSSI_1 = stats.uplink_RSSI_1;
     link_stat_packet.stats.uplink_RSSI_2 = stats.uplink_RSSI_2;
     link_stat_packet.stats.uplink_Link_quality = stats.uplink_Link_quality;
@@ -91,18 +104,54 @@ void FAST_CODE_1 CRSF_RX::sendMSPFrameToFC(mspPacket_t & msp) const
     sendFrameToFC((uint8_t*)&msp_packet, sizeof(msp_packet));
 }
 
+void CRSF_RX::negotiate_baud(uint32_t baudrate) const
+{
+    crsf_speed_req req;
+    req.header.device_addr = CRSF_ADDRESS_BROADCAST;
+    req.header.frame_size = sizeof(req) - CRSF_FRAME_START_BYTES;
+    req.header.type = CRSF_FRAMETYPE_COMMAND;
+    req.header.dest_addr = CRSF_ADDRESS_FLIGHT_CONTROLLER;
+    req.header.orig_addr = CRSF_ADDRESS_CRSF_RECEIVER;
+    req.proposal.command = CRSF_COMMAND_SUBCMD_GENERAL;
+    req.proposal.sub_command = CRSF_COMMAND_SUBCMD_GENERAL_CRSF_SPEED_PROPOSAL;
+    req.proposal.portID = CRSF_v3_PORT_ID;
+    req.proposal.baudrate = BYTE_SWAP_U32(CRSF_RX_BAUDRATE_V3);
+    sendFrameToFC((uint8_t*)&req, sizeof(req), 0xBA);
+    delay(20);
+}
+
 void CRSF_RX::processPacket(uint8_t const *data)
 {
-    switch (data[0])
+    crsf_buffer_t const * const msg = (crsf_buffer_t*)data;
+    switch (msg->type)
     {
         case CRSF_FRAMETYPE_COMMAND:
         {
-            if (data[1] == 0x62 && data[2] == 0x6c)
-            {
+            if ((msg->command.dest_addr == CRSF_ADDRESS_CRSF_RECEIVER) &&
+                (msg->command.orig_addr == CRSF_ADDRESS_FLIGHT_CONTROLLER) &&
+                (msg->command.command == CRSF_COMMAND_SUBCMD_GENERAL)) {
+
+                if (msg->command.sub_command == CRSF_COMMAND_SUBCMD_GENERAL_CRSF_SPEED_RESPONSE) {
+                    crsf_v3_speed_control_resp_t const * const resp =
+                        (crsf_v3_speed_control_resp_t*)msg->command.payload;
+
+                    if ((resp->portID == CRSF_v3_PORT_ID) &&
+                        (resp->found)) {
+                        // Baudrate accepted, configure new baud
+                        new_baud_ok = true;
+                    }
+                }
+
+            } else if ((msg->command.dest_addr == 0x62) && (msg->command.orig_addr == 0x6c)) {
                 DEBUG_PRINTF("Jumping to Bootloader...\n");
                 delay(200);
                 platform_restart();
             }
+            break;
+        }
+
+        case CRSF_FRAMETYPE_DEVICE_INFO: {
+            // Use this to detect whether the FC is connected
             break;
         }
 
@@ -173,10 +222,10 @@ void CRSF_RX::processPacket(uint8_t const *data)
         case CRSF_FRAMETYPE_MSP_RESP:
         {
             if (MspCallback &&
-                data[1] == CRSF_ADDRESS_RADIO_TRANSMITTER &&
-                data[2] == CRSF_ADDRESS_FLIGHT_CONTROLLER)
+                msg->extended.dest_addr == CRSF_ADDRESS_RADIO_TRANSMITTER &&
+                msg->extended.orig_addr == CRSF_ADDRESS_FLIGHT_CONTROLLER)
             {
-                MspCallback(&data[3]); // pointer to MSP packet
+                MspCallback(msg->extended.payload);
             }
             break;
         }

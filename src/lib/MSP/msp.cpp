@@ -25,8 +25,10 @@ Offset: Usage:         In CRC:  Comment:
 4       function       +        uint16 (little endian). 0 - 255 is the same function as V1 for backwards compatibility
 6       payload size   +        uint16 (little endian) payload size in bytes
 8       payload        +        n (up to 65535 bytes) payload
-n+8     checksum                uint8, (n= payload size), crc8_dvb_s2 checksum
+n+8     checksum                uint8, (n= payload size), CRC8 POLY = 0xD5
 ========================================== */
+
+#define MSP_POLY 0xD5
 
 bool MSP::processReceivedByte(uint8_t c)
 {
@@ -152,7 +154,7 @@ bool MSP::processReceivedByte(uint8_t c)
         case MSP_HEADER_V2_NATIVE:
             // Read bytes until we have a full header
             m_packet.payload[m_offset++] = c;
-            m_crc = crc8_dvb_s2(m_crc, c);
+            m_crc = CalcCRC8(c, m_crc, MSP_POLY);
 
             // If we've received the correct amount of bytes for a full header
             if (m_offset == sizeof(mspHeaderV2_t))
@@ -171,7 +173,7 @@ bool MSP::processReceivedByte(uint8_t c)
         case MSP_PAYLOAD_V2_NATIVE:
             // Read bytes until we reach payloadSize
             m_packet.payload[m_offset++] = c;
-            m_crc = crc8_dvb_s2(m_crc, c);
+            m_crc = CalcCRC8(c, m_crc, MSP_POLY);
 
             // If we've received the correct amount of bytes for payload
             if (m_offset == m_packet.payloadSize)
@@ -277,15 +279,16 @@ bool MSP::sendPacket(CtrlSerial *port, mspPacketType_e type,
         // Write out the header buffer, adding each byte to the crc
         for (i = 0; i < sizeof(headerBuffer); ++i)
         {
-            *buff++ = (headerBuffer[i]);
-            crc = crc8_dvb_s2(crc, headerBuffer[i]);
+            data = headerBuffer[i];
+            *buff++ = (data);
+            crc = CalcCRC8(data, crc, MSP_POLY);
         }
         // Write out the payload, adding each byte to the crc
         for (i = 0; i < payloadSize; ++i)
         {
             data = payload[i];
             *buff++ = (data);
-            crc = crc8_dvb_s2(crc, data);
+            crc = CalcCRC8(data, crc, MSP_POLY);
         }
     }
     else

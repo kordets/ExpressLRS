@@ -49,10 +49,11 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
 
     if (CRSFframeActive == false)
     {
-        if (inChar == CRSF_ADDRESS_CRSF_RECEIVER ||
-            inChar == CRSF_ADDRESS_CRSF_TRANSMITTER ||
-            inChar == CRSF_SYNC_BYTE)
+        if ((inChar == CRSF_ADDRESS_CRSF_RECEIVER) ||
+            (inChar == CRSF_ADDRESS_CRSF_TRANSMITTER) ||
+            (inChar == CRSF_SYNC_BYTE))
         {
+            crsf_cmd_ongoing = false;
             CRSFframeActive = true;
             SerialInPacketLen = 0;
 #ifdef DBF_PIN_CRSF_PACKET
@@ -81,7 +82,8 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
         }
         else
         {
-            if ((SerialInPacketPtr - SerialInPacketStart) >= (SerialInPacketLen))
+            uint32_t const current_len = SerialInPacketPtr - SerialInPacketStart;
+            if (SerialInPacketLen <= current_len)
             {
                 /* Check packet CRC */
                 if (SerialInCrc == inChar)
@@ -118,7 +120,16 @@ uint8_t *CRSF::ParseInByte(uint8_t inChar)
             else
             {
                 // Calc crc on the fly
-                SerialInCrc = CalcCRC(inChar, SerialInCrc);
+#if PROTOCOL_CRSF_V3_TO_FC
+                if ((inChar == CRSF_FRAMETYPE_COMMAND) &&
+                    (current_len == 1)) {
+                    crsf_cmd_ongoing = true;
+                }
+                uint8_t const poly = (crsf_cmd_ongoing) ? CRSF_CMD_POLY : CRSF_GEN_POLY;
+                SerialInCrc = CalcCRC8(inChar, SerialInCrc, poly);
+#else
+                SerialInCrc = CalcCRC8(inChar, SerialInCrc, CRSF_GEN_POLY);
+#endif
             }
         }
     }
