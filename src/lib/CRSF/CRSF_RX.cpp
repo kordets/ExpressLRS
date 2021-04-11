@@ -42,12 +42,14 @@ void CRSF_RX::Begin(void)
     p_crsf_channels.header.type = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
 #endif // PROTOCOL_ELRS_TO_FC
 
+    new_baud_ok = false;
+
     CRSF::Begin();
 }
 
-void FAST_CODE_1 CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t const size, uint8_t const poly) const
+void FAST_CODE_1 CRSF_RX::sendFrameToFC(uint8_t *buff, uint8_t const size) const
 {
-    buff[size - 1] = CalcCRC8len(&buff[2], (buff[1] - 1), 0, poly);
+    buff[size - 1] = CalcCRC8len(&buff[2], (buff[1] - 1), 0, CRSF_GEN_POLY);
 #if !NO_DATA_TO_FC
     uint32_t irq = _SAVE_IRQ();
     _dev->write(buff, size);
@@ -64,7 +66,7 @@ void CRSF_RX::LinkStatisticsSend(LinkStatsLink_t & stats) const
     link_stat_packet.stats.rf_Mode = stats.rf_Mode;
 #elif PROTOCOL_CRSF_V3_TO_FC
     link_stat_packet.stats.uplink_RSSI = stats.uplink_RSSI_1;
-    link_stat_packet.stats.uplink_RSSI_percentage = 0;
+    link_stat_packet.stats.uplink_RSSI_percentage = 100;
     link_stat_packet.stats.uplink_Link_quality = stats.uplink_Link_quality;
     link_stat_packet.stats.uplink_SNR = stats.uplink_SNR;
     link_stat_packet.stats.downlink_power = stats.uplink_TX_Power;
@@ -106,6 +108,7 @@ void FAST_CODE_1 CRSF_RX::sendMSPFrameToFC(mspPacket_t & msp) const
 
 void CRSF_RX::negotiate_baud(uint32_t baudrate) const
 {
+#if PROTOCOL_CRSF_V3_TO_FC
     crsf_speed_req req;
     req.header.device_addr = CRSF_ADDRESS_BROADCAST;
     req.header.frame_size = sizeof(req) - CRSF_FRAME_START_BYTES;
@@ -116,17 +119,17 @@ void CRSF_RX::negotiate_baud(uint32_t baudrate) const
     req.proposal.sub_command = CRSF_COMMAND_SUBCMD_GENERAL_CRSF_SPEED_PROPOSAL;
     req.proposal.portID = CRSF_v3_PORT_ID;
     req.proposal.baudrate = BYTE_SWAP_U32(CRSF_RX_BAUDRATE_V3);
-    sendFrameToFC((uint8_t*)&req, sizeof(req), 0xBA);
+    req.crc_cmd = CalcCRC8len(&req.header.type, (sizeof(req) - 4), 0, CRSF_CMD_POLY);
+    sendFrameToFC((uint8_t*)&req, sizeof(req));
     delay(20);
+#endif // PROTOCOL_CRSF_V3_TO_FC
 }
 
 void CRSF_RX::processPacket(uint8_t const *data)
 {
     crsf_buffer_t const * const msg = (crsf_buffer_t*)data;
-    switch (msg->type)
-    {
-        case CRSF_FRAMETYPE_COMMAND:
-        {
+    switch (msg->type) {
+        case CRSF_FRAMETYPE_COMMAND: {
             if ((msg->command.dest_addr == CRSF_ADDRESS_CRSF_RECEIVER) &&
                 (msg->command.orig_addr == CRSF_ADDRESS_FLIGHT_CONTROLLER) &&
                 (msg->command.command == CRSF_COMMAND_SUBCMD_GENERAL)) {
@@ -134,8 +137,7 @@ void CRSF_RX::processPacket(uint8_t const *data)
                 if (msg->command.sub_command == CRSF_COMMAND_SUBCMD_GENERAL_CRSF_SPEED_RESPONSE) {
                     crsf_v3_speed_control_resp_t const * const resp =
                         (crsf_v3_speed_control_resp_t*)msg->command.payload;
-
-                    if ((resp->portID == CRSF_v3_PORT_ID) &&
+                    if (/*(resp->portID == CRSF_v3_PORT_ID) &&*/
                         (resp->found)) {
                         // Baudrate accepted, configure new baud
                         new_baud_ok = true;
@@ -155,8 +157,7 @@ void CRSF_RX::processPacket(uint8_t const *data)
             break;
         }
 
-        case CRSF_FRAMETYPE_BATTERY_SENSOR:
-        {
+        case CRSF_FRAMETYPE_BATTERY_SENSOR: {
             if (BattInfoCallback) {
                 LinkStatsBatt_t batt;
                 batt.voltage = data[1];
@@ -180,8 +181,7 @@ void CRSF_RX::processPacket(uint8_t const *data)
             break;
         }
 
-        case CRSF_FRAMETYPE_GPS:
-        {
+        case CRSF_FRAMETYPE_GPS: {
             if (GpsCallback) {
                 GpsOta_t gps;
                 gps.latitude = data[1];
@@ -219,12 +219,10 @@ void CRSF_RX::processPacket(uint8_t const *data)
             break;
         }
 
-        case CRSF_FRAMETYPE_MSP_RESP:
-        {
+        case CRSF_FRAMETYPE_MSP_RESP: {
             if (MspCallback &&
-                msg->extended.dest_addr == CRSF_ADDRESS_RADIO_TRANSMITTER &&
-                msg->extended.orig_addr == CRSF_ADDRESS_FLIGHT_CONTROLLER)
-            {
+                (msg->extended.dest_addr == CRSF_ADDRESS_RADIO_TRANSMITTER) &&
+                (msg->extended.orig_addr == CRSF_ADDRESS_FLIGHT_CONTROLLER)) {
                 MspCallback(msg->extended.payload);
             }
             break;

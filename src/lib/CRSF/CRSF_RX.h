@@ -25,7 +25,7 @@ public:
     }
 
 private:
-    void sendFrameToFC(uint8_t *buff, uint8_t size, uint8_t poly = 0xD5) const;
+    void sendFrameToFC(uint8_t *buff, uint8_t size) const;
     void processPacket(uint8_t const *data);
 
     uint8_t new_baud_ok;

@@ -716,6 +716,7 @@ void setup()
     crsf.BattInfoCallback = battery_info_cb;
     crsf.GpsCallback = gps_info_cb;
     crsf.Begin();
+    crsf.negotiate_baud(CRSF_RX_BAUDRATE_V3);
 #endif
 }
 
@@ -725,6 +726,14 @@ void loop()
     uint32_t now = millis();
 
     const connectionState_e _conn_state = (connectionState_e)read_u32(&connectionState);
+
+#if !SERVO_OUTPUTS_ENABLED
+    if (crsf.negotiate_accepted()) {
+        CrsfSerial.end();
+        CrsfSerial.Begin(CRSF_RX_BAUDRATE_V3);
+        crsf.Begin();
+    }
+#endif
 
     if (STATE_lost < _conn_state) {
         // check if connection is lost or in very bad shape

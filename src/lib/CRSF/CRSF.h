@@ -147,27 +147,29 @@ typedef struct crsf_command_header_s
     uint8_t sub_command;
 } PACKED crsf_command_header_t;
 
-typedef union crsf_buffer_u
+typedef struct crsf_buffer_u
 {
     uint8_t type;
-    struct {
-        uint8_t payload[1];
-    } normal;
-    struct {
-        // Extended fields
-        uint8_t dest_addr;
-        uint8_t orig_addr;
-        uint8_t payload[1];
-    } extended;
-    struct {
-        // Extended fields
-        uint8_t dest_addr;
-        uint8_t orig_addr;
-        // Command fields
-        uint8_t command;
-        uint8_t sub_command;
-        uint8_t payload[1];
-    } command;
+    union {
+        struct {
+            uint8_t payload[1];
+        } normal;
+        struct {
+            // Extended fields
+            uint8_t dest_addr;
+            uint8_t orig_addr;
+            uint8_t payload[1];
+        } extended;
+        struct {
+            // Extended fields
+            uint8_t dest_addr;
+            uint8_t orig_addr;
+            // Command fields
+            uint8_t command;
+            uint8_t sub_command;
+            uint8_t payload[1];
+        } command;
+    };
 } crsf_buffer_t;
 
 // RC data frame
@@ -371,7 +373,8 @@ typedef struct {
 struct crsf_speed_req {
     crsf_ext_header_t header;
     crsf_v3_speed_control_proposal_t proposal;
-    uint8_t crc; // POLY = 0xBA
+    uint8_t crc_cmd; // crc of type + payload
+    uint8_t crc;
 };
 
 /////inline and utility functions//////
@@ -401,7 +404,6 @@ protected:
 
 private:
     bool CRSFframeActive;
-    uint8_t crsf_cmd_ongoing;
     uint8_t SerialInCrc;
     uint8_t SerialInPacketStart;
     uint8_t SerialInPacketLen;      // length of the CRSF packet as measured
