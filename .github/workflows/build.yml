@@ -17,5 +17,6 @@ jobs:
         platformio platform update
         mkdir -p ~/artifcats
         cd src
+        rm -rf .pio
         echo 'export PLATFORMIO_BUILD_FLAGS="-DRegulatory_Domain_EU_868 -DRegulatory_Domain_ISM_2400_800kHz"'
         platformio run
