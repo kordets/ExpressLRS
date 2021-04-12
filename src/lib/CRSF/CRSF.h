@@ -367,7 +367,7 @@ typedef struct {
 
 typedef struct {
     uint8_t portID;
-    uint8_t found; // true / false if baud ok
+    uint8_t status; // true / false if baud ok
 } crsf_v3_speed_control_resp_t;
 
 struct crsf_speed_req {

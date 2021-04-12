@@ -3,7 +3,10 @@
 
 #include "CRSF.h"
 
-#define CRSF_v3_PORT_ID 0xCF
+#define ELRS_BOOT_CMD_DEST 0x62
+#define ELRS_BOOT_CMD_ORIG 0x6c
+
+#define CRSF_v3_PORT_ID 0x5 // 3bits = 0 ... 7
 
 
 class CRSF_RX : public CRSF

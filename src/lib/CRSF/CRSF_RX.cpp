@@ -137,14 +137,16 @@ void CRSF_RX::processPacket(uint8_t const *data)
                 if (msg->command.sub_command == CRSF_COMMAND_SUBCMD_GENERAL_CRSF_SPEED_RESPONSE) {
                     crsf_v3_speed_control_resp_t const * const resp =
                         (crsf_v3_speed_control_resp_t*)msg->command.payload;
-                    if (/*(resp->portID == CRSF_v3_PORT_ID) &&*/
-                        (resp->found)) {
+                    if ((resp->portID == CRSF_v3_PORT_ID) && (resp->status)) {
+#if PROTOCOL_CRSF_V3_TO_FC
                         // Baudrate accepted, configure new baud
                         new_baud_ok = true;
+#endif // PROTOCOL_CRSF_V3_TO_FC
                     }
                 }
 
-            } else if ((msg->command.dest_addr == 0x62) && (msg->command.orig_addr == 0x6c)) {
+            } else if ((msg->command.dest_addr == ELRS_BOOT_CMD_DEST) &&
+                       (msg->command.orig_addr == ELRS_BOOT_CMD_ORIG)) {
                 DEBUG_PRINTF("Jumping to Bootloader...\n");
                 delay(200);
                 platform_restart();
