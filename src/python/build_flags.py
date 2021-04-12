@@ -5,7 +5,7 @@ import hashlib
 try:
     from git import Repo
 except ImportError:
-    env.Execute("$PYTHONEXE -m pip install GitPython")
+    env.Execute('"$PYTHONEXE" -m pip install GitPython')
     from git import Repo
 
 def parse_flags(path):
