@@ -235,7 +235,7 @@ void gpio_in_isr(struct gpio_in g, isr_cb_t callback, uint8_t it_mode)
     /* Configure the External Interrupt or event for the current IO */
 #ifdef AFIO_BASE
     __IO uint32_t * exticr_reg = &AFIO->EXTICR[index >> 2u];
-#elif defined(EXTI)
+#elif defined(EXTI) && defined(STM32G0xx)
     __IO uint32_t * exticr_reg = &EXTI->EXTICR[index >> 2u];
 #elif defined(SYSCFG_BASE)
     __IO uint32_t * exticr_reg = &SYSCFG->EXTICR[index >> 2u];
