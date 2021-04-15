@@ -61,21 +61,36 @@ uint32_t uart_peripheral_get(uint32_t pin)
             return (uint32_t)USART1_BASE;
         case GPIO('A', 3):
         case GPIO('A', 2):
+        case GPIO('A', 14):
+        case GPIO('A', 15):
             return (uint32_t)USART2_BASE;
+        case GPIO('A', 5): // TX
+        case GPIO('B', 0): // RX
+        case GPIO('B', 2): // TX
+        case GPIO('B', 8): // TX
+        case GPIO('B', 9): // RX
+        case GPIO('B', 10): // TX
+        case GPIO('B', 11): // RX
+            return (uint32_t)USART3_BASE;
     }
     return 0;
 }
 
 void uart_config_afio(uint32_t periph, uint32_t rx_pin, uint32_t tx_pin)
 {
-    // USART1 has alternative 0 config when pins are PB6 and PB7
+    uint32_t afio = 1;
+    if (periph == USART3_BASE)
+        afio = 4;
+    else if ((rx_pin == GPIO('B', 7)) || (tx_pin == GPIO('B', 6)))
+        // USART1 has alternative 0 config when pins are PB6 and PB7
+        afio = 0;
     if (rx_pin != tx_pin && rx_pin != (uint32_t)-1)
-        gpio_peripheral(rx_pin, GPIO_FUNCTION((rx_pin == GPIO('B', 7) ? 0 : 1)), 1);
-    gpio_peripheral(tx_pin, GPIO_FUNCTION((tx_pin == GPIO('B', 6) ? 0 : 1)), 0);
+        gpio_peripheral(rx_pin, GPIO_FUNCTION(afio), 1);
+    gpio_peripheral(tx_pin, GPIO_FUNCTION(afio), 0);
 }
 
 // Enable a peripheral clock
-void enable_pclock(uint32_t periph_base)
+void enable_pclock(uint32_t const periph_base)
 {
     if (is_enabled_pclock(periph_base))
         return;
@@ -96,7 +111,7 @@ void enable_pclock(uint32_t periph_base)
 }
 
 // Check if a peripheral clock has been enabled
-uint32_t is_enabled_pclock(uint32_t periph_base)
+uint32_t is_enabled_pclock(uint32_t const periph_base)
 {
     if (periph_base < APB2PERIPH_BASE) {
         uint32_t pos = (periph_base - APBPERIPH_BASE) / 0x400;
@@ -114,13 +129,14 @@ uint32_t is_enabled_pclock(uint32_t periph_base)
 uint32_t
 get_pclock_frequency(uint32_t periph_base)
 {
+    (void)periph_base;
     return CONFIG_CLOCK_FREQ / 2;
 }
 
 // Enable a GPIO peripheral clock
 void gpio_clock_enable(GPIO_TypeDef *regs)
 {
-    uint32_t rcc_pos = ((uint32_t)regs - APB2PERIPH_BASE) / 0x400;
+    uint32_t rcc_pos = ((uint32_t)regs - IOPORT_BASE) / 0x400;
     RCC->IOPENR |= 1 << rcc_pos;
     (void)RCC->IOPENR;
 }
@@ -223,12 +239,16 @@ void timer_init(void)
 
 void SystemClock_Config(void)
 {
-#if HSI_VALUE != 16000000
-#error "Wrong config! HSI VALUE is 16MHz!"
-#endif
-#if !USE_HSI
-#error "Only HSI is supported at the moment!"
-#endif
+    /* PLL f_out = ((f_in) * (PLLN / PLLM)) / PLLP
+     * where:
+     *  f_in = XO freq
+     *  f_out = 64MHz
+     *  PLLN = 128
+     *  PLLM = scaler value to get 64MHz MCU speed
+     *  PLLP = 2
+    */
+#define PLL_N     128
+#define PLL_P     RCC_PLLP_DIV2
 
     RCC_OscInitTypeDef RCC_OscInitStruct;
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
@@ -240,22 +260,39 @@ void SystemClock_Config(void)
     /* Configure the main internal regulator output voltage */
     HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-    /* Initializes the CPU, AHB and APB busses clocks */
-    /*
-     * f(VCO clock) = f(PLL clock input) × (PLLN / PLLM)
-     * f(PLL_P) = f(VCO clock) / PLLP (SAI1 clock)
-     * f(PLL_Q) = f(VCO clock) / PLLQ (USB, RNG, SDMMC (48 MHz clock))
-     * f(PLL_R) = f(VCO clock) / PLLR (system clock)
-     */
+    /* Initializes the CPU, AHB and APB busses clocks to be 64MHz */
+#if !USE_INTERNAL_XO && defined(HSE_VALUE)
+#if HSE_VALUE < 1000000U
+#error "Wrong config! HSE VALUE min is 1MHz!"
+#elif HSE_VALUE > 48000000U
+#error "Wrong config! HSE VALUE max is 48MHz!"
+#endif
+
+#define PLL_M (HSE_VALUE / 1000000U)
+
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSIDiv = RCC_HSI_DIV1;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+#else // USE_INTERNAL_XO
+#if HSI_VALUE != 16000000U
+#error "Wrong config! HSI VALUE is 16MHz!"
+#endif
+
+#define PLL_M (HSI_VALUE / 1000000U)
+
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
     RCC_OscInitStruct.HSEState = RCC_HSE_OFF;
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
     RCC_OscInitStruct.HSIDiv = RCC_HSI_DIV1;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+#endif
+
     RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-    RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
-    RCC_OscInitStruct.PLL.PLLN = 8;
+    RCC_OscInitStruct.PLL.PLLM = PLL_M;
+    RCC_OscInitStruct.PLL.PLLN = PLL_N;
     RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
     RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
     RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
@@ -320,9 +357,7 @@ void EXTI2_3_IRQHandler(void) {
 void EXTI4_15_IRQHandler(void) {
     uint8_t pin;
     for (pin = 4; pin <= 15; pin++)
-    {
         GPIO_EXTI_IRQHandler(pin);
-    }
 }
 
 void UCPD1_2_IRQHandler(void) {Error_Handler();}
@@ -361,7 +396,7 @@ void USART2_IRQHandler(void)
 }
 void USART3_4_LPUART1_IRQHandler(void) {
     USART_IDLE_IRQ_handler(2);
-    USART_IDLE_IRQ_handler(3);
+    //USART_IDLE_IRQ_handler(3);
 }
 
 } // extern
