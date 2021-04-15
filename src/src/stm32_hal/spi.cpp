@@ -3,7 +3,7 @@
 #include "gpio.h"
 #include "stm32_def.h"
 #include "debug_elrs.h"
-#include "stm32f3xx.h"
+
 struct spi_info
 {
     SPI_TypeDef *spi;
