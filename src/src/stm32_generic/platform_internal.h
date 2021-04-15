@@ -17,7 +17,7 @@
 /* FAST_CODE_1 is always linked into RAM */
 #define FAST_CODE_1  __section(".ram_code")
 /* FAST_CODE_2 is linked into RAM only if enough space */
-#if STM32F1xx || STM32L0xx
+#if STM32F1xx || STM32L0xx || RAM_CODE_LIMITED
 #define FAST_CODE_2
 #else
 #define FAST_CODE_2 __section(".ram_code")

@@ -13,6 +13,7 @@ HwSerial::HwSerial(uint32_t _rx, uint32_t _tx, int32_t pin, uint8_t inv)
 {
     p_duplex_pin = gpio_out_setup(pin, 0 ^ inv);
     p_duplex_pin_inv = inv;
+    inverted = RCSIGNAL_INVERTED;
 }
 
 void HwSerial::Begin(uint32_t baud, uint32_t config)

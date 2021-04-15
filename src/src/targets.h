@@ -559,6 +559,61 @@ Designed by NamimnoRC
 #define GPIO_PIN_RCSIGNAL_RX    PA10
 #define GPIO_PIN_RCSIGNAL_TX    PA9
 
+#elif TARGET_IMRC_GHOST_TX
+/*
+ImmersionRC Ghost TX Module
+*/
+#define RADIO_SX128x         1
+// SPI pins
+#define GPIO_PIN_MOSI        PA7
+#define GPIO_PIN_MISO        PA6
+#define GPIO_PIN_SCK         PA5
+// Radio GPIOs (SX1280)
+#define GPIO_PIN_NSS         PA15
+#define GPIO_PIN_DIO0        PB2
+#define GPIO_PIN_BUSY        PB15
+#define GPIO_PIN_TX_ENABLE   PB14
+#define GPIO_PIN_RX_ENABLE   PA8
+// Radio GPIOs common
+#define GPIO_PIN_RST         PB0
+// LED
+#define GPIO_PIN_LED_RGB     PB6 // WS2812 RGB
+// S.Port
+#define GPIO_PIN_RCSIGNAL_RX UNDEF_PIN // Not used
+#define GPIO_PIN_RCSIGNAL_TX PB6 // One wire, swapped
+#define RCSIGNAL_INVERTED    1
+#define RCSIGNAL_USE_DMA     0
+
+#if TARGET_TX_GHOST_LITE
+// https://www.skyworksinc.com/-/media/SkyWorks/Documents/Products/2101-2200/SE2622L_202733C.pdf
+    #define GPIO_PIN_RF_AMP_EN   PB11
+    #define GPIO_PIN_RF_AMP_DET  PA3  // not used atm
+    #define GPIO_PIN_ANT_CTRL_1  PA9
+    #define GPIO_PIN_ANT_CTRL_2  PB13
+#endif // TARGET_TX_GHOST_LITE
+
+
+#elif TARGET_RX_GHOST_ATTO_V1
+/*
+ImmersionRC Ghost ATTO RX Module
+*/
+#define RADIO_SX128x         1
+// SPI pins
+#define GPIO_PIN_MOSI        PB5
+#define GPIO_PIN_MISO        PB4
+#define GPIO_PIN_SCK         PB3
+// Radio GPIOs (SX1280)
+#define GPIO_PIN_NSS         PA15
+#define GPIO_PIN_DIO0        PA1
+#define GPIO_PIN_RST         PB0
+#define GPIO_PIN_BUSY        PA3
+// CRSF
+#define GPIO_PIN_RCSIGNAL_RX PB6 // USART1, half duplex
+#define GPIO_PIN_RCSIGNAL_TX PA2 // USART2, half duplex
+// LED
+#define GPIO_PIN_LED_RGB     PA7 // WS2812 RGB
+
+
 #endif
 
 
@@ -615,8 +670,11 @@ Designed by NamimnoRC
 #ifndef BUFFER_OE_INVERTED
 #define BUFFER_OE_INVERTED  0
 #endif
+#ifndef RCSIGNAL_INVERTED
+#define RCSIGNAL_INVERTED   0
+#endif
 #ifndef RCSIGNAL_USE_DMA
-#define RCSIGNAL_USE_DMA 1
+#define RCSIGNAL_USE_DMA    1
 #endif
 #ifndef GPIO_PIN_LED_RGB
 #define GPIO_PIN_LED_RGB    UNDEF_PIN
@@ -748,4 +806,16 @@ Designed by NamimnoRC
 
 #ifndef GPIO_PIN_FAN_CTRL
 #define GPIO_PIN_FAN_CTRL UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_RF_AMP_EN
+#define GPIO_PIN_RF_AMP_EN UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_RF_AMP_DET
+#define GPIO_PIN_RF_AMP_DET UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_ANT_CTRL_1
+#define GPIO_PIN_ANT_CTRL_1 UNDEF_PIN
+#endif
+#ifndef GPIO_PIN_ANT_CTRL_2
+#define GPIO_PIN_ANT_CTRL_2 UNDEF_PIN
 #endif

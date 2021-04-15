@@ -9,10 +9,14 @@
 
 uint32_t dma_get(uint32_t periph, uint8_t type, uint8_t index)
 {
+#ifdef UART5_BASE
     if (periph == UART5_BASE)
         return 0;
+#endif
+#if defined(UART4_BASE) && defined(DMA2_BASE)
     else if (periph == UART4_BASE)
         return DMA2_BASE;
+#endif
     return DMA1_BASE;
 }
 
@@ -24,8 +28,10 @@ uint32_t dma_channel_get(uint32_t periph, uint8_t type, uint8_t index)
         return (type == DMA_USART_RX) ? LL_DMA_CHANNEL_6 : LL_DMA_CHANNEL_7;
     else if (periph == USART3_BASE)
         return (type == DMA_USART_RX) ? LL_DMA_CHANNEL_3 : LL_DMA_CHANNEL_2;
+#if defined(UART4_BASE) && defined(DMA2_BASE)
     else if (periph == UART4_BASE)
         return (type == DMA_USART_RX) ? LL_DMA_CHANNEL_3 : LL_DMA_CHANNEL_5;
+#endif
     return 0xff;
 }
 
@@ -37,13 +43,16 @@ uint32_t dma_irq_get(uint32_t periph, uint8_t type, uint8_t index)
         return (type == DMA_USART_RX) ? DMA1_Channel6_IRQn : DMA1_Channel7_IRQn;
     else if (periph == USART3_BASE)
         return (type == DMA_USART_RX) ? DMA1_Channel3_IRQn : DMA1_Channel2_IRQn;
+#if defined(UART4_BASE) && defined(DMA2_BASE)
     else if (periph == UART4_BASE)
         return (type == DMA_USART_RX) ? DMA2_Channel3_IRQn : DMA2_Channel5_IRQn;
+#endif
     return 0xff;
 }
 
 void dma_request_config(uint32_t periph, uint8_t type, uint8_t index)
 {
+    /* not needed */
 }
 
 uint32_t uart_peripheral_get(uint32_t pin)
@@ -79,8 +88,14 @@ uint32_t uart_peripheral_get(uint32_t pin)
 void uart_config_afio(uint32_t periph, uint32_t rx_pin, uint32_t tx_pin)
 {
     uint32_t afio = GPIO_FUNCTION(7);
-    if (periph == UART4_BASE || periph == UART5_BASE)
+#ifdef UART4_BASE
+    if (periph == UART4_BASE)
         afio = GPIO_FUNCTION(5);
+#endif
+#ifdef UART5_BASE
+    if (periph == UART5_BASE)
+        afio = GPIO_FUNCTION(5);
+#endif
     if (rx_pin != tx_pin && rx_pin != (uint32_t)-1)
         gpio_peripheral(rx_pin, afio, 1);
     gpio_peripheral(tx_pin, afio, 0);
@@ -268,13 +283,20 @@ void SystemClock_Config(void)
     }
 
     PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+#if defined(RCC_USART1CLKSOURCE_PCLK2)
     PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+#else
+    PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
+#endif
+#ifdef RCC_PERIPHCLK_USART2
+    PeriphClkInit.PeriphClockSelection |= RCC_PERIPHCLK_USART2;
+    PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+#endif
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
         Error_Handler();
     }
 
     SystemCoreClockUpdate();
-
 
     /* Enable SYSCFG Clock */
     __HAL_RCC_SYSCFG_CLK_ENABLE();
@@ -294,7 +316,7 @@ void PendSV_Handler(void) {}
 // void SysTick_Handler(void) {Error_Handler();}
 void WWDG_IRQHandler(void) {Error_Handler();}
 void PVD_IRQHandler(void) {Error_Handler();}
-void RTC_IRQHandler(void) {Error_Handler();}
+void RTC_WKUP_IRQHandler(void) {Error_Handler();}
 void FLASH_IRQHandler(void) {Error_Handler();}
 void RCC_IRQHandler(void) {Error_Handler();}
 
@@ -326,11 +348,17 @@ void DMA1_Channel5_IRQHandler(void) {Error_Handler();}
 void DMA1_Channel6_IRQHandler(void) {Error_Handler();}
 void DMA1_Channel7_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 TX
 
+#if defined(DMA2_BASE)
 void DMA2_Channel1_IRQHandler(void) {Error_Handler();}
 void DMA2_Channel2_IRQHandler(void) {Error_Handler();}
 void DMA2_Channel3_IRQHandler(void) {Error_Handler();}
 void DMA2_Channel4_IRQHandler(void) {Error_Handler();}
+#if defined(UART4_BASE)
 void DMA2_Channel5_IRQHandler(void) {USARTx_DMA_handler(3);} // USART4 TX
+#else
+void DMA2_Channel5_IRQHandler(void) {Error_Handler();}
+#endif
+#endif // DMA2_BASE
 
 //void TIM2_IRQHandler(void) {Error_Handler();}
 void TIM3_IRQHandler(void) {Error_Handler();}
@@ -359,15 +387,18 @@ void USART3_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(2);
 }
+#ifdef UART4_BASE
 void UART4_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(3);
 }
+#endif
+#ifdef UART5_BASE
 void UART5_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(4);
 }
-
+#endif
 } // extern
 
 #endif /* STM32F3xx */

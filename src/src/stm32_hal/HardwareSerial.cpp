@@ -303,6 +303,7 @@ HardwareSerial::HardwareSerial(uint32_t rx, uint32_t tx, uint8_t dma)
     usart_irq_rx = usart_irq_tx = 0xff;
     p_use_dma = dma ? (USE_DMA_RX | USE_DMA_TX) : USE_DMA_NONE;
     usart_tx_idx = usart_rx_idx = 0xff;
+    inverted = 0;
 }
 
 void HardwareSerial::setTx(uint32_t pin)
@@ -315,21 +316,40 @@ void HardwareSerial::setRx(uint32_t pin)
     rx_pin = pin;
 }
 
-static uint8_t uart_pin_is_tx(uint32_t pin)
+static uint8_t uart_pin_is_tx(int32_t const pin)
 {
-  switch (pin) {
-    case GPIO('A', 2):
-    case GPIO('A', 9):
-    case GPIO('A', 14):
-    case GPIO('B', 3):
-    case GPIO('B', 6):
-    case GPIO('B', 9):
-    case GPIO('B', 10):
-    case GPIO('C', 4):
-    case GPIO('C', 10):
-      return 1;
-  }
-  return 0;
+    switch (pin) {
+        case GPIO('A', 2):
+        case GPIO('A', 9):
+        case GPIO('A', 14):
+        case GPIO('B', 3):
+        case GPIO('B', 6):
+        case GPIO('B', 9):
+        case GPIO('B', 10):
+        case GPIO('C', 4):
+        case GPIO('C', 10):
+        return 1;
+    }
+    return 0;
+}
+
+static uint8_t uart_tx_pin_is_rx(int32_t const pin)
+{
+    switch (pin) {
+#if defined(STM32F3xx)
+        case GPIO('A', 3):
+        case GPIO('A', 10):
+        case GPIO('A', 15):
+        case GPIO('B', 4):
+        case GPIO('B', 7):
+        case GPIO('B', 8):
+        case GPIO('B', 11):
+        case GPIO('C', 5):
+        case GPIO('C', 11):
+            return 1;
+#endif
+    }
+    return 0;
 }
 
 static void configure_uart_peripheral(USART_TypeDef * uart, uint32_t baud, uint8_t half_duplex)
@@ -357,6 +377,7 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
 
     p_usart_rx = (USART_TypeDef*)uart_peripheral_get(rx_pin);
     p_usart_tx = (USART_TypeDef*)uart_peripheral_get(tx_pin);
+
     if (half_duplex)
         p_usart_rx = p_usart_tx;
 
@@ -520,7 +541,23 @@ void HardwareSerial::begin(unsigned long baud, uint8_t mode)
     configure_uart_peripheral((USART_TypeDef*)p_usart_tx, baud, half_duplex);
     if (p_usart_rx != p_usart_tx) {
         configure_uart_peripheral((USART_TypeDef*)p_usart_rx, baud, uart_pin_is_tx(rx_pin));
+#if 0 //defined(STM32F3xx)
+        if (uart_pin_is_tx(rx_pin))
+            LL_USART_SetTXRXSwap((USART_TypeDef*)p_usart_rx, LL_USART_TXRX_SWAPPED);
+#endif
     }
+
+#if defined(STM32F3xx)
+    /* F3 can swap Rx and Tx pins */
+    if (uart_tx_pin_is_rx(tx_pin)) {
+        LL_USART_SetTXRXSwap((USART_TypeDef*)p_usart_tx, LL_USART_TXRX_SWAPPED);
+    }
+    /* F3 can invert uart lines */
+    if (inverted) {
+        LL_USART_SetTXPinLevel((USART_TypeDef*)p_usart_tx, LL_USART_TXPIN_LEVEL_INVERTED);
+        LL_USART_SetRXPinLevel((USART_TypeDef*)p_usart_rx, LL_USART_RXPIN_LEVEL_INVERTED);
+    }
+#endif
 
     if (dma_unit_rx)
         LL_USART_EnableDMAReq_RX((USART_TypeDef*)p_usart_rx);
