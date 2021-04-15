@@ -342,9 +342,10 @@ https://github.com/jaxxzer
 #define GPIO_PIN_LED_GREEN   PA12 // Green LED
 #define GPIO_PIN_BUTTON      PA8  // pullup e.g. LOW when pressed
 #define GPIO_PIN_BUZZER      PB1  // confirmed
+#if !TARGET_HM_ES915TX
 #define GPIO_PIN_DIP1        PA12 // dip switch 1
 #define GPIO_PIN_DIP2        PA11 // dip switch 2
-
+#endif // !TARGET_HM_ES915TX
 #define GPIO_PIN_RFamp_APC1       PA6 //CONFIRMED SANDRO// APC2 is connected through a I2C dac and is handled elsewhere
 #define GPIO_PIN_RFswitch_CONTROL PB3 //CONFIRMED SANDRO HIGH = RX, LOW = TX
 // PwrAmp, RFControl, dodgy measurement with SDR, descending
@@ -353,6 +354,7 @@ https://github.com/jaxxzer
 // low  high -40
 // high high -40
 
+#if !TARGET_HM_ES915TX
 // Serial1 is connected to internal ESP module if in use
 #define CTRL_SERIAL Serial1
 #define DEFINE_SERIAL1
@@ -366,6 +368,7 @@ https://github.com/jaxxzer
 #endif /* TELEMETRY_EXTERNAL_BAUDRATE */
 #define BT_SERIAL_BAUD  TELEMETRY_EXTERNAL_BAUDRATE
 #endif /* TELEMETRY_EXTERNAL */
+#endif // !TARGET_HM_ES915TX
 
 /* R9M DAC control address */
 #define DAC_I2C_ADDRESS         0b0001100

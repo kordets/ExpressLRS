@@ -90,6 +90,8 @@ void BeginWebUpdate(void)
 #endif /* WIFI_MANAGER */
     {
         // No wifi found, start AP
+        WiFi.mode(WIFI_OFF);
+        delay(1000);
         WiFi.mode(WIFI_AP);
         WiFi.softAP(STASSID" ESP RX", STAPSK);
         addr = WiFi.softAPIP();

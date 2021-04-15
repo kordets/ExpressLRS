@@ -8,6 +8,84 @@
 
 #define VCC 3300
 
+enum {
+    R9_PWR_10mW = 0,
+    R9_PWR_25mW,
+    R9_PWR_50mW,
+    R9_PWR_100mW,
+    R9_PWR_250mW,
+    R9_PWR_500mW,
+    R9_PWR_1000mW,
+    R9_PWR_2000mW,
+    R9_PWR_MAX
+};
+
+typedef struct {
+    uint16_t mW;
+    uint8_t dB;
+    uint8_t gain;
+    uint16_t volts; // APC2volts*1000
+} r9dac_lut_s;
+
+const r9dac_lut_s LUT[R9_PWR_MAX] = {
+    // mw, dB, gain, APC2volts*1000, figures assume 2dBm input
+#if TARGET_HM_ES915TX
+#if 0
+    // 915MHz
+    {10, 10, 8, 875},
+    {25, 14, 12, 1065},
+    {50, 17, 15, 1200},
+    {100, 20, 18, 1355},
+    {250, 24, 22, 1600},
+    {500, 27, 25, 1900},
+    {1000, 30, 28, 2400},
+    {2000, 33, 31, 2600}, // Danger untested at high power
+#else
+    // 868MHz
+    {10, 10, 8, 375},
+    {25, 14, 12, 850},
+    {50, 17, 15, 1200},
+    {100, 20, 18, 1400},
+    {250, 24, 22, 1700},
+    {500, 27, 25, 2000},
+    {1000, 30, 28, 2000}, // limit to 500mW
+    {2000, 33, 31, 2000}, // limit to 500mW
+#endif
+#elif defined(TARGET_R9M_TX)
+#if 0
+    // 915MHz
+    {10, 10, 8, 720},
+    {25, 14, 12, 875},
+    {50, 17, 15, 1000},
+    {100, 20, 18, 1140},
+    {250, 24, 22, 1390},
+    {500, 27, 25, 1730},
+    {1000, 30, 28, 2100},
+    {2000, 33, 31, 2600}, // Danger untested at high power
+#else
+    // 868MHz
+    {10, 10, 8, 650},
+    {25, 14, 12, 860},
+    {50, 17, 15, 1000},
+    {100, 20, 18, 1160},
+    {250, 24, 22, 1420},
+    {500, 27, 25, 1730},
+    {1000, 30, 28, 2100},
+    {2000, 33, 31, 2600}, // Danger untested at high power
+#endif
+#elif defined(TARGET_NAMIMNORC_TX)
+    {10, 10, 8, 315},
+    {25, 14, 12, 460},
+    {50, 17, 15, 595},
+    {100, 20, 18, 750},
+    {250, 24, 22, 1125},
+    {500, 27, 25, 1505},
+    {1000, 30, 28, 2105},
+    {2000, 30, 28, 2105},
+#endif
+};
+
+
 R9DAC::R9DAC()
 {
     CurrVoltageRegVal = 0;
