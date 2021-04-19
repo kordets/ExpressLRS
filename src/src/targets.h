@@ -588,7 +588,7 @@ ImmersionRC Ghost TX Module
 
 #if TARGET_TX_GHOST_LITE
 // https://www.skyworksinc.com/-/media/SkyWorks/Documents/Products/2101-2200/SE2622L_202733C.pdf
-    #define GPIO_PIN_RF_AMP_EN   PB11
+    #define GPIO_PIN_PA_ENABLE   PB11
     #define GPIO_PIN_RF_AMP_DET  PA3  // not used atm
     #define GPIO_PIN_ANT_CTRL_1  PA9
     #define GPIO_PIN_ANT_CTRL_2  PB13
@@ -808,9 +808,6 @@ ImmersionRC Ghost ATTO RX Module
 
 #ifndef GPIO_PIN_FAN_CTRL
 #define GPIO_PIN_FAN_CTRL UNDEF_PIN
-#endif
-#ifndef GPIO_PIN_RF_AMP_EN
-#define GPIO_PIN_RF_AMP_EN UNDEF_PIN
 #endif
 #ifndef GPIO_PIN_RF_AMP_DET
 #define GPIO_PIN_RF_AMP_DET UNDEF_PIN

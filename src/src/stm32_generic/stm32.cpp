@@ -206,10 +206,6 @@ void platform_setup(void)
 #endif /* RFIO HIGH / LOW */
 #endif
 
-    /* TODO: move RF_AMP_EN to power management */
-#if (GPIO_PIN_RF_AMP_EN != UNDEF_PIN)
-    (void)gpio_out_setup(GPIO_PIN_RF_AMP_EN, 1);
-#endif
     /* TODO: move ANT_CTRL_x to radio hal */
 #if (GPIO_PIN_ANT_CTRL_1 != UNDEF_PIN)
     (void)gpio_out_setup(GPIO_PIN_ANT_CTRL_1, 1);
