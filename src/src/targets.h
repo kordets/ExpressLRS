@@ -580,9 +580,11 @@ ImmersionRC Ghost TX Module
 #define GPIO_PIN_LED_RGB     PB6 // WS2812 RGB
 // S.Port
 #define GPIO_PIN_RCSIGNAL_RX UNDEF_PIN // Not used
-#define GPIO_PIN_RCSIGNAL_TX PB6 // One wire, swapped
+#define GPIO_PIN_RCSIGNAL_TX PA10 // One wire, swapped
 #define RCSIGNAL_INVERTED    1
 #define RCSIGNAL_USE_DMA     0
+
+//#define GPIO_PIN_BUZZER      PC13
 
 #if TARGET_TX_GHOST_LITE
 // https://www.skyworksinc.com/-/media/SkyWorks/Documents/Products/2101-2200/SE2622L_202733C.pdf
