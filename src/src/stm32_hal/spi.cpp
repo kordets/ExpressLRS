@@ -66,7 +66,7 @@ spi_setup(uint32_t speed, int sck, int miso, int mosi, uint8_t mode)
                         (div << SPI_CR1_BR_Pos) |
                         SPI_CR1_SPE | SPI_CR1_MSTR |
                         SPI_CR1_SSM | SPI_CR1_SSI);
-#if defined STM32L4xx || defined STM32F7xx
+#if STM32L4xx || STM32F7xx || STM32F3xx
         spi->CR2 = SPI_DATASIZE_8BIT | SPI_RXFIFO_THRESHOLD_QF;
 #endif
         return (struct spi_config){.spi = spi, .spi_cr1 = cr1};
@@ -93,10 +93,16 @@ spi_setup(uint32_t speed, int sck, int miso, int mosi, uint8_t mode)
                 handle.Init.CLKPolarity = SPI_POLARITY_HIGH;
                 break;
         }
+#ifndef SPI_CRCCALCULATION_DISABLED
+#define SPI_CRCCALCULATION_DISABLED SPI_CRCCALCULATION_DISABLE
+#endif
         handle.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLED;
         handle.Init.DataSize = SPI_DATASIZE_8BIT;
         handle.Init.FirstBit = SPI_FIRSTBIT_MSB;
         handle.Init.NSS = SPI_NSS_SOFT;
+#ifndef SPI_TIMODE_DISABLED
+#define SPI_TIMODE_DISABLED SPI_TIMODE_DISABLE
+#endif
         handle.Init.TIMode = SPI_TIMODE_DISABLED;
         handle.Init.Mode = SPI_MODE_MASTER;
         if (HAL_SPI_Init(&handle) != HAL_OK) {
