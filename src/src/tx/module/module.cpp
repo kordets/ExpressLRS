@@ -83,6 +83,7 @@ void setup()
     CrsfSerial.Begin(CRSF_TX_BAUDRATE_FAST);
     tx_common_init_globals();
     platform_setup();
+    platform_set_led(0);
     DEBUG_PRINTF("ExpressLRS TX Module...\n");
 
     crsf.connected = hw_timer_init;

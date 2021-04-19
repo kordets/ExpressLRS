@@ -263,7 +263,8 @@ void platform_connection_state(int const state)
 void platform_set_led(uint8_t state)
 {
 #if (GPIO_PIN_LED_RGB != UNDEF_PIN)
-    ws2812_set_color_u32((state ? 0x9226eb : 0xc2c215));
+    //ws2812_set_color_u32((state ? 0x9226eb : 0xc2c215));
+    ws2812_set_color_u32((state ? 0xFF0000 /*blue*/ : 0xFF /*red*/));
 #else
     LED_STATE_RED(state);
 #endif
