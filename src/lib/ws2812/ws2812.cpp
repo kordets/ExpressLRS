@@ -13,10 +13,66 @@ static uint8_t current_rgb[3];
 #define BRIGHTNESS 10 // 1...256
 #endif
 
+// 72MHz: NOP = 16.5ns
 #ifndef __NOP
 #define __NOP() asm ("nop")
 #endif
 
+#if 0 /* These timings need to be verified! */
+/*
+ * WS2811:
+ *      1 = T1H .80us + T1L .45us
+ *      0 = T0H .40us + T0L .85us
+ * WS2812B:
+ *      1 = T1H .70us + T1L .60us
+ *      0 = T0H .35us + T0L .80us
+ * WS2812B-2020:
+ *      1 = T1H .58-1.0us + T1L .22-.42us
+ *      0 = T0H .22-.38us + T0L .58-1.0us
+*/
+
+// HIGH(1) = T1H .7us + T1L .6us
+// T1H = 710ns
+#define WS2812_DELAY_T1H() \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP();
+// T1L = 500ns
+#define WS2812_DELAY_T1L() \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    //__NOP(); //__NOP(); __NOP(); __NOP();
+
+// LOW(0) = T0H .35us + T0L .8us
+// T0H = 320ns
+#define WS2812_DELAY_T0H() \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP();
+// T0L = 790ns
+#define WS2812_DELAY_T0L() \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
+    __NOP(); __NOP(); __NOP(); __NOP(); __NOP();
+
+#else
 #define WS2812_DELAY_LONG() \
     __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
     __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
@@ -33,22 +89,28 @@ static uint8_t current_rgb[3];
     __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); \
     __NOP(); __NOP(); __NOP(); __NOP(); __NOP();
 
+#define WS2812_DELAY_T1H() WS2812_DELAY_LONG()
+#define WS2812_DELAY_T1L() WS2812_DELAY_SHORT()
+#define WS2812_DELAY_T0H() WS2812_DELAY_SHORT()
+#define WS2812_DELAY_T0L() WS2812_DELAY_LONG()
+#endif
+
 static inline void
 ws2812_send_1(GPIO_TypeDef *regs, uint32_t bit)
 {
     regs->BSRR = bit;
-    WS2812_DELAY_LONG();
+    WS2812_DELAY_T1H();
     regs->BSRR = bit << 16;
-    WS2812_DELAY_SHORT();
+    WS2812_DELAY_T1L();
 }
 
 static inline void
 ws2812_send_0(GPIO_TypeDef *regs, uint32_t bit)
 {
     regs->BSRR = bit;
-    WS2812_DELAY_SHORT();
+    WS2812_DELAY_T0H();
     regs->BSRR = bit << 16;
-    WS2812_DELAY_LONG();
+    WS2812_DELAY_T0L();
 }
 
 static uint32_t bitReverse(uint32_t input)
