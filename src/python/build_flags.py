@@ -3,10 +3,14 @@ import os
 import fhss_random
 import hashlib
 try:
-    from git import Repo
+    import git
 except ImportError:
     env.Execute('"$PYTHONEXE" -m pip install GitPython')
-    from git import Repo
+    try:
+        import git
+    except ImportError:
+        git = None
+
 
 def parse_flags(path):
     domains_found = []
@@ -77,12 +81,19 @@ if not parse_flags("user_defines.txt"):
 # try to parse user private params
 parse_flags("user_defines_private.txt")
 
-git_repo = Repo(os.getcwd(), search_parent_directories=True)
-git_root = git_repo.git.rev_parse("--show-toplevel")
-ExLRS_Repo = Repo(git_root)
-hexsha = ExLRS_Repo.head.object.hexsha
-sha = ",".join(["0x%s" % x for x in hexsha[:6]])
-print("Current SHA: %s" % sha)
+sha = "0,1,2,3,4,5"
+if git:
+    try:
+        git_repo = git.Repo(
+            os.path.abspath(os.path.join(os.getcwd(), os.pardir)),
+            search_parent_directories=False)
+        git_root = git_repo.git.rev_parse("--show-toplevel")
+        ExLRS_Repo = git.Repo(git_root)
+        hexsha = ExLRS_Repo.head.object.hexsha
+        sha = ",".join(["0x%s" % x for x in hexsha[:6]])
+        print("Current SHA: %s" % sha)
+    except git.InvalidGitRepositoryError:
+        print("No valid gir repo found!")
 env['BUILD_FLAGS'].append("-DLATEST_COMMIT="+sha)
 
 print("\n[INFO] build flags: %s\n" % env['BUILD_FLAGS'])
