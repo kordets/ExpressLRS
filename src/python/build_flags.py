@@ -81,7 +81,7 @@ if not parse_flags("user_defines.txt"):
 # try to parse user private params
 parse_flags("user_defines_private.txt")
 
-sha = "0,1,2,3,4,5"
+sha = None
 if git:
     try:
         git_repo = git.Repo(
@@ -91,9 +91,18 @@ if git:
         ExLRS_Repo = git.Repo(git_root)
         hexsha = ExLRS_Repo.head.object.hexsha
         sha = ",".join(["0x%s" % x for x in hexsha[:6]])
-        print("Current SHA: %s" % sha)
     except git.InvalidGitRepositoryError:
-        print("No valid gir repo found!")
+        pass
+if not sha:
+    if os.path.exists("VERSION"):
+        with open("VERSION") as _f:
+            data = _f.readline()
+            _f.close()
+        hexsha = data.split()[1].strip()
+        sha = ",".join(["0x%s" % x for x in hexsha[:6]])
+    else:
+        sha = "0,0,0,0,0,0"
+print("Current SHA: %s" % sha)
 env['BUILD_FLAGS'].append("-DLATEST_COMMIT="+sha)
 
 print("\n[INFO] build flags: %s\n" % env['BUILD_FLAGS'])
