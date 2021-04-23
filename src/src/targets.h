@@ -158,13 +158,14 @@
 #define GPIO_PIN_LED         16
 #define GPIO_PIN_BUTTON      0
 #if DOMAIN_24GHZ
-    #define GPIO_PIN_DIO1 4
+    #define GPIO_PIN_DIO0    4
+    #define GPIO_PIN_BUSY    5
 #elif TARGET_NAMIMNORC_900_ESP_RX
-    #define GPIO_PIN_DIO0 5
-    #define GPIO_PIN_DIO1 4
+    #define GPIO_PIN_DIO0    5
+    #define GPIO_PIN_DIO1    4
 #else
-    #define GPIO_PIN_DIO0 4
-    #define GPIO_PIN_DIO1 5
+    #define GPIO_PIN_DIO0    4
+    #define GPIO_PIN_DIO1    5
 #endif
 
 
