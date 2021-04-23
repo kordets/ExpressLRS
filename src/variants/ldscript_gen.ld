@@ -81,6 +81,16 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >FLASH
 
+  /* DMA data section */
+  . = ALIGN(4);
+  .dma_data (NOLOAD) :
+  {
+    _sdma = .;
+    *(.dma_data)
+    *(.dma_data*)
+    _edma = .;
+  } > DMA_DATA
+
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
@@ -95,7 +105,6 @@ SECTIONS
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
   } >RAM_DATA AT> FLASH
-
 
   /* Uninitialized data section */
   . = ALIGN(4);

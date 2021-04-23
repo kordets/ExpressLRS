@@ -79,11 +79,11 @@ static struct gpio_out debug_pin;
  *  [ 8...11] = channel3
  *  [12...15] = channel4
 */
-static uint16_t DRAM_ATTR RawVals[NUM_ANALOGS * 4];
+static uint16_t DMA_ATTR RawVals[NUM_ANALOGS * 4];
 
 #define DEBUG_VARS 0
 #if DEBUG_VARS
-static volatile uint16_t DRAM_ATTR DEBUG_VAL[NUM_ANALOGS];
+static volatile uint16_t DMA_ATTR DEBUG_VAL[NUM_ANALOGS];
 #define DEBUG_VARS_PRINT 2
 #define DEBUG_PRINT_GIMBAL 0
 #endif

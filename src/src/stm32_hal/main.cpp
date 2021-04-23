@@ -85,11 +85,19 @@ static void init(void)
 
 void copy_functions_to_ram(void)
 {
-  /* Load functions into ITCM RAM */
+  /* Load functions into RAM */
   extern uint8_t ram_code_start;
   extern uint8_t ram_code_end;
   extern uint8_t ram_code;
   memcpy(&ram_code_start, &ram_code, (size_t) (&ram_code_end - &ram_code_start));
+}
+
+void init_dma_ram(void)
+{
+  /* Zero DMA memory */
+  extern uint8_t _sdma;
+  extern uint8_t _edma;
+  memset(&_sdma, 0, (size_t) (&_edma - &_sdma));
 }
 
 // Force init to be called *first*, i.e. before static object allocation.
@@ -97,6 +105,7 @@ void copy_functions_to_ram(void)
 __attribute__((constructor(101))) void premain()
 {
     copy_functions_to_ram();
+    init_dma_ram();
 
     /* Reset vector location which is set wrongly by SystemInit */
     extern uint32_t g_pfnVectors;

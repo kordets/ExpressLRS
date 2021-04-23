@@ -1,6 +1,7 @@
 #include "Arduino.h"
 #include "stm32_def.h"
 #include "priorities.h"
+#include "platform_internal.h"
 
 #ifdef STM32F3xx
 
@@ -188,17 +189,17 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
 
 
 // Return the current time (in absolute clock ticks).
-uint32_t timer_read_time(void)
+uint32_t FAST_CODE_1 timer_read_time(void)
 {
     return DWT->CYCCNT;
 }
 
-uint32_t micros(void)
+uint32_t FAST_CODE_1 micros(void)
 {
     return clockCyclesToMicroseconds(timer_read_time());
 }
 
-void delayMicroseconds(uint32_t usecs)
+void FAST_CODE_1 delayMicroseconds(uint32_t usecs)
 {
     //uint32_t end = timer_read_time() + microsecondsToClockCycles(usecs);
     //while (timer_is_before(timer_read_time(), end))
@@ -325,14 +326,14 @@ void EXTI1_IRQHandler(void) {GPIO_EXTI_IRQHandler(1);}
 void EXTI2_TSC_IRQHandler(void) {GPIO_EXTI_IRQHandler(2);}
 void EXTI3_IRQHandler(void) {GPIO_EXTI_IRQHandler(3);}
 void EXTI4_IRQHandler(void) {GPIO_EXTI_IRQHandler(4);}
-void EXTI9_5_IRQHandler(void)
+void FAST_CODE_1 EXTI9_5_IRQHandler(void)
 {
     uint8_t pin;
     for (pin = 5; pin <= 9; pin++) {
         GPIO_EXTI_IRQHandler(pin);
     }
 }
-void EXTI15_10_IRQHandler(void)
+void FAST_CODE_1 EXTI15_10_IRQHandler(void)
 {
     uint8_t pin;
     for (pin = 10; pin <= 15; pin++) {
@@ -341,12 +342,12 @@ void EXTI15_10_IRQHandler(void)
 }
 
 void DMA1_Channel1_IRQHandler(void) {Error_Handler();}
-void DMA1_Channel2_IRQHandler(void) {USARTx_DMA_handler(2);} // USART3 TX
+void FAST_CODE_1 DMA1_Channel2_IRQHandler(void) {USARTx_DMA_handler(2);} // USART3 TX
 void DMA1_Channel3_IRQHandler(void) {Error_Handler();}
-void DMA1_Channel4_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1 TX
+void FAST_CODE_1 DMA1_Channel4_IRQHandler(void) {USARTx_DMA_handler(0);} // USART1 TX
 void DMA1_Channel5_IRQHandler(void) {Error_Handler();}
 void DMA1_Channel6_IRQHandler(void) {Error_Handler();}
-void DMA1_Channel7_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 TX
+void FAST_CODE_1 DMA1_Channel7_IRQHandler(void) {USARTx_DMA_handler(1);} // USART2 TX
 
 #if defined(DMA2_BASE)
 void DMA2_Channel1_IRQHandler(void) {Error_Handler();}
@@ -354,7 +355,7 @@ void DMA2_Channel2_IRQHandler(void) {Error_Handler();}
 void DMA2_Channel3_IRQHandler(void) {Error_Handler();}
 void DMA2_Channel4_IRQHandler(void) {Error_Handler();}
 #if defined(UART4_BASE)
-void DMA2_Channel5_IRQHandler(void) {USARTx_DMA_handler(3);} // USART4 TX
+void FAST_CODE_1 DMA2_Channel5_IRQHandler(void) {USARTx_DMA_handler(3);} // USART4 TX
 #else
 void DMA2_Channel5_IRQHandler(void) {Error_Handler();}
 #endif
@@ -375,26 +376,26 @@ void SPI1_IRQHandler(void) {Error_Handler();}
 void SPI2_IRQHandler(void) {Error_Handler();}
 void SPI3_IRQHandler(void) {Error_Handler();}
 
-void USART1_IRQHandler(void)
+void FAST_CODE_1 USART1_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(0);
 }
-void USART2_IRQHandler(void)
+void FAST_CODE_1 USART2_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(1);
 }
-void USART3_IRQHandler(void)
+void FAST_CODE_1 USART3_IRQHandler(void)
 {
-    USART_IDLE_IRQ_handler(2);
+    FAST_CODE_1 USART_IDLE_IRQ_handler(2);
 }
 #ifdef UART4_BASE
-void UART4_IRQHandler(void)
+void FAST_CODE_1 UART4_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(3);
 }
 #endif
 #ifdef UART5_BASE
-void UART5_IRQHandler(void)
+void FAST_CODE_1 UART5_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(4);
 }

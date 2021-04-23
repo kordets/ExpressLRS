@@ -155,7 +155,7 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
 #define TIMC_2 TIM22 // TIMC_1 UG triggers TIMC_2
 
 // Return the current time (in absolute clock ticks).
-uint32_t timer_read_time(void)
+uint32_t FAST_CODE_1 timer_read_time(void)
 {
     uint32_t us = TIMC_2->CNT;
     us <<= 16;
@@ -163,12 +163,12 @@ uint32_t timer_read_time(void)
     return us;
 }
 
-uint32_t micros(void)
+uint32_t FAST_CODE_1 micros(void)
 {
     return timer_read_time();
 }
 
-void delayMicroseconds(uint32_t const usecs)
+void FAST_CODE_1 delayMicroseconds(uint32_t const usecs)
 {
     uint32_t const start = micros();
     while ((uint32_t)(micros() - start) < usecs);

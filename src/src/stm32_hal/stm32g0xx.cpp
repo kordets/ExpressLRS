@@ -184,7 +184,7 @@ void gpio_peripheral(uint32_t gpio, uint32_t mode, int pullup)
 #define TIMC_2 TIM16 // TIMC_1 UG triggers TIMC_2
 
 // Return the current time (in absolute clock ticks).
-uint32_t timer_read_time(void)
+uint32_t FAST_CODE_1 timer_read_time(void)
 {
     uint32_t us = TIMC_2->CNT;
     us <<= 16;
@@ -192,12 +192,12 @@ uint32_t timer_read_time(void)
     return us;
 }
 
-uint32_t micros(void)
+uint32_t FAST_CODE_1 micros(void)
 {
     return timer_read_time();
 }
 
-void delayMicroseconds(uint32_t const usecs)
+void FAST_CODE_1 delayMicroseconds(uint32_t const usecs)
 {
     uint32_t const start = micros();
     while ((uint32_t)(micros() - start) < usecs);
@@ -346,15 +346,15 @@ void RTC_TAMP_IRQHandler(void) {Error_Handler();}
 void FLASH_IRQHandler(void) {Error_Handler();}
 void RCC_IRQHandler(void) {Error_Handler();}
 
-void EXTI0_1_IRQHandler(void) {
+void FAST_CODE_1 EXTI0_1_IRQHandler(void) {
     GPIO_EXTI_IRQHandler(0);
     GPIO_EXTI_IRQHandler(1);
 }
-void EXTI2_3_IRQHandler(void) {
+void FAST_CODE_1 EXTI2_3_IRQHandler(void) {
     GPIO_EXTI_IRQHandler(2);
     GPIO_EXTI_IRQHandler(3);
 }
-void EXTI4_15_IRQHandler(void) {
+void FAST_CODE_1 EXTI4_15_IRQHandler(void) {
     uint8_t pin;
     for (pin = 4; pin <= 15; pin++)
         GPIO_EXTI_IRQHandler(pin);
@@ -362,7 +362,7 @@ void EXTI4_15_IRQHandler(void) {
 
 void UCPD1_2_IRQHandler(void) {Error_Handler();}
 
-void DMA1_Channel1_IRQHandler(void) {
+void FAST_CODE_1 DMA1_Channel1_IRQHandler(void) {
     uint8_t uart;
     for (uart = 0; uart < 3; uart++)
         USARTx_DMA_handler(uart); // USART TX/RX
@@ -386,15 +386,15 @@ void I2C2_IRQHandler(void) {Error_Handler();}
 void SPI1_IRQHandler(void) {Error_Handler();}
 void SPI2_IRQHandler(void) {Error_Handler();}
 
-void USART1_IRQHandler(void)
+void FAST_CODE_1 USART1_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(0);
 }
-void USART2_IRQHandler(void)
+void FAST_CODE_1 USART2_IRQHandler(void)
 {
     USART_IDLE_IRQ_handler(1);
 }
-void USART3_4_LPUART1_IRQHandler(void) {
+void FAST_CODE_1 USART3_4_LPUART1_IRQHandler(void) {
     USART_IDLE_IRQ_handler(2);
     //USART_IDLE_IRQ_handler(3);
 }

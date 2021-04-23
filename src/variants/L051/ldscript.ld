@@ -1,0 +1,12 @@
+/* Linker script for STM32L051xx series 64Kbytes FLASH and 8Kbytes RAM */
+
+MEMORY
+{
+  RAM_CODE (rx)   : ORIGIN = 0x20000000, LENGTH = 1K
+  RAM_DATA (xrw)  : ORIGIN = 0x20000000 + LENGTH(RAM_CODE), LENGTH = 8K - LENGTH(RAM_CODE)
+  FLASH (rx)      : ORIGIN = 0x8000000 + FLASH_APP_OFFSET, LENGTH = 64K - FLASH_APP_OFFSET
+}
+
+REGION_ALIAS("DMA_DATA", RAM_DATA)
+
+INCLUDE "variants/ldscript_gen.ld"

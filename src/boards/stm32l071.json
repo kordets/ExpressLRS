@@ -2,33 +2,33 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m0plus",
-    "extra_flags": "-DSTM32L0xx -DSTM32L051xx",
-    "f_cpu": "84000000L",
+    "extra_flags": "-DSTM32L0xx=1 -DSTM32L071xx=1 -DHAL_ADC_MODULE_DISABLED=1",
+    "f_cpu": "32000000L",
     "framework_extra_flags": {
       "arduino": "-D__CORTEX_SC=0"
     },
-    "mcu": "stm32l051c8t6",
-    "product_line": "STM32L051xx",
-    "ldscript": "variants/RHF76_052_HSI/ldscript.ld",
+    "mcu": "stm32l071k8",
+    "product_line": "STM32L071xx",
+    "ldscript": "variants/L071/ldscript.ld",
     "variants_dir": "variants",
-    "variant": "RHF76_052_HSI"
+    "variant": "L071"
   },
   "connectivity": [
     "can"
   ],
   "debug": {
-    "jlink_device": "STM32L051C8",
+    "jlink_device": "STM32L071K8",
     "openocd_target": "stm32l0x",
-    "svd_path": "STM32L051x.svd"
+    "svd_path": "STM32L071x.svd"
   },
   "frameworks": [
     "arduino",
     "cmsis",
     "stm32cube"
   ],
-  "name": "RHF76 052",
+  "name": "STM32L071",
   "upload": {
-    "maximum_ram_size": 8192,
+    "maximum_ram_size": 20480,
     "maximum_size": 65536,
     "protocol": "serial",
     "protocols": [
@@ -39,6 +39,6 @@
       "serial"
     ]
   },
-  "url": "https://www.st.com/en/microcontrollers-microprocessors/stm32l051c8.html",
+  "url": "https://www.st.com/en/microcontrollers-microprocessors/stm32l071k8.html",
   "vendor": "ST"
 }
