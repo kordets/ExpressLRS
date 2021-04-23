@@ -149,18 +149,23 @@
 /******************************************************************************************/
 /*                                     ESP RX CONFIGS                                     */
 /******************************************************************************************/
-#elif defined(TARGET_EXPRESSLRS_PCB_RX_V3)
+#elif defined(TARGET_ESP8285_RX)
 #define GPIO_PIN_NSS         15
-#define GPIO_PIN_DIO0        4
-#define GPIO_PIN_DIO1        5
 #define GPIO_PIN_MOSI        13
 #define GPIO_PIN_MISO        12
 #define GPIO_PIN_SCK         14
 #define GPIO_PIN_RST         2
 #define GPIO_PIN_LED         16
-#define GPIO_PIN_RCSIGNAL_RX UNDEF_PIN //not relevant, can use only default for esp8266 or esp8285
-#define GPIO_PIN_RCSIGNAL_TX UNDEF_PIN
 #define GPIO_PIN_BUTTON      0
+#if DOMAIN_24GHZ
+    #define GPIO_PIN_DIO1 4
+#elif TARGET_NAMIMNORC_900_ESP_RX
+    #define GPIO_PIN_DIO0 5
+    #define GPIO_PIN_DIO1 4
+#else
+    #define GPIO_PIN_DIO0 4
+    #define GPIO_PIN_DIO1 5
+#endif
 
 
 /******************************************************************************************/
