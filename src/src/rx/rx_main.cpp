@@ -716,7 +716,7 @@ void setup()
     crsf.BattInfoCallback = battery_info_cb;
     crsf.GpsCallback = gps_info_cb;
     crsf.Begin();
-#if !RX_GHST_ENABLED
+#if PROTOCOL_CRSF_V3_TO_FC
     crsf.negotiate_baud(CRSF_RX_BAUDRATE_V3);
 #endif
 #endif
@@ -729,7 +729,7 @@ void loop()
 
     const connectionState_e _conn_state = (connectionState_e)read_u32(&connectionState);
 
-#if !SERVO_OUTPUTS_ENABLED && !RX_GHST_ENABLED
+#if !SERVO_OUTPUTS_ENABLED && PROTOCOL_CRSF_V3_TO_FC
     if (crsf.negotiate_accepted()) {
         CrsfSerial.end();
         CrsfSerial.Begin(CRSF_RX_BAUDRATE_V3);
